@@ -77,7 +77,7 @@ export function PrintDetailsSection() {
               type="button"
               disabled={fields.length <= 1}
               onClick={() => remove(index)}
-              className="flex h-9 items-center justify-center gap-1.5 rounded-md border border-zinc-200 text-sm text-zinc-500 hover:bg-red-50 hover:text-red-600 disabled:opacity-40"
+              className="col-span-2 flex h-9 items-center justify-center gap-1.5 rounded-md border border-zinc-200 text-sm text-zinc-500 hover:bg-red-50 hover:text-red-600 disabled:opacity-40 sm:col-span-1"
             >
               <Trash2 size={14} /> Remove
             </button>

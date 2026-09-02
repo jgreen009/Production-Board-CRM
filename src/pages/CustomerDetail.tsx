@@ -46,7 +46,7 @@ export default function CustomerDetail() {
         <span className="flex items-center gap-1.5"><Phone size={14} className="text-zinc-400" /> {customer.phone}</span>
       </div>
 
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <StatCard label="Active" value={openOrdersCount(orders)} />
         <StatCard label="Completed" value={completedOrdersCount(orders)} />
         <StatCard label="Total Orders" value={orders.length} />

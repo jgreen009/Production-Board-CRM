@@ -97,7 +97,7 @@ export function MockupWorkspace({ garments, artworkFiles, mockups, onAddMockup }
 
   return (
     <div>
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[220px_1fr_240px]">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[220px_minmax(0,1fr)_240px]">
         <div className="flex flex-col gap-3">
           <FormField label="Garment">
             <Select
