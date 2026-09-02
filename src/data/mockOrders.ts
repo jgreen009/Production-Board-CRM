@@ -142,7 +142,7 @@ export const mockOrders: Order[] = [
     phone: '0455 120 334',
     email: 'mia@beachsidecafe.com.au',
     createdAt: addDays(today, -25),
-    dueDate: addDays(today, -14),
+    dueDate: addDays(today, -5),
     turnaroundType: 'Standard',
     quantity: 20,
     paymentStatus: 'Paid',

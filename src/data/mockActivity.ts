@@ -22,8 +22,8 @@ export const mockActivity: OrderActivityEntry[] = [
 
   { id: 'act-14', orderId: 'order-4', timestamp: addDays(today, -25), message: 'Order created', type: 'created' },
   { id: 'act-15', orderId: 'order-4', timestamp: addDays(today, -20), message: 'Artwork approved', type: 'artwork' },
-  { id: 'act-16', orderId: 'order-4', timestamp: addDays(today, -16), message: 'Production started', type: 'production' },
-  { id: 'act-17', orderId: 'order-4', timestamp: addDays(today, -14), message: 'Order completed', type: 'production' },
+  { id: 'act-16', orderId: 'order-4', timestamp: addDays(today, -8), message: 'Production started', type: 'production' },
+  { id: 'act-17', orderId: 'order-4', timestamp: addDays(today, -5), message: 'Order completed', type: 'production' },
 
   { id: 'act-18', orderId: 'order-5', timestamp: addDays(today, -1), message: 'Order created', type: 'created' },
   { id: 'act-19', orderId: 'order-5', timestamp: today, message: 'Artwork status set to Need Artwork', type: 'artwork' },

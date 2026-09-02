@@ -170,9 +170,12 @@ not two independent states.
   field).
 - **Toast system**: minimal custom `ToastProvider` + `useToast` hook (no
   extra dependency) since only success/info toasts are needed.
-- **TanStack Table**: used only for the Production Board and Orders list
-  (genuinely benefits from sorting/column defs); Customers list stays a
-  plain table since it's simpler.
+- **TanStack Table**: not used. Both the Production Board and Orders list
+  drive sorting from a toolbar/header control over a single in-memory array
+  (see `useProductionBoard`) — a plain `<table>` with the existing sort state
+  is simpler than wiring column defs for the same behavior, so per section 2
+  ("don't force it if plain components are simpler") plain tables are used
+  throughout, including Customers.
 - **Mockup artwork placement**: approximate/representative, not
   pixel-accurate garment print-area mapping — acceptable per brief ("basic
   frontend-only repositioning if straightforward").
