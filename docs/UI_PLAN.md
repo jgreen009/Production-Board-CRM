@@ -193,6 +193,24 @@ not two independent states.
   show each other's numbers, and selecting a position auto-suggests that
   position's paper-form size preset (overridable, same pattern as the
   Turnaround/Priority auto-suggest).
+- **Garment mockup photos**: `GarmentMockup` renders real reference photos
+  (`src/assets/mockups/`, registered in `src/data/garmentImages.ts`) instead
+  of hand-drawn silhouettes, for every catalog type except **Shirt** and
+  **Customized** (no source photo was supplied for those — they fall back to
+  a generic drawn silhouette, clearly labelled "No reference photo" in
+  Settings > Mockup Templates). The front/back print-position percentages in
+  `printPositions.ts` are shared across all garment photos and were checked
+  against each one visually; they land within a few percent almost
+  everywhere. Two garment-specific corrections were needed and are called
+  out in `GarmentMockup.tsx`: Bennie/Hats only have one real print area (the
+  cuff/panel), so every position value anchors there regardless of which
+  option is selected; Singlet's photo has more empty canvas margin than the
+  other torso photos, so its coordinates get a small uniform Y-nudge. Bottom
+  wear (Shorts/Pants) reuses the same chest/center coordinates approximately
+  rather than pocket-accurate placement — drag-to-reposition (already
+  supported) covers the gap. None of this recolors the photo to match the
+  selected garment colour (that was one of the appeals of hand-drawn
+  silhouettes); colour is shown as text only for photo-backed garments.
 - **Date handling**: plain `Date`/ISO strings + small formatting utils in
   `src/utils/date.ts`; no date library dependency needed for this scope.
 - **Icons**: `lucide-react` throughout; no custom icon set.

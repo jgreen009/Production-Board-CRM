@@ -1,8 +1,9 @@
 import { useRef } from 'react'
 import type { PointerEvent as ReactPointerEvent } from 'react'
 import type { GarmentType, PrintPosition } from '@/types'
-import { resolveGarmentColour } from '@/utils/colour'
 import { getPrintPositionConfig } from '@/data/printPositions'
+import { GARMENT_IMAGES } from '@/data/garmentImages'
+import { resolveGarmentColour } from '@/utils/colour'
 
 export interface MockupOffset {
   x: number
@@ -22,17 +23,33 @@ interface GarmentMockupProps {
   size?: number
 }
 
-const TEE_BODY =
+const FALLBACK_BODY =
   'M95,20 L70,35 L25,75 L70,92 L70,280 L170,280 L170,92 L215,75 L170,35 L145,20 Q120,38 95,20 Z'
-const SINGLET_BODY = 'M100,20 L80,35 L80,280 L160,280 L160,35 L140,20 Q120,32 100,20 Z'
-const VEST_BODY = 'M96,22 L78,38 L78,280 L162,280 L162,38 L144,22 Q120,34 96,22 Z'
-const HOOD_PATH = 'M90,22 Q120,-12 150,22 L144,36 Q120,16 96,36 Z'
 
-const FALLBACK_FAMILIES: GarmentType[] = ['Shorts', 'Pants', 'Bennie', 'Hats']
+// Bennie/Hats only have one real print area (the front cuff panel / cap
+// panel) — the generic chest/sleeve position set doesn't apply to
+// headwear, so every position value anchors to the same spot on these two
+// garment photos regardless of which option is selected.
+const HEADWEAR_ANCHOR: Partial<Record<GarmentType, { x: number; y: number }>> = {
+  Bennie: { x: 50, y: 71 },
+  Hats: { x: 50, y: 43 },
+}
+
+// The Singlet reference photo has more empty margin above the garment than
+// the other torso photos (portrait canvas, narrower silhouette), so the
+// shared chest/center coordinates land a bit high — nudge everything down
+// for this one garment rather than maintaining a separate coordinate set.
+const GARMENT_Y_OFFSET: Partial<Record<GarmentType, number>> = {
+  Singlet: 9,
+}
 
 function isPositionVisible(position: PrintPosition, view: 'Front' | 'Back'): boolean {
   const config = getPrintPositionConfig(position)
   return config.view === 'Both' || config.view === view
+}
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, value))
 }
 
 export function GarmentMockup({
@@ -47,108 +64,100 @@ export function GarmentMockup({
   onOffsetChange,
   size = 260,
 }: GarmentMockupProps) {
+  const containerRef = useRef<HTMLDivElement>(null)
   const dragging = useRef<{ startX: number; startY: number; startOffset: MockupOffset } | null>(null)
 
-  const fill = resolveGarmentColour(colour)
-  const base = getPrintPositionConfig(position)
-  const visible = isPositionVisible(position, view)
+  const base = HEADWEAR_ANCHOR[garmentType] ?? getPrintPositionConfig(position)
+  const visible = HEADWEAR_ANCHOR[garmentType] ? true : isPositionVisible(position, view)
+  const image = GARMENT_IMAGES[garmentType]
 
-  // Keep the print box within the visible canvas no matter what width/height
-  // the user enters (manual mm entry isn't bounded by the UI) or which
-  // position it's centered on — sleeve positions sit close to the canvas
-  // edge, so an unclamped box can run off-canvas even at moderate sizes.
-  const CANVAS_MARGIN = 8
-  const artWidth = clamp(widthMm * 0.5, 30, 150)
-  const artHeight = clamp(heightMm * 0.5, 30, 150)
+  // Print box size as a percentage of the garment image, scaled from the
+  // real mm dimensions (A6/A4/A3 per the paper form) and clamped so it
+  // stays a sensible size on the small mockup canvas.
+  const artWidthPct = clamp(widthMm * 0.15, 10, 46)
+  const artHeightPct = clamp(heightMm * 0.15, 10, 46)
+
+  const CANVAS_MARGIN_PCT = 3
   const rawX = base.x + offset.x
-  const rawY = base.y + offset.y
-  const artX = clamp(rawX, CANVAS_MARGIN + artWidth / 2, 240 - CANVAS_MARGIN - artWidth / 2)
-  const artY = clamp(rawY, CANVAS_MARGIN + artHeight / 2, 300 - CANVAS_MARGIN - artHeight / 2)
+  const rawY = base.y + offset.y + (GARMENT_Y_OFFSET[garmentType] ?? 0)
+  const artX = clamp(rawX, CANVAS_MARGIN_PCT + artWidthPct / 2, 100 - CANVAS_MARGIN_PCT - artWidthPct / 2)
+  const artY = clamp(rawY, CANVAS_MARGIN_PCT + artHeightPct / 2, 100 - CANVAS_MARGIN_PCT - artHeightPct / 2)
 
-  const handlePointerDown = (e: ReactPointerEvent<SVGImageElement>) => {
+  const handlePointerDown = (e: ReactPointerEvent<HTMLImageElement>) => {
     e.currentTarget.setPointerCapture(e.pointerId)
     dragging.current = { startX: e.clientX, startY: e.clientY, startOffset: offset }
   }
 
-  const handlePointerMove = (e: ReactPointerEvent<SVGImageElement>) => {
-    if (!dragging.current) return
-    const dx = e.clientX - dragging.current.startX
-    const dy = e.clientY - dragging.current.startY
+  const handlePointerMove = (e: ReactPointerEvent<HTMLImageElement>) => {
+    if (!dragging.current || !containerRef.current) return
+    const rect = containerRef.current.getBoundingClientRect()
+    const dxPct = ((e.clientX - dragging.current.startX) / rect.width) * 100
+    const dyPct = ((e.clientY - dragging.current.startY) / rect.height) * 100
     onOffsetChange({
-      x: clamp(dragging.current.startOffset.x + dx, -70, 70),
-      y: clamp(dragging.current.startOffset.y + dy, -100, 100),
+      x: clamp(dragging.current.startOffset.x + dxPct, -40, 40),
+      y: clamp(dragging.current.startOffset.y + dyPct, -40, 40),
     })
   }
 
-  const handlePointerUp = (e: ReactPointerEvent<SVGImageElement>) => {
+  const handlePointerUp = (e: ReactPointerEvent<HTMLImageElement>) => {
     e.currentTarget.releasePointerCapture(e.pointerId)
     dragging.current = null
   }
 
-  if (FALLBACK_FAMILIES.includes(garmentType)) {
+  if (!image) {
+    const fill = resolveGarmentColour(colour)
     return (
       <svg viewBox="0 0 240 300" width={size} height={(size / 240) * 300} className="mx-auto">
-        <rect x={60} y={60} width={120} height={200} rx={16} fill={fill} stroke="rgba(0,0,0,0.15)" />
-        <text x={120} y={165} textAnchor="middle" fontSize={14} fill="rgba(0,0,0,0.4)">
+        <path d={FALLBACK_BODY} fill={fill} stroke="rgba(0,0,0,0.15)" />
+        <text x={120} y={165} textAnchor="middle" fontSize={13} fill="rgba(0,0,0,0.4)">
           {garmentType}
+        </text>
+        <text x={120} y={182} textAnchor="middle" fontSize={11} fill="rgba(0,0,0,0.3)">
+          (no reference photo)
         </text>
       </svg>
     )
   }
 
+  const src = view === 'Front' ? image.front : image.back
+
   return (
-    <svg viewBox="0 0 240 300" width={size} height={(size / 240) * 300} className="mx-auto touch-none select-none">
-      {garmentType === 'Singlet' && <path d={SINGLET_BODY} fill={fill} stroke="rgba(0,0,0,0.15)" />}
-      {garmentType === 'Hi-Viz vest' && (
-        <>
-          <path d={VEST_BODY} fill={fill} stroke="rgba(0,0,0,0.15)" />
-          <rect x={78} y={130} width={84} height={12} fill="#e5e7eb" opacity={0.9} />
-          <rect x={78} y={210} width={84} height={12} fill="#e5e7eb" opacity={0.9} />
-          {view === 'Front' && <line x1={120} y1={38} x2={120} y2={280} stroke="rgba(0,0,0,0.25)" strokeDasharray="4 3" />}
-        </>
-      )}
-      {!['Singlet', 'Hi-Viz vest'].includes(garmentType) && (
-        <>
-          <path d={TEE_BODY} fill={fill} stroke="rgba(0,0,0,0.15)" />
-          {garmentType === 'Hoody' && <path d={HOOD_PATH} fill={fill} stroke="rgba(0,0,0,0.15)" />}
-          {garmentType === 'Polo' && view === 'Front' && (
-            <>
-              <path d="M108,22 L120,42 L132,22" fill="none" stroke="rgba(0,0,0,0.25)" strokeWidth={2} />
-              <line x1={120} y1={42} x2={120} y2={70} stroke="rgba(0,0,0,0.25)" strokeWidth={2} />
-            </>
-          )}
-        </>
-      )}
+    <div
+      ref={containerRef}
+      className="relative mx-auto select-none"
+      style={{ width: size }}
+    >
+      <img src={src} alt={`${garmentType} ${view}`} className="pointer-events-none block w-full" draggable={false} />
 
       {visible && artworkUrl && (
-        <image
-          href={artworkUrl}
-          x={artX - artWidth / 2}
-          y={artY - artHeight / 2}
-          width={artWidth}
-          height={artHeight}
-          preserveAspectRatio="xMidYMid meet"
-          className="cursor-grab active:cursor-grabbing"
+        <img
+          src={artworkUrl}
+          alt="Artwork placement"
           onPointerDown={handlePointerDown}
           onPointerMove={handlePointerMove}
           onPointerUp={handlePointerUp}
+          className="absolute cursor-grab touch-none rounded-sm object-contain active:cursor-grabbing"
+          style={{
+            left: `${artX}%`,
+            top: `${artY}%`,
+            width: `${artWidthPct}%`,
+            height: `${artHeightPct}%`,
+            transform: 'translate(-50%, -50%)',
+          }}
         />
       )}
       {visible && !artworkUrl && (
-        <rect
-          x={artX - artWidth / 2}
-          y={artY - artHeight / 2}
-          width={artWidth}
-          height={artHeight}
-          fill="none"
-          stroke="rgba(0,0,0,0.25)"
-          strokeDasharray="4 3"
+        <div
+          className="absolute rounded-sm border-2 border-dashed border-zinc-900/30"
+          style={{
+            left: `${artX}%`,
+            top: `${artY}%`,
+            width: `${artWidthPct}%`,
+            height: `${artHeightPct}%`,
+            transform: 'translate(-50%, -50%)',
+          }}
         />
       )}
-    </svg>
+    </div>
   )
-}
-
-function clamp(value: number, min: number, max: number): number {
-  return Math.min(max, Math.max(min, value))
 }
