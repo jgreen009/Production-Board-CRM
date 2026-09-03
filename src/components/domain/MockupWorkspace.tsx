@@ -1,12 +1,13 @@
 import { useState } from 'react'
 import { RotateCcw, Save } from 'lucide-react'
 import type { GarmentFormValues, ArtworkFileFormValues, MockupFormValues } from '@/schemas/orderFormSchema'
-import type { PrintPosition } from '@/types'
+import type { GarmentType, PrintPosition } from '@/types'
 import { GarmentMockup } from '@/components/domain/GarmentMockup'
 import { FormField, Input, Select, Textarea } from '@/components/ui/Field'
 import { Button } from '@/components/ui/Button'
 import { generateId } from '@/utils/id'
 import { printPositionsForView, getPrintPositionConfig } from '@/data/printPositions'
+import { GARMENT_TYPES } from '@/data/mockGarments'
 
 const SIZE_PRESETS = [
   { label: 'A6', widthMm: 105, heightMm: 148 },
@@ -15,7 +16,7 @@ const SIZE_PRESETS = [
 ]
 
 interface DraftState {
-  garmentIndex: number
+  garmentType: GarmentType
   colour: string
   view: 'Front' | 'Back'
   position: PrintPosition
@@ -30,7 +31,7 @@ interface DraftState {
 function defaultDraft(garments: GarmentFormValues[]): DraftState {
   const firstPosition = printPositionsForView('Front')[0]
   return {
-    garmentIndex: 0,
+    garmentType: (garments[0]?.type as GarmentType) ?? GARMENT_TYPES[0],
     colour: garments[0]?.colour ?? '',
     view: 'Front',
     position: firstPosition.value,
@@ -53,7 +54,6 @@ interface MockupWorkspaceProps {
 export function MockupWorkspace({ garments, artworkFiles, mockups, onAddMockup }: MockupWorkspaceProps) {
   const [draft, setDraft] = useState<DraftState>(() => defaultDraft(garments))
 
-  const activeGarment = garments[draft.garmentIndex] ?? garments[0]
   const activeArtwork = artworkFiles.find((f) => f.id === draft.artworkId)
 
   const update = (patch: Partial<DraftState>) => setDraft((prev) => ({ ...prev, ...patch }))
@@ -61,10 +61,9 @@ export function MockupWorkspace({ garments, artworkFiles, mockups, onAddMockup }
   const handleReset = () => setDraft(defaultDraft(garments))
 
   const handleSave = () => {
-    if (!activeGarment) return
     const mockup: MockupFormValues = {
       id: generateId('mockup'),
-      garmentType: activeGarment.type,
+      garmentType: draft.garmentType,
       colour: draft.colour,
       view: draft.view,
       position: draft.position,
@@ -82,26 +81,21 @@ export function MockupWorkspace({ garments, artworkFiles, mockups, onAddMockup }
   const frontThumb = lastByView('Front')
   const backThumb = lastByView('Back')
 
-  if (!activeGarment) {
-    return <p className="text-sm text-zinc-400">Add a garment above to start building a mockup.</p>
-  }
-
   return (
     <div>
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-[220px_minmax(0,1fr)_240px]">
         <div className="flex flex-col gap-3">
-          <FormField label="Garment">
+          <FormField label="Garment" hint="Any catalog type — not limited to garments added to this order.">
             <Select
-              value={draft.garmentIndex}
+              value={draft.garmentType}
               onChange={(e) => {
-                const idx = Number(e.target.value)
-                update({ garmentIndex: idx, colour: garments[idx]?.colour ?? draft.colour })
+                const type = e.target.value as GarmentType
+                const matching = garments.find((g) => g.type === type)
+                update({ garmentType: type, colour: matching?.colour ?? draft.colour })
               }}
             >
-              {garments.map((g, idx) => (
-                <option key={g.id} value={idx}>
-                  {g.type} {g.colour ? `— ${g.colour}` : ''}
-                </option>
+              {GARMENT_TYPES.map((type) => (
+                <option key={type} value={type}>{type}</option>
               ))}
             </Select>
           </FormField>
@@ -167,7 +161,7 @@ export function MockupWorkspace({ garments, artworkFiles, mockups, onAddMockup }
 
         <div className="flex flex-col items-center justify-center rounded-lg border border-zinc-100 bg-zinc-50/60 p-4">
           <GarmentMockup
-            garmentType={activeGarment.type as never}
+            garmentType={draft.garmentType}
             colour={draft.colour}
             view={draft.view}
             position={draft.position}
