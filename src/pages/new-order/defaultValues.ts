@@ -51,5 +51,6 @@ export function defaultOrderFormValues(): OrderFormValues {
     paymentStatus: 'Unpaid',
     productionNotes: '',
     notes: '',
+    staffCompleted: false,
   }
 }

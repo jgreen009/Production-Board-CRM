@@ -90,5 +90,6 @@ export function buildOrderFromForm(values: OrderFormValues): Order {
     })),
     notes: values.notes ?? '',
     productionNotes: values.productionNotes ?? '',
+    staffCompleted: values.staffCompleted,
   }
 }

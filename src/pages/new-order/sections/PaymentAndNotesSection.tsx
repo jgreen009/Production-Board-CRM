@@ -30,6 +30,19 @@ export function PaymentAndNotesSection() {
         <FormField label="Customer Notes" htmlFor="notes" hint="Matches the paper form's single Notes box — visible on the order form.">
           <Textarea id="notes" rows={3} {...register('notes')} />
         </FormField>
+
+        <label
+          htmlFor="staffCompleted"
+          className="flex items-center gap-2.5 rounded-md border border-dashed border-zinc-300 bg-zinc-50 px-3 py-2 text-sm cursor-pointer"
+        >
+          <input
+            id="staffCompleted"
+            type="checkbox"
+            className="h-4 w-4 rounded border-zinc-300 text-zinc-900 focus:ring-zinc-900/20"
+            {...register('staffCompleted')}
+          />
+          <span className="font-medium text-zinc-600">Section for staff — Completed</span>
+        </label>
       </OrderFormSection>
     </>
   )

@@ -240,4 +240,5 @@ export interface Order {
   mockups: Mockup[]
   notes: string
   productionNotes: string
+  staffCompleted: boolean
 }

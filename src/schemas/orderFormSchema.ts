@@ -94,6 +94,7 @@ export const orderFormSchema = z
     paymentStatus: z.enum(['Unpaid', 'Deposit Paid', 'Part Paid', 'Paid', 'On Account']),
     productionNotes: z.string().optional(),
     notes: z.string().optional(),
+    staffCompleted: z.boolean(),
   })
   .refine(
     (data) => (data.customerId ? true : (data.newCustomerName?.trim().length ?? 0) > 0),

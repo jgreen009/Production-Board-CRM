@@ -176,6 +176,19 @@ export function OrderFormTab({ order }: { order: Order }) {
         3 weeks. 25 units is the minimum order for screen printing (special pricing available under
         minimum). Standard turnaround time is 5–10 working days.
       </p>
+
+      <div className="flex items-center gap-2.5 rounded-md border border-dashed border-zinc-300 bg-zinc-50 px-3 py-2 text-sm">
+        <span
+          className={`flex h-4 w-4 items-center justify-center rounded border ${
+            order.staffCompleted ? 'border-emerald-600 bg-emerald-600 text-white' : 'border-zinc-300 bg-white'
+          }`}
+        >
+          {order.staffCompleted && '✓'}
+        </span>
+        <span className="font-medium text-zinc-600">
+          Section for staff — {order.staffCompleted ? 'Completed' : 'Not completed'}
+        </span>
+      </div>
     </div>
   )
 }
