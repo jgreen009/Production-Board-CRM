@@ -6,17 +6,7 @@ import { GarmentMockup } from '@/components/domain/GarmentMockup'
 import { FormField, Input, Select, Textarea } from '@/components/ui/Field'
 import { Button } from '@/components/ui/Button'
 import { generateId } from '@/utils/id'
-
-const PRINT_POSITIONS: PrintPosition[] = [
-  'Front Centre',
-  'Left Chest',
-  'Right Chest',
-  'Back Centre',
-  'Back Upper',
-  'Left Sleeve',
-  'Right Sleeve',
-  'Custom',
-]
+import { printPositionsForView, getPrintPositionConfig } from '@/data/printPositions'
 
 const SIZE_PRESETS = [
   { label: 'A6', widthMm: 105, heightMm: 148 },
@@ -38,14 +28,15 @@ interface DraftState {
 }
 
 function defaultDraft(garments: GarmentFormValues[]): DraftState {
+  const firstPosition = printPositionsForView('Front')[0]
   return {
     garmentIndex: 0,
     colour: garments[0]?.colour ?? '',
     view: 'Front',
-    position: 'Front Centre',
+    position: firstPosition.value,
     artworkId: '',
-    widthMm: 200,
-    heightMm: 200,
+    widthMm: firstPosition.sizePreset?.widthMm ?? 200,
+    heightMm: firstPosition.sizePreset?.heightMm ?? 200,
     printColours: '',
     notes: '',
     offset: { x: 0, y: 0 },
@@ -125,7 +116,16 @@ export function MockupWorkspace({ garments, artworkFiles, mockups, onAddMockup }
                 <button
                   key={v}
                   type="button"
-                  onClick={() => update({ view: v })}
+                  onClick={() => {
+                    const firstForView = printPositionsForView(v)[0]
+                    update({
+                      view: v,
+                      position: firstForView.value,
+                      widthMm: firstForView.sizePreset?.widthMm ?? draft.widthMm,
+                      heightMm: firstForView.sizePreset?.heightMm ?? draft.heightMm,
+                      offset: { x: 0, y: 0 },
+                    })
+                  }}
                   className={`flex-1 rounded-md border px-2 py-1.5 text-sm font-medium ${
                     draft.view === v ? 'border-zinc-900 bg-zinc-900 text-white' : 'border-zinc-200 bg-white text-zinc-600'
                   }`}
@@ -136,10 +136,21 @@ export function MockupWorkspace({ garments, artworkFiles, mockups, onAddMockup }
             </div>
           </FormField>
 
-          <FormField label="Print Position">
-            <Select value={draft.position} onChange={(e) => update({ position: e.target.value as PrintPosition, offset: { x: 0, y: 0 } })}>
-              {PRINT_POSITIONS.map((p) => (
-                <option key={p} value={p}>{p}</option>
+          <FormField label="Print Position" hint="Matches the paper form's numbered print position diagram.">
+            <Select
+              value={draft.position}
+              onChange={(e) => {
+                const config = getPrintPositionConfig(e.target.value as PrintPosition)
+                update({
+                  position: config.value,
+                  widthMm: config.sizePreset?.widthMm ?? draft.widthMm,
+                  heightMm: config.sizePreset?.heightMm ?? draft.heightMm,
+                  offset: { x: 0, y: 0 },
+                })
+              }}
+            >
+              {printPositionsForView(draft.view).map((p) => (
+                <option key={p.value} value={p.value}>{p.label}</option>
               ))}
             </Select>
           </FormField>

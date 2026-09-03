@@ -2,6 +2,7 @@ import { useRef } from 'react'
 import type { PointerEvent as ReactPointerEvent } from 'react'
 import type { GarmentType, PrintPosition } from '@/types'
 import { resolveGarmentColour } from '@/utils/colour'
+import { getPrintPositionConfig } from '@/data/printPositions'
 
 export interface MockupOffset {
   x: number
@@ -21,17 +22,6 @@ interface GarmentMockupProps {
   size?: number
 }
 
-const POSITION_COORDS: Record<PrintPosition, { x: number; y: number; views: Array<'Front' | 'Back'> }> = {
-  'Front Centre': { x: 120, y: 155, views: ['Front'] },
-  'Left Chest': { x: 95, y: 105, views: ['Front'] },
-  'Right Chest': { x: 145, y: 105, views: ['Front'] },
-  'Back Centre': { x: 120, y: 150, views: ['Back'] },
-  'Back Upper': { x: 120, y: 100, views: ['Back'] },
-  'Left Sleeve': { x: 42, y: 105, views: ['Front', 'Back'] },
-  'Right Sleeve': { x: 198, y: 105, views: ['Front', 'Back'] },
-  Custom: { x: 120, y: 155, views: ['Front', 'Back'] },
-}
-
 const TEE_BODY =
   'M95,20 L70,35 L25,75 L70,92 L70,280 L170,280 L170,92 L215,75 L170,35 L145,20 Q120,38 95,20 Z'
 const SINGLET_BODY = 'M100,20 L80,35 L80,280 L160,280 L160,35 L140,20 Q120,32 100,20 Z'
@@ -41,7 +31,8 @@ const HOOD_PATH = 'M90,22 Q120,-12 150,22 L144,36 Q120,16 96,36 Z'
 const FALLBACK_FAMILIES: GarmentType[] = ['Shorts', 'Pants', 'Bennie', 'Hats']
 
 function isPositionVisible(position: PrintPosition, view: 'Front' | 'Back'): boolean {
-  return POSITION_COORDS[position].views.includes(view)
+  const config = getPrintPositionConfig(position)
+  return config.view === 'Both' || config.view === view
 }
 
 export function GarmentMockup({
@@ -59,13 +50,20 @@ export function GarmentMockup({
   const dragging = useRef<{ startX: number; startY: number; startOffset: MockupOffset } | null>(null)
 
   const fill = resolveGarmentColour(colour)
-  const base = POSITION_COORDS[position]
+  const base = getPrintPositionConfig(position)
   const visible = isPositionVisible(position, view)
 
-  const artX = base.x + offset.x
-  const artY = base.y + offset.y
-  const artWidth = Math.min(150, Math.max(30, widthMm * 0.5))
-  const artHeight = Math.min(150, Math.max(30, heightMm * 0.5))
+  // Keep the print box within the visible canvas no matter what width/height
+  // the user enters (manual mm entry isn't bounded by the UI) or which
+  // position it's centered on — sleeve positions sit close to the canvas
+  // edge, so an unclamped box can run off-canvas even at moderate sizes.
+  const CANVAS_MARGIN = 8
+  const artWidth = clamp(widthMm * 0.5, 30, 150)
+  const artHeight = clamp(heightMm * 0.5, 30, 150)
+  const rawX = base.x + offset.x
+  const rawY = base.y + offset.y
+  const artX = clamp(rawX, CANVAS_MARGIN + artWidth / 2, 240 - CANVAS_MARGIN - artWidth / 2)
+  const artY = clamp(rawY, CANVAS_MARGIN + artHeight / 2, 300 - CANVAS_MARGIN - artHeight / 2)
 
   const handlePointerDown = (e: ReactPointerEvent<SVGImageElement>) => {
     e.currentTarget.setPointerCapture(e.pointerId)

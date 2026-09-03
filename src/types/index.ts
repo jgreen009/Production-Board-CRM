@@ -135,14 +135,21 @@ export interface OrderService {
   enabled: boolean
 }
 
+// Matches the paper form's numbered Print Position diagram verbatim: front
+// has 6 positions (1-6), back has 3 (1-3), each with the diagram's rough
+// size preset. Numbers repeat across front/back on the paper form itself
+// (e.g. front "1" and back "1" are different spots), so each value here is
+// prefixed with its view to stay unambiguous as a flat list.
 export type PrintPosition =
-  | 'Front Centre'
-  | 'Left Chest'
-  | 'Right Chest'
-  | 'Back Centre'
-  | 'Back Upper'
-  | 'Left Sleeve'
-  | 'Right Sleeve'
+  | 'Front 1 — Right Chest (A6)'
+  | 'Front 2 — Left Chest (A6)'
+  | 'Front 3 — Center Chest (A4)'
+  | 'Front 4 — Lower Front (A3)'
+  | 'Front 5 — Right Sleeve'
+  | 'Front 6 — Left Sleeve'
+  | 'Back 1 — Upper Back (A4)'
+  | 'Back 2 — Mid Back (A4)'
+  | 'Back 3 — Lower Back (A3)'
   | 'Custom'
 
 export interface PrintDetail {

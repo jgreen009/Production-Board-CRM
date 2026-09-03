@@ -185,9 +185,14 @@ not two independent states.
 - **Customer "Create New"** from the order form creates a transient
   in-memory customer for that session only (not written back to
   `mockCustomers.ts`).
-- **Print Position diagram**: implemented as a labelled dropdown (per brief
-  section 11.1's explicit instruction to replace the paper form's numbered
-  circle diagram with clearer labels), not a clickable silhouette.
+- **Print Position diagram**: implemented as a labelled dropdown rather than
+  a clickable silhouette, but the option values and coordinates are taken
+  directly from the paper form's numbered Print Position diagram (front 1-6,
+  back 1-3, each with its A6/A4/A3 size hint) — see `src/data/printPositions.ts`.
+  The Position dropdown is filtered by the selected View so front/back never
+  show each other's numbers, and selecting a position auto-suggests that
+  position's paper-form size preset (overridable, same pattern as the
+  Turnaround/Priority auto-suggest).
 - **Date handling**: plain `Date`/ISO strings + small formatting utils in
   `src/utils/date.ts`; no date library dependency needed for this scope.
 - **Icons**: `lucide-react` throughout; no custom icon set.

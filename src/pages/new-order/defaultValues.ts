@@ -1,6 +1,7 @@
 import type { OrderFormValues, GarmentFormValues, PrintDetailFormValues } from '@/schemas/orderFormSchema'
 import { generateId } from '@/utils/id'
 import { todayIso, addDays } from '@/utils/date'
+import { PRINT_POSITIONS } from '@/data/printPositions'
 
 export function emptyGarment(): GarmentFormValues {
   return {
@@ -15,12 +16,13 @@ export function emptyGarment(): GarmentFormValues {
 }
 
 export function emptyPrintDetail(): PrintDetailFormValues {
+  const first = PRINT_POSITIONS[0]
   return {
     id: generateId('print'),
-    position: 'Front Centre',
+    position: first.value,
     colour: '',
-    widthMm: 200,
-    heightMm: 200,
+    widthMm: first.sizePreset?.widthMm ?? 200,
+    heightMm: first.sizePreset?.heightMm ?? 200,
   }
 }
 

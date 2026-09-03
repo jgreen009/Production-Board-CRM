@@ -6,17 +6,7 @@ import { OrderFormSection } from '@/components/domain/OrderFormSection'
 import { Button } from '@/components/ui/Button'
 import { FormField, Input, Select } from '@/components/ui/Field'
 import { emptyPrintDetail } from '@/pages/new-order/defaultValues'
-
-const PRINT_POSITIONS: PrintPosition[] = [
-  'Front Centre',
-  'Left Chest',
-  'Right Chest',
-  'Back Centre',
-  'Back Upper',
-  'Left Sleeve',
-  'Right Sleeve',
-  'Custom',
-]
+import { PRINT_POSITIONS, getPrintPositionConfig } from '@/data/printPositions'
 
 export function PrintDetailsSection() {
   const {
@@ -43,10 +33,17 @@ export function PrintDetailsSection() {
             <FormField label="Position">
               <Select
                 value={printDetails[index].position}
-                onChange={(e) => setValue(`printDetails.${index}.position`, e.target.value)}
+                onChange={(e) => {
+                  const config = getPrintPositionConfig(e.target.value as PrintPosition)
+                  setValue(`printDetails.${index}.position`, config.value)
+                  if (config.sizePreset) {
+                    setValue(`printDetails.${index}.widthMm`, config.sizePreset.widthMm)
+                    setValue(`printDetails.${index}.heightMm`, config.sizePreset.heightMm)
+                  }
+                }}
               >
                 {PRINT_POSITIONS.map((p) => (
-                  <option key={p} value={p}>{p}</option>
+                  <option key={p.value} value={p.value}>{p.label}</option>
                 ))}
               </Select>
             </FormField>
