@@ -160,6 +160,7 @@ export interface Artwork {
   sizeKb: number
   uploadedAt: string
   previewUrl?: string // only present for browser-previewable types
+  storagePath?: string // needed to fetch a signed preview URL on demand — never rendered directly
 }
 
 // One entry per physical print: where it sits, what ink colour, what size,

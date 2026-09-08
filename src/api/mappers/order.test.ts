@@ -100,7 +100,7 @@ describe('mapDatabaseOrderToDomain', () => {
       ],
     })
     expect(order.artwork).toEqual([
-      { id: 'aw1', fileName: 'logo.png', fileType: 'PNG', sizeKb: 2, uploadedAt: '2026-01-01T00:00:00Z' },
+      { id: 'aw1', fileName: 'logo.png', fileType: 'PNG', sizeKb: 2, uploadedAt: '2026-01-01T00:00:00Z', storagePath: 'x' },
     ])
   })
 })

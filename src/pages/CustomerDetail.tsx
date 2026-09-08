@@ -10,7 +10,7 @@ import { Textarea } from '@/components/ui/Field'
 import { Button } from '@/components/ui/Button'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { useCustomer, useUpdateCustomerNotes } from '@/hooks/useCustomers'
-import { mockOrders } from '@/data/mockOrders'
+import { useOrders } from '@/hooks/useOrders'
 import { ordersForCustomer, openOrdersCount, completedOrdersCount } from '@/utils/customers'
 import { formatDateShort } from '@/utils/date'
 import { useToast } from '@/components/ui/toast-context'
@@ -20,11 +20,12 @@ export default function CustomerDetail() {
   const { id } = useParams()
   const navigate = useNavigate()
   const { data: customer, isLoading } = useCustomer(id)
+  const { data: allOrders = [] } = useOrders()
 
   if (isLoading) return null
   if (!customer) return <NotFound />
 
-  const orders = ordersForCustomer(mockOrders, customer.id)
+  const orders = ordersForCustomer(allOrders, customer.id)
   const recentOrders = [...orders].sort(
     (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
   )

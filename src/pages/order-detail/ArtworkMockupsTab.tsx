@@ -5,8 +5,10 @@ import { EmptyState } from '@/components/ui/EmptyState'
 import { GarmentMockup } from '@/components/domain/GarmentMockup'
 import { getPrintPositionConfig } from '@/data/printPositions'
 import { formatDateShort } from '@/utils/date'
+import { useArtworkPreviewUrls } from '@/hooks/useArtwork'
 
 export function ArtworkMockupsTab({ order }: { order: Order }) {
+  const { data: previewUrls = {} } = useArtworkPreviewUrls(order.artwork)
   return (
     <div className="flex flex-col gap-4">
       <Card>
@@ -21,8 +23,8 @@ export function ArtworkMockupsTab({ order }: { order: Order }) {
               {order.artwork.map((file) => (
                 <div key={file.id} className="rounded-lg border border-zinc-200 p-2">
                   <div className="mb-2 flex h-20 items-center justify-center overflow-hidden rounded-md bg-zinc-50">
-                    {file.previewUrl ? (
-                      <img src={file.previewUrl} alt={file.fileName} className="h-full w-full object-cover" />
+                    {file.previewUrl || previewUrls[file.id] ? (
+                      <img src={file.previewUrl ?? previewUrls[file.id]} alt={file.fileName} className="h-full w-full object-cover" />
                     ) : (
                       <FileIcon size={20} className="text-zinc-300" />
                     )}
@@ -57,7 +59,7 @@ export function ArtworkMockupsTab({ order }: { order: Order }) {
                       colour={garmentColour}
                       view={getPrintPositionConfig(spec.position).view}
                       position={spec.position}
-                      artworkUrl={artwork?.previewUrl}
+                      artworkUrl={artwork?.previewUrl ?? (artwork ? previewUrls[artwork.id] : undefined)}
                       widthMm={spec.widthMm}
                       heightMm={spec.heightMm}
                       offset={{ x: spec.offsetX ?? 0, y: spec.offsetY ?? 0 }}

@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/Button'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { TableSkeleton } from '@/components/ui/LoadingSkeleton'
 import { useCustomers } from '@/hooks/useCustomers'
-import { mockOrders } from '@/data/mockOrders'
+import { useOrders } from '@/hooks/useOrders'
 import { formatDateShort } from '@/utils/date'
 import { lastOrderDate, ordersForCustomer, openOrdersCount } from '@/utils/customers'
 import { useToast } from '@/components/ui/toast-context'
@@ -18,11 +18,12 @@ export default function CustomersList() {
   const [search, setSearch] = useState('')
   const [addOpen, setAddOpen] = useState(false)
   const { data: customers = [], isLoading } = useCustomers()
+  const { data: allOrders = [] } = useOrders()
 
   const rows = useMemo(() => {
     return customers
       .map((customer) => {
-        const orders = ordersForCustomer(mockOrders, customer.id)
+        const orders = ordersForCustomer(allOrders, customer.id)
         return {
           customer,
           openOrders: openOrdersCount(orders),
@@ -39,7 +40,7 @@ export default function CustomersList() {
           customer.email.toLowerCase().includes(q)
         )
       })
-  }, [customers, search])
+  }, [customers, allOrders, search])
 
   return (
     <div>
