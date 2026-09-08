@@ -3,6 +3,7 @@ import {
   getOrder,
   getOrderFormValues,
   listActivityForOrder,
+  listDraftOrders,
   listOrders,
   listRecentActivity,
   updateArtworkStatus,
@@ -17,6 +18,14 @@ import type { ArtworkStatus, GarmentStatus, Order, PaymentStatus, ProductionStat
 
 export function useOrders() {
   return useQuery({ queryKey: ['orders'], queryFn: listOrders })
+}
+
+// The drafts view (Milestone 11) — ['orders', 'drafts'] rather than
+// ['orders'] itself (that key is Active-only everywhere else), but still
+// covered by every existing invalidateQueries({ queryKey: ['orders'] })
+// call throughout, since TanStack Query invalidates by array-key prefix.
+export function useDraftOrders() {
+  return useQuery({ queryKey: ['orders', 'drafts'], queryFn: listDraftOrders })
 }
 
 // Prefixed with 'dashboard' so the existing invalidateQueries({ queryKey:

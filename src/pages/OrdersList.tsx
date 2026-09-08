@@ -8,17 +8,18 @@ import { EmptyState } from '@/components/ui/EmptyState'
 import { OrderCard } from '@/components/domain/OrderCard'
 import { StatusBadge } from '@/components/domain/StatusBadge'
 import { TableSkeleton } from '@/components/ui/LoadingSkeleton'
-import { useOrders } from '@/hooks/useOrders'
+import { useOrders, useDraftOrders } from '@/hooks/useOrders'
 import { formatDateShort, dueDateLabel, isOverdue, isDueToday } from '@/utils/date'
 import { clsx } from 'clsx'
 
-type OrdersTab = 'all' | 'active' | 'completed' | 'on-hold'
+type OrdersTab = 'all' | 'active' | 'completed' | 'on-hold' | 'drafts'
 
 const TABS: { key: OrdersTab; label: string }[] = [
   { key: 'all', label: 'All' },
   { key: 'active', label: 'Active' },
   { key: 'completed', label: 'Completed' },
   { key: 'on-hold', label: 'On Hold' },
+  { key: 'drafts', label: 'Drafts' },
 ]
 
 export default function OrdersList() {
@@ -26,9 +27,13 @@ export default function OrdersList() {
   const [tab, setTab] = useState<OrdersTab>('all')
   const [search, setSearch] = useState('')
   const { data: allOrders = [], isLoading } = useOrders()
+  const { data: draftOrders = [], isLoading: draftsLoading } = useDraftOrders()
+
+  const isDraftsTab = tab === 'drafts'
+  const sourceOrders = isDraftsTab ? draftOrders : allOrders
 
   const orders = useMemo(() => {
-    let result = allOrders
+    let result = sourceOrders
     if (tab === 'active') result = result.filter((o) => !['Completed', 'On Hold'].includes(o.productionStatus))
     if (tab === 'completed') result = result.filter((o) => o.productionStatus === 'Completed')
     if (tab === 'on-hold') result = result.filter((o) => o.productionStatus === 'On Hold')
@@ -44,7 +49,12 @@ export default function OrdersList() {
     }
 
     return [...result].sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime())
-  }, [allOrders, tab, search])
+  }, [sourceOrders, tab, search])
+
+  const handleRowClick = (orderId: string) => {
+    if (isDraftsTab) navigate(`/orders/new?draft=${orderId}`)
+    else navigate(`/orders/${orderId}`)
+  }
 
   return (
     <div>
@@ -73,15 +83,21 @@ export default function OrdersList() {
         </div>
       </div>
 
-      {isLoading ? (
+      {(isDraftsTab ? draftsLoading : isLoading) ? (
         <div className="rounded-lg border border-zinc-200 bg-white">
           <TableSkeleton />
         </div>
       ) : orders.length === 0 ? (
         <EmptyState
           icon={ClipboardList}
-          title={allOrders.length === 0 ? 'No orders yet' : 'No orders found'}
-          description={allOrders.length === 0 ? 'Create your first order to see it here.' : 'Try a different tab or search term.'}
+          title={sourceOrders.length === 0 ? (isDraftsTab ? 'No drafts' : 'No orders yet') : 'No orders found'}
+          description={
+            sourceOrders.length === 0
+              ? isDraftsTab
+                ? 'Orders you start and leave unfinished will show up here to resume.'
+                : 'Create your first order to see it here.'
+              : 'Try a different tab or search term.'
+          }
         />
       ) : (
         <>
@@ -103,11 +119,15 @@ export default function OrdersList() {
                 {orders.map((order) => (
                   <tr
                     key={order.id}
-                    onClick={() => navigate(`/orders/${order.id}`)}
+                    onClick={() => handleRowClick(order.id)}
                     className="cursor-pointer border-b border-zinc-50 last:border-0 hover:bg-zinc-50"
                   >
                     <td className="px-3 py-2.5 font-medium text-zinc-800">
-                      <Link to={`/orders/${order.id}`} onClick={(e) => e.stopPropagation()} className="hover:underline">
+                      <Link
+                        to={isDraftsTab ? `/orders/new?draft=${order.id}` : `/orders/${order.id}`}
+                        onClick={(e) => e.stopPropagation()}
+                        className="hover:underline"
+                      >
                         {order.orderNumber}
                       </Link>
                     </td>
@@ -141,7 +161,7 @@ export default function OrdersList() {
 
           <div className="flex flex-col gap-2 md:hidden">
             {orders.map((order) => (
-              <OrderCard key={order.id} order={order} onClick={(o) => navigate(`/orders/${o.id}`)} />
+              <OrderCard key={order.id} order={order} onClick={(o) => handleRowClick(o.id)} />
             ))}
           </div>
         </>

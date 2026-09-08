@@ -19,15 +19,24 @@ const ORDER_SELECT = `
 
 // Drafts are deliberately excluded from the default list — they're not
 // surfaced as active production orders anywhere (Production Board,
-// dashboards, Orders List) until explicitly finalized. A dedicated drafts
-// view is Milestone 11 per the plan; this just keeps today's default
-// behavior (only real orders show up) correct in the meantime.
+// dashboards, Orders List's default view) until explicitly finalized.
+// listDraftOrders below is the dedicated drafts view (Milestone 11).
 export async function listOrders(): Promise<Order[]> {
   const { data, error } = await supabase
     .from('orders')
     .select(ORDER_SELECT)
     .eq('order_state', 'Active')
     .order('created_at', { ascending: false })
+  if (error) throw error
+  return (data as unknown as OrderRow[]).map(mapDatabaseOrderToDomain)
+}
+
+export async function listDraftOrders(): Promise<Order[]> {
+  const { data, error } = await supabase
+    .from('orders')
+    .select(ORDER_SELECT)
+    .eq('order_state', 'Draft')
+    .order('updated_at', { ascending: false })
   if (error) throw error
   return (data as unknown as OrderRow[]).map(mapDatabaseOrderToDomain)
 }

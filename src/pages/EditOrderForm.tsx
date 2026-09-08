@@ -1,7 +1,7 @@
 import { useParams } from 'react-router-dom'
 import { useOrder, useOrderFormValues } from '@/hooks/useOrders'
 import { isRealOrderId } from '@/utils/id'
-import NewOrderForm from '@/pages/NewOrderForm'
+import { OrderFormEditor } from '@/pages/NewOrderForm'
 import NotFound from '@/pages/NotFound'
 
 // Reuses NewOrderForm entirely (spec §11: no second editing system) — this
@@ -23,5 +23,5 @@ export default function EditOrderForm() {
   }
   if (!order || !formValues) return <NotFound />
 
-  return <NewOrderForm editOrderId={order.id} initialValues={formValues} previousOrder={order} />
+  return <OrderFormEditor orderId={order.id} initialValues={formValues} previousOrder={order} mode="edit-active" />
 }
