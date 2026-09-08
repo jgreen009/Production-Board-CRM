@@ -1,12 +1,13 @@
-import { useMemo, useRef, useState } from 'react'
+import { useRef, useState } from 'react'
 import { Search, UserPlus, X, Check } from 'lucide-react'
 import type { Customer } from '@/types'
-import { mockCustomers } from '@/data/mockCustomers'
+import { useCustomerSearch } from '@/hooks/useCustomers'
 import { clsx } from 'clsx'
 
 interface CustomerSelectorProps {
   customerId: string | null
   newCustomerName: string
+  selectedCustomer?: Customer | null
   onSelectCustomer: (customer: Customer) => void
   onCreateNew: (name: string) => void
   onClear: () => void
@@ -15,6 +16,7 @@ interface CustomerSelectorProps {
 export function CustomerSelector({
   customerId,
   newCustomerName,
+  selectedCustomer = null,
   onSelectCustomer,
   onCreateNew,
   onClear,
@@ -23,15 +25,7 @@ export function CustomerSelector({
   const [open, setOpen] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
 
-  const selectedCustomer = mockCustomers.find((c) => c.id === customerId) ?? null
-
-  const results = useMemo(() => {
-    if (!query.trim()) return mockCustomers.slice(0, 6)
-    const q = query.trim().toLowerCase()
-    return mockCustomers.filter(
-      (c) => c.name.toLowerCase().includes(q) || c.company.toLowerCase().includes(q),
-    )
-  }, [query])
+  const { data: results = [], isLoading } = useCustomerSearch(query)
 
   if (selectedCustomer || newCustomerName) {
     return (
@@ -77,7 +71,9 @@ export function CustomerSelector({
 
       {open && (
         <div className="absolute z-20 mt-1 w-full rounded-md border border-zinc-200 bg-white py-1 shadow-lg">
-          {results.length > 0 ? (
+          {isLoading ? (
+            <p className="px-3 py-2 text-sm text-zinc-400">Searching...</p>
+          ) : results.length > 0 ? (
             results.map((c) => (
               <button
                 key={c.id}

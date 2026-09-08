@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { Mail, Phone, ArrowLeft } from 'lucide-react'
+import type { Customer } from '@/types'
 import { PageHeader } from '@/components/domain/PageHeader'
 import { StatCard } from '@/components/domain/StatCard'
 import { StatusBadge } from '@/components/domain/StatusBadge'
@@ -8,18 +9,19 @@ import { Card, CardBody, CardHeader } from '@/components/ui/Card'
 import { Textarea } from '@/components/ui/Field'
 import { Button } from '@/components/ui/Button'
 import { EmptyState } from '@/components/ui/EmptyState'
-import { mockCustomers } from '@/data/mockCustomers'
+import { useCustomer, useUpdateCustomerNotes } from '@/hooks/useCustomers'
 import { mockOrders } from '@/data/mockOrders'
 import { ordersForCustomer, openOrdersCount, completedOrdersCount } from '@/utils/customers'
 import { formatDateShort } from '@/utils/date'
+import { useToast } from '@/components/ui/toast-context'
 import NotFound from '@/pages/NotFound'
 
 export default function CustomerDetail() {
   const { id } = useParams()
   const navigate = useNavigate()
-  const customer = mockCustomers.find((c) => c.id === id)
-  const [notes, setNotes] = useState(customer?.notes ?? '')
+  const { data: customer, isLoading } = useCustomer(id)
 
+  if (isLoading) return null
   if (!customer) return <NotFound />
 
   const orders = ordersForCustomer(mockOrders, customer.id)
@@ -98,24 +100,50 @@ export default function CustomerDetail() {
         </Card>
       </div>
 
-      <div className="mt-4">
-        <Card>
-          <CardHeader>
-            <h2 className="text-sm font-semibold text-zinc-800">Notes</h2>
-          </CardHeader>
-          <CardBody className="flex flex-col gap-2">
-            <Textarea
-              rows={3}
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              placeholder="Add a note about this customer..."
-            />
-            <div>
-              <Button variant="secondary" size="sm">Save Note</Button>
-            </div>
-          </CardBody>
-        </Card>
-      </div>
+      <CustomerNotesCard key={customer.id} customer={customer} />
+    </div>
+  )
+}
+
+// Keyed by customer.id in the parent so this remounts (and re-initializes
+// its draft state directly from `customer.notes`) whenever the viewed
+// customer changes — no effect needed to keep a draft in sync with data
+// that only ever changes via navigation, not while this card is mounted.
+function CustomerNotesCard({ customer }: { customer: Customer }) {
+  const { showToast } = useToast()
+  const updateNotes = useUpdateCustomerNotes()
+  const [notes, setNotes] = useState(customer.notes ?? '')
+
+  const handleSaveNote = async () => {
+    await updateNotes.mutateAsync({ id: customer.id, notes })
+    showToast('Note saved', 'success')
+  }
+
+  return (
+    <div className="mt-4">
+      <Card>
+        <CardHeader>
+          <h2 className="text-sm font-semibold text-zinc-800">Notes</h2>
+        </CardHeader>
+        <CardBody className="flex flex-col gap-2">
+          <Textarea
+            rows={3}
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            placeholder="Add a note about this customer..."
+          />
+          <div>
+            <Button
+              variant="secondary"
+              size="sm"
+              disabled={updateNotes.isPending || notes === (customer.notes ?? '')}
+              onClick={handleSaveNote}
+            >
+              {updateNotes.isPending ? 'Saving...' : 'Save Note'}
+            </Button>
+          </div>
+        </CardBody>
+      </Card>
     </div>
   )
 }

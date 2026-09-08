@@ -1,6 +1,9 @@
+import { useState } from 'react'
 import { useFormContext } from 'react-hook-form'
 import type { OrderFormValues } from '@/schemas/orderFormSchema'
+import type { Customer } from '@/types'
 import { OrderFormSection } from '@/components/domain/OrderFormSection'
+import { CustomerSelector } from '@/components/domain/CustomerSelector'
 import { FormField, Input } from '@/components/ui/Field'
 
 export function CustomerJobSection() {
@@ -11,12 +14,33 @@ export function CustomerJobSection() {
     formState: { errors },
   } = useFormContext<OrderFormValues>()
 
-  const name = watch('jobName')
+  const customerId = watch('customerId')
+  const newCustomerName = watch('newCustomerName') ?? ''
+  // Holds the full selected Customer (name/company for display) — the form
+  // field itself only stores customerId, so this is purely presentational,
+  // reset whenever the picker is cleared or a different one is selected.
+  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null)
 
-  const handleNameChange = (value: string) => {
-    setValue('jobName', value)
-    setValue('newCustomerName', value)
+  const handleSelectCustomer = (customer: Customer) => {
+    setValue('customerId', customer.id)
+    setValue('newCustomerName', '')
+    setValue('jobName', customer.company || customer.name)
+    setValue('email', customer.email)
+    setValue('phone', customer.phone)
+    setSelectedCustomer(customer)
+  }
+
+  const handleCreateNew = (name: string) => {
     setValue('customerId', null)
+    setValue('newCustomerName', name)
+    setValue('jobName', name)
+    setSelectedCustomer(null)
+  }
+
+  const handleClear = () => {
+    setValue('customerId', null)
+    setValue('newCustomerName', '')
+    setSelectedCustomer(null)
   }
 
   return (
@@ -25,14 +49,15 @@ export function CustomerJobSection() {
         <FormField
           label="Name"
           required
-          htmlFor="jobName"
           error={errors.jobName?.message || errors.newCustomerName?.message}
         >
-          <Input
-            id="jobName"
-            placeholder="e.g. Home Jersey Reprint"
-            value={name}
-            onChange={(e) => handleNameChange(e.target.value)}
+          <CustomerSelector
+            customerId={customerId}
+            newCustomerName={newCustomerName}
+            selectedCustomer={selectedCustomer}
+            onSelectCustomer={handleSelectCustomer}
+            onCreateNew={handleCreateNew}
+            onClear={handleClear}
           />
         </FormField>
         <FormField label="Phone" required htmlFor="phone" error={errors.phone?.message}>

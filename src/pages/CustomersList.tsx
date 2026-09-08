@@ -2,9 +2,11 @@ import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Search, UserPlus, Users } from 'lucide-react'
 import { PageHeader } from '@/components/domain/PageHeader'
+import { AddCustomerDialog } from '@/components/domain/AddCustomerDialog'
 import { Button } from '@/components/ui/Button'
 import { EmptyState } from '@/components/ui/EmptyState'
-import { mockCustomers } from '@/data/mockCustomers'
+import { TableSkeleton } from '@/components/ui/LoadingSkeleton'
+import { useCustomers } from '@/hooks/useCustomers'
 import { mockOrders } from '@/data/mockOrders'
 import { formatDateShort } from '@/utils/date'
 import { lastOrderDate, ordersForCustomer, openOrdersCount } from '@/utils/customers'
@@ -14,9 +16,11 @@ export default function CustomersList() {
   const navigate = useNavigate()
   const { showToast } = useToast()
   const [search, setSearch] = useState('')
+  const [addOpen, setAddOpen] = useState(false)
+  const { data: customers = [], isLoading } = useCustomers()
 
   const rows = useMemo(() => {
-    return mockCustomers
+    return customers
       .map((customer) => {
         const orders = ordersForCustomer(mockOrders, customer.id)
         return {
@@ -35,19 +39,15 @@ export default function CustomersList() {
           customer.email.toLowerCase().includes(q)
         )
       })
-  }, [search])
+  }, [customers, search])
 
   return (
     <div>
       <PageHeader
         title="Customers"
-        description={`${mockCustomers.length} customers`}
+        description={`${customers.length} customers`}
         actions={
-          <Button
-            variant="primary"
-            size="sm"
-            onClick={() => showToast('Adding customers directly will be available once the backend is connected.', 'info')}
-          >
+          <Button variant="primary" size="sm" onClick={() => setAddOpen(true)}>
             <UserPlus size={15} />
             Add Customer
           </Button>
@@ -65,8 +65,16 @@ export default function CustomersList() {
         />
       </div>
 
-      {rows.length === 0 ? (
-        <EmptyState icon={Users} title="No customers found" description="Try a different search term." />
+      {isLoading ? (
+        <div className="rounded-lg border border-zinc-200 bg-white">
+          <TableSkeleton />
+        </div>
+      ) : rows.length === 0 ? (
+        <EmptyState
+          icon={Users}
+          title="No customers found"
+          description={customers.length === 0 ? 'Add your first customer to get started.' : 'Try a different search term.'}
+        />
       ) : (
         <div className="overflow-x-auto rounded-lg border border-zinc-200 bg-white">
           <table className="w-full text-left text-sm">
@@ -103,6 +111,12 @@ export default function CustomersList() {
           </table>
         </div>
       )}
+
+      <AddCustomerDialog
+        open={addOpen}
+        onClose={() => setAddOpen(false)}
+        onCreated={(customer) => showToast(`${customer.name} added`, 'success')}
+      />
     </div>
   )
 }
