@@ -8,6 +8,7 @@ import type { Order } from '@/types'
 import { defaultOrderFormValues } from '@/pages/new-order/defaultValues'
 import { useUpdateOrderWithActivity, useUpsertOrder, useOrderFormValues } from '@/hooks/useOrders'
 import { useToast } from '@/components/ui/toast-context'
+import { staffErrorMessage } from '@/utils/errorMessage'
 import { Button } from '@/components/ui/Button'
 import { OrderSummary } from '@/components/domain/OrderSummary'
 import { CustomerJobSection } from '@/pages/new-order/sections/CustomerJobSection'
@@ -121,7 +122,7 @@ export function OrderFormEditor({ orderId: existingOrderId, initialValues, previ
         },
         onError: (err) => {
           setAutosaveState('error')
-          showToast(err instanceof Error ? err.message : 'Failed to save draft', 'info')
+          showToast(staffErrorMessage(err, 'Failed to save draft'), 'info')
         },
       },
     )
@@ -139,7 +140,7 @@ export function OrderFormEditor({ orderId: existingOrderId, initialValues, previ
         navigate(`/orders/${id}`)
       }
     } catch (err) {
-      showToast(err instanceof Error ? err.message : `Failed to ${isEditingActive ? 'save changes' : 'create order'}`, 'info')
+      showToast(staffErrorMessage(err, `Failed to ${isEditingActive ? 'save changes' : 'create order'}`), 'info')
     }
   }
 

@@ -8,6 +8,7 @@ import type {
 import { useOrders, useUpdateProductionStatus } from '@/hooks/useOrders'
 import { useToast } from '@/components/ui/toast-context'
 import { daysUntil } from '@/utils/date'
+import { staffErrorMessage } from '@/utils/errorMessage'
 
 export type BoardView =
   | 'all'
@@ -74,7 +75,7 @@ export function useProductionBoard() {
   const updateProductionStatus = (orderId: string, status: ProductionStatus) => {
     updateProductionStatusMutation.mutate(
       { orderId, status },
-      { onError: (err) => showToast(err instanceof Error ? err.message : 'Failed to update status', 'info') },
+      { onError: (err) => showToast(staffErrorMessage(err, "Couldn't update status — try again"), 'info') },
     )
   }
 

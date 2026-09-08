@@ -11,6 +11,7 @@ import {
   useUpdateProductionStatus,
 } from '@/hooks/useOrders'
 import { useToast } from '@/components/ui/toast-context'
+import { staffErrorMessage } from '@/utils/errorMessage'
 
 interface ProductionTabProps {
   order: Order
@@ -24,7 +25,7 @@ export function ProductionTab({ order, isRealOrder }: ProductionTabProps) {
   const updateGarment = useUpdateGarmentStatus()
   const updatePayment = useUpdatePaymentStatus()
 
-  const onError = (err: unknown) => showToast(err instanceof Error ? err.message : 'Failed to update status', 'info')
+  const onError = (err: unknown) => showToast(staffErrorMessage(err, 'Failed to update status'), 'info')
   const hint = isRealOrder ? undefined : 'Demo order — status changes here aren\'t saved'
 
   return (

@@ -9,6 +9,7 @@ import { useToast } from '@/components/ui/toast-context'
 import type { ToastContextValue } from '@/components/ui/toast-context'
 import { useBusinessSettings, useUpdateBusinessSettings } from '@/hooks/useSettings'
 import type { BusinessSettings } from '@/api/settings'
+import { staffErrorMessage } from '@/utils/errorMessage'
 
 export default function SettingsBusiness() {
   const navigate = useNavigate()
@@ -50,7 +51,7 @@ function SettingsBusinessForm({
       { id: settings.id, input: form },
       {
         onSuccess: () => showToast('Business settings saved.', 'success'),
-        onError: (err) => showToast(err instanceof Error ? err.message : 'Failed to save', 'info'),
+        onError: (err) => showToast(staffErrorMessage(err, 'Failed to save'), 'info'),
       },
     )
   }

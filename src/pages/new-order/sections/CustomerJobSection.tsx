@@ -7,6 +7,7 @@ import { CustomerSelector } from '@/components/domain/CustomerSelector'
 import { FormField, Input } from '@/components/ui/Field'
 import { useCreateCustomer } from '@/hooks/useCustomers'
 import { useToast } from '@/components/ui/toast-context'
+import { staffErrorMessage } from '@/utils/errorMessage'
 
 export function CustomerJobSection() {
   const {
@@ -45,7 +46,7 @@ export function CustomerJobSection() {
       const customer = await createCustomer.mutateAsync({ name })
       handleSelectCustomer(customer)
     } catch (err) {
-      showToast(err instanceof Error ? err.message : 'Failed to create customer', 'info')
+      showToast(staffErrorMessage(err, 'Failed to create customer'), 'info')
     }
   }
 

@@ -9,6 +9,7 @@ import { GarmentMockup } from '@/components/domain/GarmentMockup'
 import { useToast } from '@/components/ui/toast-context'
 import { useMockupTemplates } from '@/hooks/useSettings'
 import type { GarmentType } from '@/types'
+import { staffErrorMessage } from '@/utils/errorMessage'
 
 export default function SettingsMockups() {
   const navigate = useNavigate()
@@ -17,7 +18,7 @@ export default function SettingsMockups() {
 
   const toggleActive = (id: string, active: boolean) => {
     updateActive.mutate({ id, active: !active }, {
-      onError: (err) => showToast(err instanceof Error ? err.message : 'Failed to update', 'info'),
+      onError: (err) => showToast(staffErrorMessage(err, 'Failed to update'), 'info'),
     })
   }
 

@@ -8,6 +8,7 @@ import { Image, Loader2 } from 'lucide-react'
 import { uploadArtwork, removeArtwork } from '@/api/artwork'
 import { validateArtworkFile } from '@/utils/artworkValidation'
 import { useToast } from '@/components/ui/toast-context'
+import { staffErrorMessage } from '@/utils/errorMessage'
 
 const PREVIEWABLE_TYPES = ['PNG', 'JPG', 'WEBP', 'SVG']
 
@@ -66,7 +67,7 @@ export function ArtworkSection({ orderId }: ArtworkSectionProps) {
       try {
         await removeArtwork(file.id, file.storagePath)
       } catch (err) {
-        showToast(err instanceof Error ? err.message : 'Failed to delete file from storage', 'info')
+        showToast(staffErrorMessage(err, 'Failed to delete file from storage'), 'info')
       }
     }
   }

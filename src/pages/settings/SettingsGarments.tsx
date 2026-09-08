@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/Field'
 import { TableSkeleton } from '@/components/ui/LoadingSkeleton'
 import { useToast } from '@/components/ui/toast-context'
 import { useGarmentTypesSettings } from '@/hooks/useSettings'
+import { staffErrorMessage } from '@/utils/errorMessage'
 
 export default function SettingsGarments() {
   const navigate = useNavigate()
@@ -20,13 +21,13 @@ export default function SettingsGarments() {
     if (!name) return
     create.mutate(name, {
       onSuccess: () => setNewName(''),
-      onError: (err) => showToast(err instanceof Error ? err.message : 'Failed to add garment type', 'info'),
+      onError: (err) => showToast(staffErrorMessage(err, 'Failed to add garment type'), 'info'),
     })
   }
 
   const toggleActive = (id: string, active: boolean) => {
     update.mutate({ id, patch: { active: !active } }, {
-      onError: (err) => showToast(err instanceof Error ? err.message : 'Failed to update', 'info'),
+      onError: (err) => showToast(staffErrorMessage(err, 'Failed to update'), 'info'),
     })
   }
 
