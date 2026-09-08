@@ -1,6 +1,7 @@
 import { useNavigate } from 'react-router-dom'
 import { Menu, Search, Bell, Plus } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
+import { GlobalSearch } from '@/components/domain/GlobalSearch'
 
 interface AppHeaderProps {
   onOpenMobileNav: () => void
@@ -20,17 +21,7 @@ export function AppHeader({ onOpenMobileNav }: AppHeaderProps) {
       </button>
 
       <div className="flex flex-1 items-center gap-2">
-        <div className="relative hidden max-w-sm flex-1 sm:block">
-          <Search
-            size={15}
-            className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-zinc-400"
-          />
-          <input
-            type="search"
-            placeholder="Search orders, customers..."
-            className="w-full rounded-md border border-zinc-200 bg-zinc-50 py-1.5 pl-8 pr-3 text-sm placeholder:text-zinc-400 focus:border-zinc-300 focus:bg-white focus:outline-none focus:ring-2 focus:ring-zinc-900/5"
-          />
-        </div>
+        <GlobalSearch className="hidden max-w-sm flex-1 sm:block" />
       </div>
 
       <button

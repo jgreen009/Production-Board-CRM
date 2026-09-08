@@ -4,6 +4,7 @@ import {
   getOrderFormValues,
   listActivityForOrder,
   listOrders,
+  listRecentActivity,
   updateArtworkStatus,
   updateGarmentStatus,
   updateOrderWithActivity,
@@ -16,6 +17,13 @@ import type { ArtworkStatus, GarmentStatus, Order, PaymentStatus, ProductionStat
 
 export function useOrders() {
   return useQuery({ queryKey: ['orders'], queryFn: listOrders })
+}
+
+// Prefixed with 'dashboard' so the existing invalidateQueries({ queryKey:
+// ['dashboard'] }) calls in every status mutation's onSettled (Milestone 7)
+// already cover this — TanStack Query invalidates by key prefix.
+export function useRecentActivity(limit: number) {
+  return useQuery({ queryKey: ['dashboard', 'recent-activity', limit], queryFn: () => listRecentActivity(limit) })
 }
 
 export function useOrder(id: string | undefined | null) {

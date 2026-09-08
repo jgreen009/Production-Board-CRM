@@ -153,6 +153,26 @@ export async function listActivityForOrder(orderId: string): Promise<OrderActivi
   return (data as ActivityRow[]).map(mapActivityRowToDomain)
 }
 
+export interface RecentActivityEntry extends OrderActivityEntry {
+  orderNumber: string
+}
+
+// Dashboard's "Recent Activity" feed — across all orders, not scoped to
+// one, unlike listActivityForOrder above.
+export async function listRecentActivity(limit: number): Promise<RecentActivityEntry[]> {
+  const { data, error } = await supabase
+    .from('order_activity')
+    .select('id, order_id, activity_type, message, created_at, orders ( order_number )')
+    .order('created_at', { ascending: false })
+    .limit(limit)
+  if (error) throw error
+
+  return (data as unknown as (ActivityRow & { orders: { order_number: string | null } | null })[]).map((row) => ({
+    ...mapActivityRowToDomain(row),
+    orderNumber: row.orders?.order_number ?? '',
+  }))
+}
+
 // Shared shape behind the four status-change mutations below: update the
 // column, then log one order_activity row — two sequential calls rather
 // than a single RPC, since a missed activity row on rare failure is an

@@ -13,8 +13,8 @@ import { StatusBadge } from '@/components/domain/StatusBadge'
 import { ActivityTimeline } from '@/components/domain/ActivityTimeline'
 import { Card, CardBody, CardHeader } from '@/components/ui/Card'
 import { EmptyState } from '@/components/ui/EmptyState'
-import { mockOrders } from '@/data/mockOrders'
-import { getRecentActivity } from '@/data/mockActivity'
+import { TableSkeleton } from '@/components/ui/LoadingSkeleton'
+import { useOrders, useRecentActivity } from '@/hooks/useOrders'
 import { formatDateShort, dueDateLabel, isOverdue, isDueToday } from '@/utils/date'
 import {
   activeOrders,
@@ -32,10 +32,12 @@ export default function Dashboard() {
   const hour = new Date().getHours()
   const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening'
 
-  const attention = ordersRequiringAttention(mockOrders).slice(0, 6)
-  const deadlines = upcomingDeadlines(mockOrders, 6)
-  const activity = getRecentActivity(8)
-  const orderNumbers = Object.fromEntries(mockOrders.map((o) => [o.id, o.orderNumber]))
+  const { data: orders = [], isLoading: ordersLoading } = useOrders()
+  const { data: activity = [], isLoading: activityLoading } = useRecentActivity(8)
+
+  const attention = ordersRequiringAttention(orders).slice(0, 6)
+  const deadlines = upcomingDeadlines(orders, 6)
+  const orderNumbers = Object.fromEntries(activity.map((a) => [a.orderId, a.orderNumber]))
 
   return (
     <div>
@@ -44,39 +46,39 @@ export default function Dashboard() {
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6">
         <StatCard
           label="Active Orders"
-          value={activeOrders(mockOrders).length}
+          value={activeOrders(orders).length}
           description="Currently in the pipeline"
           icon={ClipboardList}
         />
         <StatCard
           label="Due Today"
-          value={dueTodayOrders(mockOrders).length}
+          value={dueTodayOrders(orders).length}
           description="Need to ship today"
           icon={CalendarClock}
           accent="warning"
         />
         <StatCard
           label="Urgent Orders"
-          value={urgentOrders(mockOrders).length}
+          value={urgentOrders(orders).length}
           description="Flagged as urgent priority"
           icon={AlertTriangle}
           accent="danger"
         />
         <StatCard
           label="Awaiting Artwork"
-          value={awaitingArtworkOrders(mockOrders).length}
+          value={awaitingArtworkOrders(orders).length}
           description="Not yet approved"
           icon={PenTool}
         />
         <StatCard
           label="Ready for Production"
-          value={readyForProductionOrders(mockOrders).length}
+          value={readyForProductionOrders(orders).length}
           description="Queued or ready to start"
           icon={PackageCheck}
         />
         <StatCard
           label="Completed This Week"
-          value={completedThisWeekOrders(mockOrders).length}
+          value={completedThisWeekOrders(orders).length}
           description="Finished in the last 7 days"
           icon={CheckCircle2}
         />
@@ -88,9 +90,14 @@ export default function Dashboard() {
             <h2 className="text-sm font-semibold text-zinc-800">Orders Requiring Attention</h2>
           </CardHeader>
           <CardBody className="p-0">
-            {attention.length === 0 ? (
+            {ordersLoading ? (
+              <TableSkeleton />
+            ) : attention.length === 0 ? (
               <div className="p-4">
-                <EmptyState title="Nothing needs attention" description="All active orders are on track." />
+                <EmptyState
+                  title={orders.length === 0 ? 'No orders yet' : 'Nothing needs attention'}
+                  description={orders.length === 0 ? 'Create your first order to see it here.' : 'All active orders are on track.'}
+                />
               </div>
             ) : (
               <div className="overflow-x-auto">
@@ -145,7 +152,12 @@ export default function Dashboard() {
             <h2 className="text-sm font-semibold text-zinc-800">Upcoming Deadlines</h2>
           </CardHeader>
           <CardBody className="flex flex-col gap-3">
-            {deadlines.map((order) => (
+            {ordersLoading ? (
+              <p className="text-sm text-zinc-400">Loading...</p>
+            ) : deadlines.length === 0 ? (
+              <p className="text-sm text-zinc-400">No upcoming deadlines.</p>
+            ) : (
+              deadlines.map((order) => (
               <Link
                 key={order.id}
                 to={`/orders/${order.id}`}
@@ -168,7 +180,8 @@ export default function Dashboard() {
                   {formatDateShort(order.dueDate)}
                 </span>
               </Link>
-            ))}
+              ))
+            )}
           </CardBody>
         </Card>
       </div>
@@ -179,7 +192,11 @@ export default function Dashboard() {
             <h2 className="text-sm font-semibold text-zinc-800">Recent Activity</h2>
           </CardHeader>
           <CardBody>
-            <ActivityTimeline entries={activity} showOrderNumber={orderNumbers} />
+            {activityLoading ? (
+              <p className="text-sm text-zinc-400">Loading...</p>
+            ) : (
+              <ActivityTimeline entries={activity} showOrderNumber={orderNumbers} />
+            )}
           </CardBody>
         </Card>
       </div>
