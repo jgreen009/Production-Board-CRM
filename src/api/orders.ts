@@ -1,10 +1,11 @@
 import { supabase } from '@/lib/supabase'
 import type { ArtworkStatus, GarmentStatus, Order, OrderActivityEntry, PaymentStatus, ProductionStatus } from '@/types'
 import type { OrderFormValues } from '@/schemas/orderFormSchema'
-import { mapDatabaseOrderToDomain, mapOrderFormToUpsertPayload } from '@/api/mappers/order'
+import { mapDatabaseOrderToDomain, mapDatabaseOrderToFormValues, mapOrderFormToUpsertPayload } from '@/api/mappers/order'
 import type { OrderRow } from '@/api/mappers/order'
 import { mapActivityRowToDomain } from '@/api/mappers/activity'
 import type { ActivityRow } from '@/api/mappers/activity'
+import { getArtworkSignedUrl } from '@/api/artwork'
 
 const ORDER_SELECT = `
   *,
@@ -12,7 +13,8 @@ const ORDER_SELECT = `
   order_garments ( id, garment_type_label, garment_brand_label, colour, sizing_type, sort_order,
     garment_quantities ( size, quantity ) ),
   order_services ( services ( name ) ),
-  print_specs ( * )
+  print_specs ( * ),
+  artwork ( id, file_name, file_type, file_size_bytes, storage_path, created_at )
 `
 
 // Drafts are deliberately excluded from the default list — they're not
@@ -40,6 +42,40 @@ export async function getOrder(id: string): Promise<Order | null> {
   return data ? mapDatabaseOrderToDomain(data as unknown as OrderRow) : null
 }
 
+const PREVIEWABLE_ARTWORK_TYPES = ['PNG', 'JPG', 'WEBP', 'SVG']
+
+// For editing (Milestone 8) and, later, resuming a draft (Milestone 11) —
+// same reverse mapping either way. Signed preview URLs are fetched here
+// (not baked into the pure mapper) so an edited order's file cards show a
+// real thumbnail, same as a fresh upload would; a failed signed-url fetch
+// just leaves that one file without a preview rather than failing the
+// whole load.
+export async function getOrderFormValues(id: string): Promise<OrderFormValues | null> {
+  const { data, error } = await supabase
+    .from('orders')
+    .select(ORDER_SELECT)
+    .eq('id', id)
+    .maybeSingle()
+  if (error) throw error
+  if (!data) return null
+
+  const values = mapDatabaseOrderToFormValues(data as unknown as OrderRow)
+
+  const artworkFiles = await Promise.all(
+    values.artworkFiles.map(async (file) => {
+      if (!file.storagePath || !PREVIEWABLE_ARTWORK_TYPES.includes(file.fileType)) return file
+      try {
+        const previewUrl = await getArtworkSignedUrl(file.storagePath)
+        return { ...file, previewUrl }
+      } catch {
+        return file
+      }
+    }),
+  )
+
+  return { ...values, artworkFiles }
+}
+
 // The one write path behind Save Draft, Create Order, and Edit Order alike
 // (spec §11) — wraps the upsert_order RPC. Returns the order's id, stable
 // across repeated calls once it exists (pass it back in as `orderId` to
@@ -57,6 +93,54 @@ export async function upsertOrder(
   })
   if (error) throw error
   return data as string
+}
+
+interface ActivityDiffEntry {
+  activityType: OrderActivityEntry['type']
+  message: string
+}
+
+// Pure and testable (plan §12 step 5, §17) — compares the order as it was
+// before an edit against the form values about to be saved, and returns
+// one entry per meaningfully-changed field worth logging. Due date has no
+// matching order_activity.activity_type in the schema's check constraint,
+// so a due-date change isn't logged here — priority and payment status
+// are the two edit-form fields that do have one.
+export function diffOrderForActivity(previous: Order, values: OrderFormValues): ActivityDiffEntry[] {
+  const entries: ActivityDiffEntry[] = []
+  if (previous.priority !== values.priority) {
+    entries.push({ activityType: 'priority', message: `Priority changed to ${values.priority}` })
+  }
+  if (previous.paymentStatus !== values.paymentStatus) {
+    entries.push({ activityType: 'payment', message: `Payment status changed to ${values.paymentStatus}` })
+  }
+  return entries
+}
+
+// Edit Order's save path: finalize the same upsert_order RPC everything
+// else uses, then log activity for whatever meaningfully changed.
+export async function updateOrderWithActivity(
+  orderId: string,
+  values: OrderFormValues,
+  previous: Order,
+): Promise<string> {
+  const id = await upsertOrder(values, orderId, true)
+
+  const diffs = diffOrderForActivity(previous, values)
+  if (diffs.length > 0) {
+    const { data: userData } = await supabase.auth.getUser()
+    const { error } = await supabase.from('order_activity').insert(
+      diffs.map((d) => ({
+        order_id: orderId,
+        user_id: userData.user?.id,
+        activity_type: d.activityType,
+        message: d.message,
+      })),
+    )
+    if (error) throw error
+  }
+
+  return id
 }
 
 export async function listActivityForOrder(orderId: string): Promise<OrderActivityEntry[]> {

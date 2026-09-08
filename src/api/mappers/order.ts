@@ -1,4 +1,5 @@
 import type {
+  AdultSize,
   ArtworkStatus,
   DeliveryMethod,
   GarmentStatus,
@@ -8,13 +9,17 @@ import type {
   ProductionStatus,
   ServiceName,
   Turnaround,
+  YouthSize,
 } from '@/types'
-import type { OrderFormValues } from '@/schemas/orderFormSchema'
+import { ADULT_SIZES, YOUTH_SIZES } from '@/types'
+import type { GarmentFormValues, OrderFormValues } from '@/schemas/orderFormSchema'
 import { orderSubTotal } from '@/utils/quantity'
 import { mapGarmentRowsToDomain } from '@/api/mappers/garment'
 import type { OrderGarmentRow } from '@/api/mappers/garment'
 import { mapPrintSpecRowToDomain, mapPrintSpecFormToPayload, sortPrintSpecRows } from '@/api/mappers/printSpec'
 import type { PrintSpecRow } from '@/api/mappers/printSpec'
+import { mapArtworkRowToDomain } from '@/api/mappers/artwork'
+import type { ArtworkRow } from '@/api/mappers/artwork'
 
 export interface OrderRow {
   id: string
@@ -45,13 +50,9 @@ export interface OrderRow {
   order_garments: OrderGarmentRow[]
   order_services: { services: { name: string } | null }[]
   print_specs: PrintSpecRow[]
+  artwork: ArtworkRow[]
 }
 
-// Note: `artwork` is deliberately not selected/mapped here yet — the table
-// exists (Milestone 4 needed it as print_specs' FK target) but nothing
-// writes to it until Milestone 5's storage wiring lands, so every order
-// gets an empty array for now rather than a half-built signed-URL mapper
-// with nothing to point at.
 export function mapDatabaseOrderToDomain(row: OrderRow): Order {
   const garments = mapGarmentRowsToDomain(row.order_garments)
   const customerName = row.customers ? row.customers.company || row.customers.name : row.job_name
@@ -84,9 +85,86 @@ export function mapDatabaseOrderToDomain(row: OrderRow): Order {
       .map((os) => ({ name: os.services!.name as ServiceName, enabled: true })),
     garments,
     printSpecs: sortPrintSpecRows(row.print_specs).map(mapPrintSpecRowToDomain),
-    artwork: [],
+    artwork: row.artwork.map(mapArtworkRowToDomain),
     notes: row.notes ?? '',
     productionNotes: row.production_notes ?? '',
+    staffCompleted: row.staff_completed,
+  }
+}
+
+function fullAdultQuantities(partial: Partial<Record<AdultSize, number>> | undefined): GarmentFormValues['adultQuantities'] {
+  const result = {} as GarmentFormValues['adultQuantities']
+  for (const size of ADULT_SIZES) result[size] = partial?.[size] ?? 0
+  return result
+}
+
+function fullYouthQuantities(partial: Partial<Record<YouthSize, number>> | undefined): GarmentFormValues['youthQuantities'] {
+  const result = {} as GarmentFormValues['youthQuantities']
+  for (const size of YOUTH_SIZES) result[size] = partial?.[size] ?? 0
+  return result
+}
+
+// DB row -> OrderFormValues, for editing an existing order (Milestone 8)
+// and, later, resuming a draft (Milestone 11) — both need the exact same
+// reverse mapping. Consumes the raw OrderRow (not the already-mapped
+// Order) because the form needs things the domain type intentionally
+// drops: full per-size quantity objects (not just the non-zero ones),
+// and artwork's storage_path (needed to call removeArtwork later).
+// artworkFiles' previewUrl is left undefined here — signed URLs are
+// fetched separately (async, short-lived) by the edit page before the
+// form mounts, not baked into this pure mapper.
+export function mapDatabaseOrderToFormValues(row: OrderRow): OrderFormValues {
+  const garments = mapGarmentRowsToDomain(row.order_garments)
+
+  return {
+    orderDate: row.created_at.slice(0, 10),
+    customerId: row.customer_id,
+    newCustomerName: '',
+    jobName: row.job_name,
+    email: row.email ?? '',
+    phone: row.phone ?? '',
+    dueDate: row.due_date ?? '',
+    rushFee: row.rush_fee,
+    turnaround: row.turnaround_type as Turnaround,
+    deliveryMethod: row.delivery_method as DeliveryMethod,
+    priority: row.priority as Priority,
+    services: row.order_services.filter((os) => os.services).map((os) => os.services!.name),
+    suppliesGarments: row.supplies_garments,
+    graphicDesignServices: row.graphic_design_services,
+    specialisedApplication: row.specialised_application,
+    specialisedApplicationDetails: row.specialised_application_details ?? '',
+    garments: garments.map((g) => ({
+      id: g.id,
+      type: g.type,
+      brand: g.brand,
+      colour: g.colour,
+      sizing: g.sizing,
+      adultQuantities: fullAdultQuantities(g.adultQuantities),
+      youthQuantities: fullYouthQuantities(g.youthQuantities),
+    })),
+    artworkFiles: row.artwork.map((a) => ({
+      id: a.id,
+      fileName: a.file_name,
+      fileType: a.file_type,
+      sizeKb: Math.round(a.file_size_bytes / 1024),
+      previewUrl: undefined,
+      storagePath: a.storage_path,
+    })),
+    printSpecs: sortPrintSpecRows(row.print_specs).map((p) => ({
+      id: p.id,
+      position: p.position,
+      colour: p.colour,
+      widthMm: p.width_mm,
+      heightMm: p.height_mm,
+      garmentType: p.garment_type ?? undefined,
+      garmentColour: p.garment_colour ?? undefined,
+      artworkId: p.artwork_id ?? undefined,
+      offsetX: p.offset_x ?? 0,
+      offsetY: p.offset_y ?? 0,
+    })),
+    paymentStatus: row.payment_status as PaymentStatus,
+    productionNotes: row.production_notes ?? '',
+    notes: row.notes ?? '',
     staffCompleted: row.staff_completed,
   }
 }

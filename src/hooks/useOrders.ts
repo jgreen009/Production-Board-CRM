@@ -1,10 +1,12 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   getOrder,
+  getOrderFormValues,
   listActivityForOrder,
   listOrders,
   updateArtworkStatus,
   updateGarmentStatus,
+  updateOrderWithActivity,
   updatePaymentStatus,
   updateProductionStatus,
   upsertOrder,
@@ -21,6 +23,20 @@ export function useOrder(id: string | undefined | null) {
     queryKey: ['orders', id],
     queryFn: () => getOrder(id!),
     enabled: !!id,
+  })
+}
+
+// Edit Order (Milestone 8) and, later, resuming a draft (Milestone 11) —
+// the reverse mapping needed to hydrate the New Order form from an
+// existing row. Separate query key from ['orders', id] since it returns a
+// different shape (OrderFormValues, not Order) and is only ever needed
+// once, on mount, not kept live like the detail view.
+export function useOrderFormValues(id: string | undefined | null) {
+  return useQuery({
+    queryKey: ['orders', id, 'form-values'],
+    queryFn: () => getOrderFormValues(id!),
+    enabled: !!id,
+    staleTime: Infinity, // a stale background refetch would clobber in-progress edits
   })
 }
 
@@ -47,6 +63,29 @@ export function useUpsertOrder() {
     onSuccess: (id) => {
       queryClient.invalidateQueries({ queryKey: ['orders'] })
       queryClient.invalidateQueries({ queryKey: ['orders', id] })
+    },
+  })
+}
+
+interface UpdateOrderWithActivityInput {
+  values: OrderFormValues
+  orderId: string
+  previous: Order
+}
+
+// Edit Order's save path — finalizes via the same upsert_order RPC, then
+// logs activity for whatever meaningfully changed (priority, payment
+// status) relative to the order as it was when the edit form loaded.
+export function useUpdateOrderWithActivity() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ values, orderId, previous }: UpdateOrderWithActivityInput) =>
+      updateOrderWithActivity(orderId, values, previous),
+    onSuccess: (id) => {
+      queryClient.invalidateQueries({ queryKey: ['orders'] })
+      queryClient.invalidateQueries({ queryKey: ['orders', id] })
+      queryClient.invalidateQueries({ queryKey: ['orders', id, 'activity'] })
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] })
     },
   })
 }

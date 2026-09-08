@@ -5,14 +5,21 @@ import { Button } from '@/components/ui/Button'
 import { Card, CardBody, CardHeader } from '@/components/ui/Card'
 import { orderSubTotal } from '@/utils/quantity'
 import { formatDate } from '@/utils/date'
-import type { GarmentItem } from '@/types'
+import type { GarmentItem, ProductionStatus } from '@/types'
 
 interface OrderSummaryProps {
   values: OrderFormValues
   submitting?: boolean
+  submitLabel?: string
+  productionStatus?: ProductionStatus
 }
 
-export function OrderSummary({ values, submitting }: OrderSummaryProps) {
+export function OrderSummary({
+  values,
+  submitting,
+  submitLabel = 'Create Order',
+  productionStatus = 'New',
+}: OrderSummaryProps) {
   // The Name field doubles as the customer-facing label whether it came
   // from selecting an existing customer or creating a new one (see
   // CustomerJobSection) — jobName is always kept in sync with whichever
@@ -53,7 +60,7 @@ export function OrderSummary({ values, submitting }: OrderSummaryProps) {
           value={values.services.length ? values.services.join(', ') : 'None selected'}
         />
         <SummaryRow label="Artwork" value={`${values.artworkFiles.length} file${values.artworkFiles.length === 1 ? '' : 's'}`} />
-        <SummaryRow label="Est. Production Status" value={<StatusBadge kind="production" value="New" />} />
+        <SummaryRow label="Production Status" value={<StatusBadge kind="production" value={productionStatus} />} />
 
         <div className="border-t border-zinc-100 pt-3 text-xs leading-relaxed text-zinc-400">
           100% deposit required before manufacturing commences. Quotes, invoices, and screens are valid for
@@ -62,7 +69,7 @@ export function OrderSummary({ values, submitting }: OrderSummaryProps) {
         </div>
 
         <Button type="submit" variant="primary" disabled={submitting} className="mt-1 w-full">
-          {submitting ? 'Creating Order...' : 'Create Order'}
+          {submitting ? `${submitLabel}...` : submitLabel}
         </Button>
       </CardBody>
     </Card>

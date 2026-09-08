@@ -72,7 +72,9 @@ export default function OrderDetail() {
           <Button
             variant="secondary"
             size="sm"
-            onClick={() => showToast('Full edit form arrives with backend integration.', 'info')}
+            onClick={() =>
+              isRealId ? navigate(`/orders/${order.id}/edit`) : showToast('Demo order — editing not available.', 'info')
+            }
           >
             <Pencil size={14} /> Edit Order
           </Button>

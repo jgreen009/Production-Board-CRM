@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { mapDatabaseOrderToDomain, mapOrderFormToUpsertPayload } from '@/api/mappers/order'
+import { mapDatabaseOrderToDomain, mapDatabaseOrderToFormValues, mapOrderFormToUpsertPayload } from '@/api/mappers/order'
 import type { OrderRow } from '@/api/mappers/order'
 import { defaultOrderFormValues, emptyGarment } from '@/pages/new-order/defaultValues'
 
@@ -64,6 +64,7 @@ describe('mapDatabaseOrderToDomain', () => {
     ],
     order_services: [{ services: { name: 'Screen Printing' } }],
     print_specs: [],
+    artwork: [],
   }
 
   it('prefers the customer company for the denormalized display name', () => {
@@ -89,5 +90,111 @@ describe('mapDatabaseOrderToDomain', () => {
       order_services: [{ services: { name: 'Screen Printing' } }, { services: null }],
     })
     expect(order.services).toEqual([{ name: 'Screen Printing', enabled: true }])
+  })
+
+  it('maps artwork rows to the domain shape (fixed in Milestone 8 — used to always be [])', () => {
+    const order = mapDatabaseOrderToDomain({
+      ...baseRow,
+      artwork: [
+        { id: 'aw1', file_name: 'logo.png', file_type: 'PNG', file_size_bytes: 2048, storage_path: 'x', created_at: '2026-01-01T00:00:00Z' },
+      ],
+    })
+    expect(order.artwork).toEqual([
+      { id: 'aw1', fileName: 'logo.png', fileType: 'PNG', sizeKb: 2, uploadedAt: '2026-01-01T00:00:00Z' },
+    ])
+  })
+})
+
+describe('mapDatabaseOrderToFormValues', () => {
+  const row: OrderRow = {
+    id: 'o1',
+    customer_id: 'c1',
+    order_number: 'SP-1001',
+    job_name: 'Home Jersey Reprint',
+    phone: '0412 334 556',
+    email: 'admin@kelstonrugby.com.au',
+    created_at: '2026-01-01T00:00:00Z',
+    due_date: '2026-01-10',
+    turnaround_type: 'Rush',
+    payment_status: 'Deposit Paid',
+    artwork_status: 'Approved',
+    garment_status: 'Received',
+    production_status: 'In Production',
+    priority: 'Urgent',
+    delivery_method: 'Pick Up',
+    rush_fee: true,
+    supplies_garments: false,
+    graphic_design_services: false,
+    specialised_application: true,
+    specialised_application_details: 'Puff print on logo',
+    notes: 'Chase up today.',
+    production_notes: '',
+    staff_completed: false,
+    order_state: 'Active',
+    customers: { name: 'Dave Kelston', company: 'Kelston Rugby Club' },
+    order_garments: [
+      {
+        id: 'g1',
+        garment_type_label: 'T-shirt',
+        garment_brand_label: 'AS colour',
+        colour: 'Navy',
+        sizing_type: 'Adult',
+        sort_order: 0,
+        garment_quantities: [
+          { size: 'M', quantity: 8 },
+          { size: 'L', quantity: 10 },
+        ],
+      },
+    ],
+    order_services: [{ services: { name: 'Screen Printing' } }],
+    print_specs: [
+      {
+        id: 'p1',
+        position: 'Left Chest',
+        colour: 'White',
+        width_mm: 105,
+        height_mm: 148,
+        garment_type: 'T-shirt',
+        garment_colour: 'Navy',
+        artwork_id: null,
+        offset_x: null,
+        offset_y: null,
+        sort_order: 0,
+      },
+    ],
+    artwork: [
+      { id: 'aw1', file_name: 'logo.png', file_type: 'PNG', file_size_bytes: 2048, storage_path: 'orders/o1/artwork/aw1/logo.png', created_at: '2026-01-01T00:00:00Z' },
+    ],
+  }
+
+  it('fills in every adult size (not just the non-zero ones) so the size grid renders correctly', () => {
+    const values = mapDatabaseOrderToFormValues(row)
+    expect(values.garments[0].adultQuantities).toEqual({
+      S: 0, M: 8, L: 10, XL: 0, '2XL': 0, '3XL': 0, '4XL': 0, '5XL': 0,
+    })
+  })
+
+  it('never sets newCustomerName — an edited order already has a real customerId', () => {
+    const values = mapDatabaseOrderToFormValues(row)
+    expect(values.customerId).toBe('c1')
+    expect(values.newCustomerName).toBe('')
+  })
+
+  it('renames turnaround_type back to the form field name turnaround', () => {
+    const values = mapDatabaseOrderToFormValues(row)
+    expect(values.turnaround).toBe('Rush')
+  })
+
+  it('carries storagePath through for artwork files, with no previewUrl (fetched separately)', () => {
+    const values = mapDatabaseOrderToFormValues(row)
+    expect(values.artworkFiles).toEqual([
+      { id: 'aw1', fileName: 'logo.png', fileType: 'PNG', sizeKb: 2, previewUrl: undefined, storagePath: 'orders/o1/artwork/aw1/logo.png' },
+    ])
+  })
+
+  it('pre-populates specialisedApplicationDetails for acceptance test #17', () => {
+    const values = mapDatabaseOrderToFormValues(row)
+    expect(values.specialisedApplication).toBe(true)
+    expect(values.specialisedApplicationDetails).toBe('Puff print on logo')
   })
 })

@@ -7,6 +7,7 @@ import Dashboard from '@/pages/Dashboard'
 import ProductionBoard from '@/pages/ProductionBoard'
 import OrdersList from '@/pages/OrdersList'
 import NewOrderForm from '@/pages/NewOrderForm'
+import EditOrderForm from '@/pages/EditOrderForm'
 import OrderDetail from '@/pages/OrderDetail'
 import CustomersList from '@/pages/CustomersList'
 import CustomerDetail from '@/pages/CustomerDetail'
@@ -29,6 +30,7 @@ export default function App() {
             <Route path="/production" element={<ProductionBoard />} />
             <Route path="/orders" element={<OrdersList />} />
             <Route path="/orders/new" element={<NewOrderForm />} />
+            <Route path="/orders/:id/edit" element={<EditOrderForm />} />
             <Route path="/orders/:id" element={<OrderDetail />} />
             <Route path="/customers" element={<CustomersList />} />
             <Route path="/customers/:id" element={<CustomerDetail />} />
