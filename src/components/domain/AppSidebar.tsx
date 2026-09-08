@@ -7,10 +7,19 @@ import {
   PlusCircle,
   Settings,
   HelpCircle,
+  LogOut,
   Printer,
   X,
 } from 'lucide-react'
 import { clsx } from 'clsx'
+import { signOut } from '@/api/auth'
+import { useProfile } from '@/hooks/useProfile'
+
+function initials(name: string | null | undefined, fallback: string) {
+  if (!name) return fallback
+  const parts = name.trim().split(/\s+/)
+  return parts.slice(0, 2).map((p) => p[0]?.toUpperCase()).join('') || fallback
+}
 
 const NAV_ITEMS = [
   { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -27,6 +36,8 @@ interface AppSidebarProps {
 }
 
 export function AppSidebar({ mobileOpen, onCloseMobile }: AppSidebarProps) {
+  const { data: profile } = useProfile()
+
   return (
     <>
       {mobileOpen && (
@@ -90,13 +101,23 @@ export function AppSidebar({ mobileOpen, onCloseMobile }: AppSidebarProps) {
             Help
           </button>
           <div className="mt-1 flex items-center gap-2.5 rounded-md px-3 py-2">
-            <span className="flex h-7 w-7 items-center justify-center rounded-full bg-zinc-200 text-xs font-semibold text-zinc-700">
-              SP
+            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-zinc-200 text-xs font-semibold text-zinc-700">
+              {initials(profile?.fullName, 'SP')}
             </span>
-            <div className="flex flex-col leading-tight">
-              <span className="text-sm font-medium text-zinc-800">Staff Account</span>
-              <span className="text-xs text-zinc-400">SALT PRINTS</span>
+            <div className="flex min-w-0 flex-1 flex-col leading-tight">
+              <span className="truncate text-sm font-medium text-zinc-800">
+                {profile?.fullName || 'Staff Account'}
+              </span>
+              <span className="text-xs capitalize text-zinc-400">{profile?.role ?? 'SALT PRINTS'}</span>
             </div>
+            <button
+              onClick={() => signOut()}
+              className="shrink-0 rounded-md p-1.5 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700"
+              aria-label="Sign out"
+              title="Sign out"
+            >
+              <LogOut size={15} />
+            </button>
           </div>
         </div>
       </aside>
