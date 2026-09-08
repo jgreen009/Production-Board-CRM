@@ -2,7 +2,7 @@ import { useFormContext } from 'react-hook-form'
 import type { OrderFormValues } from '@/schemas/orderFormSchema'
 import { OrderFormSection } from '@/components/domain/OrderFormSection'
 import { Checkbox, Toggle } from '@/components/ui/Field'
-import { SERVICE_CATALOG } from '@/data/mockServices'
+import { useServicesSettings } from '@/hooks/useSettings'
 
 export function ServicesSection() {
   const {
@@ -10,10 +10,16 @@ export function ServicesSection() {
     setValue,
     formState: { errors },
   } = useFormContext<OrderFormValues>()
+  const { data: catalog = [] } = useServicesSettings()
 
   const services = watch('services')
   const suppliesGarments = watch('suppliesGarments')
   const graphicDesignServices = watch('graphicDesignServices')
+
+  // Active services, plus any already-selected one that's since been
+  // disabled — an existing order (or an in-progress draft) keeps showing
+  // its selection rather than silently losing it from the list.
+  const visibleServices = catalog.filter((s) => s.active || services.includes(s.name))
 
   const toggleService = (name: string, checked: boolean) => {
     if (checked) setValue('services', [...services, name])
@@ -32,12 +38,11 @@ export function ServicesSection() {
           <p className="mb-2 text-xs text-red-600">{errors.services.message}</p>
         )}
         <div className="grid grid-cols-2 gap-2 lg:grid-cols-3">
-          {SERVICE_CATALOG.map((service) => (
+          {visibleServices.map((service) => (
             <Checkbox
-              key={service.name}
-              id={`service-${service.name}`}
+              key={service.id}
+              id={`service-${service.id}`}
               label={service.name}
-              description={service.description}
               checked={services.includes(service.name)}
               onChange={(e) => toggleService(service.name, e.target.checked)}
             />

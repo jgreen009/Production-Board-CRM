@@ -3,6 +3,7 @@ import type { OrderFormValues } from '@/schemas/orderFormSchema'
 import type { Turnaround, DeliveryMethod, Priority } from '@/types'
 import { OrderFormSection } from '@/components/domain/OrderFormSection'
 import { TURNAROUNDS, TURNAROUND_DESCRIPTIONS, PRIORITIES } from '@/data/mockStatuses'
+import { useBusinessSettings } from '@/hooks/useSettings'
 import { clsx } from 'clsx'
 
 const DELIVERY_OPTIONS: { value: DeliveryMethod; label: string; hint?: string }[] = [
@@ -19,10 +20,21 @@ const FORM_TURNAROUNDS = FORM_TURNAROUND_ORDER.map(
 
 export function TurnaroundDeliverySection() {
   const { watch, setValue } = useFormContext<OrderFormValues>()
+  const { data: businessSettings } = useBusinessSettings()
 
   const turnaround = watch('turnaround')
   const deliveryMethod = watch('deliveryMethod')
   const priority = watch('priority')
+
+  // Falls back to the static copy (which already says "7–10 business
+  // days", matching business_settings' own seeded defaults) until the
+  // real row loads — never shows a stale hardcoded value once it has.
+  const turnaroundDescriptions = businessSettings
+    ? {
+        ...TURNAROUND_DESCRIPTIONS,
+        Standard: `Standard turnaround — ${businessSettings.standardTurnaroundMinDays}–${businessSettings.standardTurnaroundMaxDays} business days.`,
+      }
+    : TURNAROUND_DESCRIPTIONS
 
   const handleTurnaroundChange = (value: Turnaround) => {
     setValue('turnaround', value)
@@ -50,7 +62,7 @@ export function TurnaroundDeliverySection() {
             >
               <p className="font-medium">{t.label}</p>
               <p className={clsx('mt-0.5 text-xs', turnaround === t.value ? 'text-zinc-300' : 'text-zinc-400')}>
-                {TURNAROUND_DESCRIPTIONS[t.value]}
+                {turnaroundDescriptions[t.value]}
               </p>
             </button>
           ))}

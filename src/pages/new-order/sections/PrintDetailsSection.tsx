@@ -9,7 +9,8 @@ import { GarmentMockup } from '@/components/domain/GarmentMockup'
 import { emptyPrintSpec } from '@/pages/new-order/defaultValues'
 import { PRINT_POSITIONS, getPrintPositionConfig } from '@/data/printPositions'
 import { PRINT_SIZES } from '@/data/printSizes'
-import { GARMENT_TYPES } from '@/data/mockGarments'
+import { useGarmentTypesSettings } from '@/hooks/useSettings'
+import { selectableCatalogNames } from '@/utils/catalog'
 
 export function PrintDetailsSection() {
   const {
@@ -23,6 +24,8 @@ export function PrintDetailsSection() {
   const printSpecs = watch('printSpecs')
   const garments = watch('garments')
   const artworkFiles = watch('artworkFiles')
+  const { data: garmentTypesCatalog = [] } = useGarmentTypesSettings()
+  const activeGarmentTypeNames = garmentTypesCatalog.filter((g) => g.active).map((g) => g.name)
 
   return (
     <div>
@@ -36,7 +39,7 @@ export function PrintDetailsSection() {
         {fields.map((field, index) => {
           const spec = printSpecs[index]
           const config = getPrintPositionConfig(spec.position as PrintPosition)
-          const effectiveGarmentType = (spec.garmentType || garments[0]?.type || GARMENT_TYPES[0]) as GarmentType
+          const effectiveGarmentType = (spec.garmentType || garments[0]?.type || activeGarmentTypeNames[0]) as GarmentType
           const effectiveColour =
             spec.garmentColour || garments.find((g) => g.type === effectiveGarmentType)?.colour || garments[0]?.colour || ''
           const artwork = artworkFiles.find((f) => f.id === spec.artworkId)
@@ -145,7 +148,7 @@ export function PrintDetailsSection() {
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   <FormField label="Preview Garment" hint="Any catalog type — not limited to garments added above.">
                     <Select value={effectiveGarmentType} onChange={(e) => update({ garmentType: e.target.value })}>
-                      {GARMENT_TYPES.map((t) => (
+                      {selectableCatalogNames(garmentTypesCatalog, effectiveGarmentType).map((t) => (
                         <option key={t} value={t}>{t}</option>
                       ))}
                     </Select>

@@ -3,13 +3,12 @@ import { Shirt, Wrench, Tags, Layers, Building2 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { PageHeader } from '@/components/domain/PageHeader'
 import { Card, CardBody } from '@/components/ui/Card'
-import { useToast } from '@/components/ui/toast-context'
 
 interface SettingsCard {
   title: string
   description: string
   icon: LucideIcon
-  path?: string
+  path: string
 }
 
 const CARDS: SettingsCard[] = [
@@ -17,12 +16,11 @@ const CARDS: SettingsCard[] = [
   { title: 'Services', description: 'Enable or disable the services offered to customers.', icon: Wrench, path: '/settings/services' },
   { title: 'Statuses', description: 'Review the payment, artwork, garment, and production status sets.', icon: Tags, path: '/settings/statuses' },
   { title: 'Mockup Templates', description: 'Manage garment mockup templates used in the order form.', icon: Layers, path: '/settings/mockups' },
-  { title: 'Business Settings', description: 'Business details, terms, and turnaround defaults.', icon: Building2 },
+  { title: 'Business Settings', description: 'Business details, terms, and turnaround defaults.', icon: Building2, path: '/settings/business' },
 ]
 
 export default function SettingsIndex() {
   const navigate = useNavigate()
-  const { showToast } = useToast()
 
   return (
     <div>
@@ -32,9 +30,7 @@ export default function SettingsIndex() {
           <Card
             key={card.title}
             className="cursor-pointer p-4 hover:border-zinc-300"
-            onClick={() =>
-              card.path ? navigate(card.path) : showToast('Business settings arrive with backend integration.', 'info')
-            }
+            onClick={() => navigate(card.path)}
           >
             <CardBody className="p-0">
               <card.icon size={20} className="mb-2 text-zinc-400" />

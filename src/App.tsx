@@ -16,6 +16,7 @@ import SettingsGarments from '@/pages/settings/SettingsGarments'
 import SettingsServices from '@/pages/settings/SettingsServices'
 import SettingsStatuses from '@/pages/settings/SettingsStatuses'
 import SettingsMockups from '@/pages/settings/SettingsMockups'
+import SettingsBusiness from '@/pages/settings/SettingsBusiness'
 import NotFound from '@/pages/NotFound'
 
 export default function App() {
@@ -39,6 +40,7 @@ export default function App() {
             <Route path="/settings/services" element={<SettingsServices />} />
             <Route path="/settings/statuses" element={<SettingsStatuses />} />
             <Route path="/settings/mockups" element={<SettingsMockups />} />
+            <Route path="/settings/business" element={<SettingsBusiness />} />
             <Route path="*" element={<NotFound />} />
           </Route>
         </Route>

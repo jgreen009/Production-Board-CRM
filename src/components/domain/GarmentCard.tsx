@@ -1,10 +1,11 @@
 import { Trash2 } from 'lucide-react'
 import type { GarmentFormValues } from '@/schemas/orderFormSchema'
-import { GARMENT_TYPES, GARMENT_BRANDS } from '@/data/mockGarments'
 import { ADULT_SIZES, YOUTH_SIZES } from '@/types'
 import { SizeQuantityGrid } from '@/components/domain/SizeQuantityGrid'
 import { FormField, Input, Select } from '@/components/ui/Field'
 import { garmentTotal } from '@/utils/quantity'
+import { useGarmentTypesSettings, useGarmentBrandsSettings } from '@/hooks/useSettings'
+import { selectableCatalogNames } from '@/utils/catalog'
 import { clsx } from 'clsx'
 
 interface GarmentCardProps {
@@ -17,6 +18,11 @@ interface GarmentCardProps {
 }
 
 export function GarmentCard({ garment, index, canRemove, onChange, onRemove, colourError }: GarmentCardProps) {
+  const { data: garmentTypes = [] } = useGarmentTypesSettings()
+  const { data: garmentBrands = [] } = useGarmentBrandsSettings()
+  const typeOptions = selectableCatalogNames(garmentTypes, garment.type)
+  const brandOptions = selectableCatalogNames(garmentBrands, garment.brand)
+
   const total = garmentTotal({
     id: garment.id,
     type: garment.type as never,
@@ -52,7 +58,7 @@ export function GarmentCard({ garment, index, canRemove, onChange, onRemove, col
             value={garment.type}
             onChange={(e) => onChange({ ...garment, type: e.target.value })}
           >
-            {GARMENT_TYPES.map((t) => (
+            {typeOptions.map((t) => (
               <option key={t} value={t}>{t}</option>
             ))}
           </Select>
@@ -62,7 +68,7 @@ export function GarmentCard({ garment, index, canRemove, onChange, onRemove, col
             value={garment.brand}
             onChange={(e) => onChange({ ...garment, brand: e.target.value })}
           >
-            {GARMENT_BRANDS.map((b) => (
+            {brandOptions.map((b) => (
               <option key={b} value={b}>{b}</option>
             ))}
           </Select>

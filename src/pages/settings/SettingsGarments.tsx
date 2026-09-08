@@ -4,16 +4,30 @@ import { ArrowLeft, Plus } from 'lucide-react'
 import { PageHeader } from '@/components/domain/PageHeader'
 import { Card, CardBody } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
+import { Input } from '@/components/ui/Field'
+import { TableSkeleton } from '@/components/ui/LoadingSkeleton'
 import { useToast } from '@/components/ui/toast-context'
-import { GARMENT_CATALOG } from '@/data/mockGarments'
+import { useGarmentTypesSettings } from '@/hooks/useSettings'
 
 export default function SettingsGarments() {
   const navigate = useNavigate()
   const { showToast } = useToast()
-  const [catalog, setCatalog] = useState(GARMENT_CATALOG)
+  const { data: catalog = [], isLoading, create, update } = useGarmentTypesSettings()
+  const [newName, setNewName] = useState('')
 
-  const toggleActive = (type: string) => {
-    setCatalog((prev) => prev.map((g) => (g.type === type ? { ...g, active: !g.active } : g)))
+  const handleAdd = () => {
+    const name = newName.trim()
+    if (!name) return
+    create.mutate(name, {
+      onSuccess: () => setNewName(''),
+      onError: (err) => showToast(err instanceof Error ? err.message : 'Failed to add garment type', 'info'),
+    })
+  }
+
+  const toggleActive = (id: string, active: boolean) => {
+    update.mutate({ id, patch: { active: !active } }, {
+      onError: (err) => showToast(err instanceof Error ? err.message : 'Failed to update', 'info'),
+    })
   }
 
   return (
@@ -23,43 +37,52 @@ export default function SettingsGarments() {
       </button>
       <PageHeader
         title="Garments"
-        description="Garment catalog used throughout the order form"
+        description="Garment type catalog used throughout the order form"
         actions={
-          <Button variant="primary" size="sm" onClick={() => showToast('Adding garments arrives with backend integration.', 'info')}>
-            <Plus size={14} /> Add Garment
-          </Button>
+          <div className="flex items-center gap-2">
+            <Input
+              value={newName}
+              onChange={(e) => setNewName(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleAdd()}
+              placeholder="New garment type"
+              className="h-9 w-44"
+            />
+            <Button variant="primary" size="sm" disabled={!newName.trim() || create.isPending} onClick={handleAdd}>
+              <Plus size={14} /> Add
+            </Button>
+          </div>
         }
       />
 
       <Card>
         <CardBody className="overflow-x-auto p-0">
-          <table className="w-full text-left text-sm">
-            <thead>
-              <tr className="border-b border-zinc-100 text-xs text-zinc-400">
-                <th className="px-4 py-2 font-medium">Garment</th>
-                <th className="px-4 py-2 font-medium">Category</th>
-                <th className="px-4 py-2 font-medium">Available Sizes</th>
-                <th className="px-4 py-2 font-medium">Active</th>
-              </tr>
-            </thead>
-            <tbody>
-              {catalog.map((g) => (
-                <tr key={g.type} className="border-b border-zinc-50 last:border-0">
-                  <td className="px-4 py-2.5 font-medium text-zinc-800">{g.type}</td>
-                  <td className="px-4 py-2.5 text-zinc-600">{g.category}</td>
-                  <td className="px-4 py-2.5 text-zinc-500">{g.availableSizes.join(', ')}</td>
-                  <td className="px-4 py-2.5">
-                    <button
-                      onClick={() => toggleActive(g.type)}
-                      className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${g.active ? 'bg-zinc-900' : 'bg-zinc-200'}`}
-                    >
-                      <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${g.active ? 'translate-x-4' : 'translate-x-1'}`} />
-                    </button>
-                  </td>
+          {isLoading ? (
+            <TableSkeleton />
+          ) : (
+            <table className="w-full text-left text-sm">
+              <thead>
+                <tr className="border-b border-zinc-100 text-xs text-zinc-400">
+                  <th className="px-4 py-2 font-medium">Garment Type</th>
+                  <th className="px-4 py-2 font-medium">Active</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {catalog.map((g) => (
+                  <tr key={g.id} className="border-b border-zinc-50 last:border-0">
+                    <td className="px-4 py-2.5 font-medium text-zinc-800">{g.name}</td>
+                    <td className="px-4 py-2.5">
+                      <button
+                        onClick={() => toggleActive(g.id, g.active)}
+                        className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${g.active ? 'bg-zinc-900' : 'bg-zinc-200'}`}
+                      >
+                        <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${g.active ? 'translate-x-4' : 'translate-x-1'}`} />
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
         </CardBody>
       </Card>
     </div>
