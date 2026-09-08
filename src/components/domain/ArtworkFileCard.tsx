@@ -31,7 +31,7 @@ export function ArtworkFileCard({ file, onRemove }: ArtworkFileCardProps) {
         <p className="text-xs text-zinc-400">
           {TYPE_LABELS[file.fileType] ?? file.fileType} · {file.sizeKb} KB
         </p>
-        {!file.previewUrl && <p className="text-xs text-zinc-400">Preview unavailable · Ready for upload</p>}
+        {!file.previewUrl && <p className="text-xs text-zinc-400">Preview unavailable</p>}
       </div>
 
       <div className="flex shrink-0 items-center gap-1">

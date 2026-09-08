@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { ArrowLeft, MoreHorizontal, Pencil } from 'lucide-react'
 import { mockOrders } from '@/data/mockOrders'
+import { useOrder } from '@/hooks/useOrders'
 import { StatCard } from '@/components/domain/StatCard'
 import { StatusBadge } from '@/components/domain/StatusBadge'
 import { Tabs } from '@/components/ui/Tabs'
@@ -33,7 +34,18 @@ export default function OrderDetail() {
   const { showToast } = useToast()
   const [tab, setTab] = useState('overview')
 
-  const order = mockOrders.find((o) => o.id === id)
+  // Transitional: real orders (Milestone 6+) get real UUIDs; the demo
+  // orders in mockOrders.ts use plain string ids like "order-1" and still
+  // work everywhere else in the app (Production Board, Orders List,
+  // Customer Detail) until those get their own real-data milestones. Only
+  // attempt the real fetch for something that's actually a UUID — passing
+  // "order-1" to a `uuid` column errors rather than just missing.
+  const isRealId = !!id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)
+  const { data: realOrder, isLoading } = useOrder(isRealId ? id : undefined)
+  const mockOrder = !isRealId ? mockOrders.find((o) => o.id === id) : undefined
+  const order = realOrder ?? mockOrder
+
+  if (isRealId && isLoading) return null
   if (!order) return <NotFound />
 
   return (

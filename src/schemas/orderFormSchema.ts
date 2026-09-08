@@ -39,6 +39,10 @@ export const artworkFileFormSchema = z.object({
   fileType: z.string(),
   sizeKb: z.number(),
   previewUrl: z.string().optional(),
+  // Set once a file is actually uploaded to Storage — needed to call
+  // removeArtwork(id, storagePath) later. Absent while a file is still
+  // uploading (see ArtworkUploader's optimistic "Uploading..." row).
+  storagePath: z.string().optional(),
 })
 
 // One entry per physical print: position + colour + size, plus the

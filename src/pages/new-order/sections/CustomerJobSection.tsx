@@ -5,6 +5,8 @@ import type { Customer } from '@/types'
 import { OrderFormSection } from '@/components/domain/OrderFormSection'
 import { CustomerSelector } from '@/components/domain/CustomerSelector'
 import { FormField, Input } from '@/components/ui/Field'
+import { useCreateCustomer } from '@/hooks/useCustomers'
+import { useToast } from '@/components/ui/toast-context'
 
 export function CustomerJobSection() {
   const {
@@ -13,6 +15,8 @@ export function CustomerJobSection() {
     setValue,
     formState: { errors },
   } = useFormContext<OrderFormValues>()
+  const { showToast } = useToast()
+  const createCustomer = useCreateCustomer()
 
   const customerId = watch('customerId')
   const newCustomerName = watch('newCustomerName') ?? ''
@@ -30,11 +34,19 @@ export function CustomerJobSection() {
     setSelectedCustomer(customer)
   }
 
-  const handleCreateNew = (name: string) => {
-    setValue('customerId', null)
-    setValue('newCustomerName', name)
+  // Inserts into customers immediately (never a client-generated fake id —
+  // per spec §9/plan §11, the real UUID is what ends up on orders.customer_id).
+  // Never fuzzy-matches or dedupes an existing name — an exact duplicate
+  // creating a second customer row is accepted, not a bug, per the same
+  // section.
+  const handleCreateNew = async (name: string) => {
     setValue('jobName', name)
-    setSelectedCustomer(null)
+    try {
+      const customer = await createCustomer.mutateAsync({ name })
+      handleSelectCustomer(customer)
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : 'Failed to create customer', 'info')
+    }
   }
 
   const handleClear = () => {

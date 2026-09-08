@@ -3,20 +3,22 @@ import type { OrderFormValues } from '@/schemas/orderFormSchema'
 import { StatusBadge } from '@/components/domain/StatusBadge'
 import { Button } from '@/components/ui/Button'
 import { Card, CardBody, CardHeader } from '@/components/ui/Card'
-import { mockCustomers } from '@/data/mockCustomers'
 import { orderSubTotal } from '@/utils/quantity'
 import { formatDate } from '@/utils/date'
 import type { GarmentItem } from '@/types'
 
 interface OrderSummaryProps {
   values: OrderFormValues
-  nextOrderNumber: string
   submitting?: boolean
 }
 
-export function OrderSummary({ values, nextOrderNumber, submitting }: OrderSummaryProps) {
-  const customer = mockCustomers.find((c) => c.id === values.customerId)
-  const customerLabel = customer ? customer.name : values.newCustomerName || 'Not selected'
+export function OrderSummary({ values, submitting }: OrderSummaryProps) {
+  // The Name field doubles as the customer-facing label whether it came
+  // from selecting an existing customer or creating a new one (see
+  // CustomerJobSection) — jobName is always kept in sync with whichever
+  // happened, so it's the one source of truth here rather than re-deriving
+  // it from customerId (a real UUID now, not something to look up locally).
+  const customerLabel = values.jobName || 'Not selected'
 
   const subTotal = orderSubTotal(
     values.garments.map(
@@ -37,7 +39,7 @@ export function OrderSummary({ values, nextOrderNumber, submitting }: OrderSumma
     <Card>
       <CardHeader>
         <h2 className="text-sm font-semibold text-zinc-800">Order Summary</h2>
-        <p className="text-xs text-zinc-400">Next order number: {nextOrderNumber}</p>
+        <p className="text-xs text-zinc-400">The order number is assigned automatically once created.</p>
       </CardHeader>
       <CardBody className="flex flex-col gap-3 text-sm">
         <SummaryRow label="Customer" value={customerLabel} />

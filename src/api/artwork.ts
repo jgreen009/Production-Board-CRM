@@ -23,7 +23,7 @@ export async function listArtworkForOrder(orderId: string): Promise<Artwork[]> {
 // detectable (signed URL 404s) — rather than an orphaned storage object
 // with no row pointing at it, which is invisible to the app and silently
 // piles up.
-export async function uploadArtwork(orderId: string, file: File): Promise<Artwork> {
+export async function uploadArtwork(orderId: string, file: File): Promise<Artwork & { storagePath: string }> {
   const validation = validateArtworkFile(file)
   if (!validation.valid) throw new Error(validation.reason)
 
@@ -58,7 +58,7 @@ export async function uploadArtwork(orderId: string, file: File): Promise<Artwor
     throw uploadError
   }
 
-  return mapArtworkRowToDomain(row as ArtworkRow)
+  return { ...mapArtworkRowToDomain(row as ArtworkRow), storagePath }
 }
 
 export async function removeArtwork(artworkId: string, storagePath: string): Promise<void> {
