@@ -1,8 +1,10 @@
 import { supabase } from '@/lib/supabase'
-import type { Order } from '@/types'
+import type { ArtworkStatus, GarmentStatus, Order, OrderActivityEntry, PaymentStatus, ProductionStatus } from '@/types'
 import type { OrderFormValues } from '@/schemas/orderFormSchema'
 import { mapDatabaseOrderToDomain, mapOrderFormToUpsertPayload } from '@/api/mappers/order'
 import type { OrderRow } from '@/api/mappers/order'
+import { mapActivityRowToDomain } from '@/api/mappers/activity'
+import type { ActivityRow } from '@/api/mappers/activity'
 
 const ORDER_SELECT = `
   *,
@@ -55,4 +57,55 @@ export async function upsertOrder(
   })
   if (error) throw error
   return data as string
+}
+
+export async function listActivityForOrder(orderId: string): Promise<OrderActivityEntry[]> {
+  const { data, error } = await supabase
+    .from('order_activity')
+    .select('id, order_id, activity_type, message, created_at')
+    .eq('order_id', orderId)
+    .order('created_at', { ascending: false })
+  if (error) throw error
+  return (data as ActivityRow[]).map(mapActivityRowToDomain)
+}
+
+// Shared shape behind the four status-change mutations below: update the
+// column, then log one order_activity row — two sequential calls rather
+// than a single RPC, since a missed activity row on rare failure is an
+// acceptable risk for a log, not core business data (unlike upsert_order's
+// child tables, which do need the whole-child-set-replace guarantee).
+async function updateOrderStatus(
+  orderId: string,
+  column: 'production_status' | 'artwork_status' | 'garment_status' | 'payment_status',
+  value: string,
+  activityType: OrderActivityEntry['type'],
+  label: string,
+): Promise<void> {
+  const { error: updateError } = await supabase.from('orders').update({ [column]: value }).eq('id', orderId)
+  if (updateError) throw updateError
+
+  const { data: userData } = await supabase.auth.getUser()
+  const { error: activityError } = await supabase.from('order_activity').insert({
+    order_id: orderId,
+    user_id: userData.user?.id,
+    activity_type: activityType,
+    message: `${label} changed to ${value}`,
+  })
+  if (activityError) throw activityError
+}
+
+export function updateProductionStatus(orderId: string, status: ProductionStatus) {
+  return updateOrderStatus(orderId, 'production_status', status, 'production', 'Production status')
+}
+
+export function updateArtworkStatus(orderId: string, status: ArtworkStatus) {
+  return updateOrderStatus(orderId, 'artwork_status', status, 'artwork', 'Artwork status')
+}
+
+export function updateGarmentStatus(orderId: string, status: GarmentStatus) {
+  return updateOrderStatus(orderId, 'garment_status', status, 'garments', 'Garment status')
+}
+
+export function updatePaymentStatus(orderId: string, status: PaymentStatus) {
+  return updateOrderStatus(orderId, 'payment_status', status, 'payment', 'Payment status')
 }

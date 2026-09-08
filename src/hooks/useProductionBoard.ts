@@ -2,11 +2,11 @@ import { useMemo, useState } from 'react'
 import type {
   ArtworkStatus,
   GarmentStatus,
-  Order,
   Priority,
   ProductionStatus,
 } from '@/types'
-import { mockOrders } from '@/data/mockOrders'
+import { useOrders, useUpdateProductionStatus } from '@/hooks/useOrders'
+import { useToast } from '@/components/ui/toast-context'
 import { daysUntil } from '@/utils/date'
 
 export type BoardView =
@@ -60,7 +60,9 @@ const DEFAULT_FILTERS: BoardFilters = {
 }
 
 export function useProductionBoard() {
-  const [orders, setOrders] = useState<Order[]>(mockOrders)
+  const { data: orders = [], isLoading } = useOrders()
+  const { showToast } = useToast()
+  const updateProductionStatusMutation = useUpdateProductionStatus()
   const [search, setSearch] = useState('')
   const [view, setView] = useState<BoardView>('all')
   const [filters, setFilters] = useState<BoardFilters>(DEFAULT_FILTERS)
@@ -70,7 +72,10 @@ export function useProductionBoard() {
   const [showDelivery, setShowDelivery] = useState(false)
 
   const updateProductionStatus = (orderId: string, status: ProductionStatus) => {
-    setOrders((prev) => prev.map((o) => (o.id === orderId ? { ...o, productionStatus: status } : o)))
+    updateProductionStatusMutation.mutate(
+      { orderId, status },
+      { onError: (err) => showToast(err instanceof Error ? err.message : 'Failed to update status', 'info') },
+    )
   }
 
   const updateFilter = <K extends keyof BoardFilters>(key: K, value: BoardFilters[K]) => {
@@ -148,6 +153,7 @@ export function useProductionBoard() {
   return {
     orders: filteredOrders,
     totalCount: orders.length,
+    isLoading,
     search,
     setSearch,
     view,

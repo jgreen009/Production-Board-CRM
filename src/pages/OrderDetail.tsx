@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { ArrowLeft, MoreHorizontal, Pencil } from 'lucide-react'
 import { mockOrders } from '@/data/mockOrders'
 import { useOrder } from '@/hooks/useOrders'
+import { isRealOrderId } from '@/utils/id'
 import { StatCard } from '@/components/domain/StatCard'
 import { StatusBadge } from '@/components/domain/StatusBadge'
 import { Tabs } from '@/components/ui/Tabs'
@@ -40,7 +41,7 @@ export default function OrderDetail() {
   // Customer Detail) until those get their own real-data milestones. Only
   // attempt the real fetch for something that's actually a UUID — passing
   // "order-1" to a `uuid` column errors rather than just missing.
-  const isRealId = !!id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)
+  const isRealId = isRealOrderId(id)
   const { data: realOrder, isLoading } = useOrder(isRealId ? id : undefined)
   const mockOrder = !isRealId ? mockOrders.find((o) => o.id === id) : undefined
   const order = realOrder ?? mockOrder
@@ -98,9 +99,9 @@ export default function OrderDetail() {
       {tab === 'order-form' && <OrderFormTab order={order} />}
       {tab === 'garments' && <GarmentsTab order={order} />}
       {tab === 'artwork' && <ArtworkMockupsTab order={order} />}
-      {tab === 'production' && <ProductionTab order={order} />}
+      {tab === 'production' && <ProductionTab order={order} isRealOrder={isRealId} />}
       {tab === 'files' && <FilesTab order={order} />}
-      {tab === 'activity' && <ActivityTab order={order} />}
+      {tab === 'activity' && <ActivityTab order={order} isRealOrder={isRealId} />}
     </div>
   )
 }

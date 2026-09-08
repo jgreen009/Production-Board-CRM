@@ -2,6 +2,7 @@ import { PageHeader } from '@/components/domain/PageHeader'
 import { OrderCard } from '@/components/domain/OrderCard'
 import { StatusBadge } from '@/components/domain/StatusBadge'
 import { EmptyState } from '@/components/ui/EmptyState'
+import { TableSkeleton } from '@/components/ui/LoadingSkeleton'
 import { ProductionToolbar } from '@/components/domain/production/ProductionToolbar'
 import { ProductionTable } from '@/components/domain/production/ProductionTable'
 import { OrderQuickView } from '@/components/domain/production/OrderQuickView'
@@ -35,11 +36,19 @@ export default function ProductionBoard() {
         resultCount={board.orders.length}
       />
 
-      {board.orders.length === 0 ? (
+      {board.isLoading ? (
+        <div className="rounded-lg border border-zinc-200 bg-white">
+          <TableSkeleton />
+        </div>
+      ) : board.orders.length === 0 ? (
         <EmptyState
           icon={KanbanSquare}
-          title="No orders match these filters"
-          description="Try adjusting the filters, search, or view tab."
+          title={board.totalCount === 0 ? 'No orders yet' : 'No orders match these filters'}
+          description={
+            board.totalCount === 0
+              ? 'Create your first order to see it here.'
+              : 'Try adjusting the filters, search, or view tab.'
+          }
         />
       ) : (
         <>

@@ -7,7 +7,8 @@ import { Button } from '@/components/ui/Button'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { OrderCard } from '@/components/domain/OrderCard'
 import { StatusBadge } from '@/components/domain/StatusBadge'
-import { mockOrders } from '@/data/mockOrders'
+import { TableSkeleton } from '@/components/ui/LoadingSkeleton'
+import { useOrders } from '@/hooks/useOrders'
 import { formatDateShort, dueDateLabel, isOverdue, isDueToday } from '@/utils/date'
 import { clsx } from 'clsx'
 
@@ -24,9 +25,10 @@ export default function OrdersList() {
   const navigate = useNavigate()
   const [tab, setTab] = useState<OrdersTab>('all')
   const [search, setSearch] = useState('')
+  const { data: allOrders = [], isLoading } = useOrders()
 
   const orders = useMemo(() => {
-    let result = mockOrders
+    let result = allOrders
     if (tab === 'active') result = result.filter((o) => !['Completed', 'On Hold'].includes(o.productionStatus))
     if (tab === 'completed') result = result.filter((o) => o.productionStatus === 'Completed')
     if (tab === 'on-hold') result = result.filter((o) => o.productionStatus === 'On Hold')
@@ -42,13 +44,13 @@ export default function OrdersList() {
     }
 
     return [...result].sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime())
-  }, [tab, search])
+  }, [allOrders, tab, search])
 
   return (
     <div>
       <PageHeader
         title="Orders"
-        description={`${mockOrders.length} orders total`}
+        description={`${allOrders.length} orders total`}
         actions={
           <Button variant="primary" size="sm" onClick={() => navigate('/orders/new')}>
             <Plus size={15} />
@@ -71,8 +73,16 @@ export default function OrdersList() {
         </div>
       </div>
 
-      {orders.length === 0 ? (
-        <EmptyState icon={ClipboardList} title="No orders found" description="Try a different tab or search term." />
+      {isLoading ? (
+        <div className="rounded-lg border border-zinc-200 bg-white">
+          <TableSkeleton />
+        </div>
+      ) : orders.length === 0 ? (
+        <EmptyState
+          icon={ClipboardList}
+          title={allOrders.length === 0 ? 'No orders yet' : 'No orders found'}
+          description={allOrders.length === 0 ? 'Create your first order to see it here.' : 'Try a different tab or search term.'}
+        />
       ) : (
         <>
           <div className="hidden overflow-x-auto rounded-lg border border-zinc-200 bg-white md:block">
