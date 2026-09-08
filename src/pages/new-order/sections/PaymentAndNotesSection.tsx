@@ -9,7 +9,7 @@ export function PaymentAndNotesSection() {
 
   return (
     <>
-      <OrderFormSection step={9} title="Payment Status" description="Tracking only — no checkout is processed in this phase.">
+      <OrderFormSection step={6} title="Payment Status" description="Tracking only — no checkout is processed in this phase.">
         <FormField label="Payment Status" htmlFor="paymentStatus">
           <Select
             id="paymentStatus"
@@ -23,7 +23,7 @@ export function PaymentAndNotesSection() {
         </FormField>
       </OrderFormSection>
 
-      <OrderFormSection step={10} title="Internal Notes">
+      <OrderFormSection step={7} title="Internal Notes">
         <FormField label="Production Notes" htmlFor="productionNotes" hint="Visible to staff managing this order.">
           <Textarea id="productionNotes" rows={3} {...register('productionNotes')} />
         </FormField>

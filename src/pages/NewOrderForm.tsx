@@ -15,10 +15,7 @@ import { OrderSummary } from '@/components/domain/OrderSummary'
 import { CustomerJobSection } from '@/pages/new-order/sections/CustomerJobSection'
 import { TurnaroundDeliverySection } from '@/pages/new-order/sections/TurnaroundDeliverySection'
 import { ServicesSection } from '@/pages/new-order/sections/ServicesSection'
-import { GarmentsSection } from '@/pages/new-order/sections/GarmentsSection'
-import { ArtworkSection } from '@/pages/new-order/sections/ArtworkSection'
-import { MockupSection } from '@/pages/new-order/sections/MockupSection'
-import { PrintDetailsSection } from '@/pages/new-order/sections/PrintDetailsSection'
+import { GarmentStylesSection } from '@/pages/new-order/sections/GarmentStylesSection'
 import { PaymentAndNotesSection } from '@/pages/new-order/sections/PaymentAndNotesSection'
 
 export default function NewOrderForm() {
@@ -77,10 +74,7 @@ export default function NewOrderForm() {
             <CustomerJobSection />
             <TurnaroundDeliverySection />
             <ServicesSection />
-            <GarmentsSection />
-            <ArtworkSection />
-            <MockupSection />
-            <PrintDetailsSection />
+            <GarmentStylesSection />
             <PaymentAndNotesSection />
           </div>
 

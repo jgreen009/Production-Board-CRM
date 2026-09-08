@@ -2,7 +2,6 @@ import { useFormContext } from 'react-hook-form'
 import type { OrderFormValues } from '@/schemas/orderFormSchema'
 import type { Turnaround, DeliveryMethod, Priority } from '@/types'
 import { OrderFormSection } from '@/components/domain/OrderFormSection'
-import { Toggle } from '@/components/ui/Field'
 import { TURNAROUNDS, TURNAROUND_DESCRIPTIONS, PRIORITIES } from '@/data/mockStatuses'
 import { clsx } from 'clsx'
 
@@ -11,23 +10,19 @@ const DELIVERY_OPTIONS: { value: DeliveryMethod; label: string; hint?: string }[
   { value: 'Delivery', label: 'Delivery', hint: 'Additional cost applies' },
 ]
 
+// Only these three are offered on the order form; "Custom" stays a valid
+// Turnaround value for badges elsewhere but isn't a pickable option here.
+const FORM_TURNAROUND_ORDER: Turnaround[] = ['Same Day', 'Rush', 'Standard']
+const FORM_TURNAROUNDS = FORM_TURNAROUND_ORDER.map(
+  (value) => TURNAROUNDS.find((t) => t.value === value)!,
+)
+
 export function TurnaroundDeliverySection() {
   const { watch, setValue } = useFormContext<OrderFormValues>()
 
-  const rushFee = watch('rushFee')
   const turnaround = watch('turnaround')
   const deliveryMethod = watch('deliveryMethod')
   const priority = watch('priority')
-
-  const handleRushFeeChange = (checked: boolean) => {
-    setValue('rushFee', checked)
-    if (checked) {
-      setValue('turnaround', 'Rush')
-      setValue('priority', 'High')
-    } else if (turnaround === 'Rush') {
-      setValue('turnaround', 'Standard')
-    }
-  }
 
   const handleTurnaroundChange = (value: Turnaround) => {
     setValue('turnaround', value)
@@ -37,18 +32,11 @@ export function TurnaroundDeliverySection() {
 
   return (
     <OrderFormSection step={3} title="Turnaround & Delivery">
-      <Toggle
-        label="Rush Fee"
-        description="I need my order faster than standard turnaround time"
-        checked={rushFee}
-        onChange={handleRushFeeChange}
-      />
-
       <div>
         <p className="mb-1.5 text-sm font-medium text-zinc-700">Turnaround</p>
         <p className="mb-2 text-xs text-zinc-400">Internal staff field — not shown on the paper form.</p>
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-          {TURNAROUNDS.map((t) => (
+        <div className="grid grid-cols-3 gap-2">
+          {FORM_TURNAROUNDS.map((t) => (
             <button
               key={t.value}
               type="button"
@@ -98,7 +86,7 @@ export function TurnaroundDeliverySection() {
       <div>
         <p className="mb-1.5 text-sm font-medium text-zinc-700">Priority</p>
         <p className="mb-2 text-xs text-zinc-400">
-          Internal-only — not on the paper form. Same Day sets this to Urgent automatically; Rush Fee suggests High. Staff can override.
+          Internal-only — not on the paper form. Same Day sets this to Urgent automatically. Staff can override.
         </p>
         <div className="flex gap-2">
           {PRIORITIES.map((p) => (

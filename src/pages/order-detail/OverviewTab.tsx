@@ -30,7 +30,7 @@ export function OverviewTab({ order }: { order: Order }) {
           <h3 className="text-sm font-semibold text-zinc-800">Mockup Preview</h3>
         </CardHeader>
         <CardBody className="flex items-center justify-center">
-          <MockupThumbnail mockups={order.mockups} size={120} />
+          <MockupThumbnail mockups={order.printSpecs} size={120} />
         </CardBody>
       </Card>
 

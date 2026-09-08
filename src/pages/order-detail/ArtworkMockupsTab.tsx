@@ -3,6 +3,7 @@ import type { Order } from '@/types'
 import { Card, CardBody, CardHeader } from '@/components/ui/Card'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { GarmentMockup } from '@/components/domain/GarmentMockup'
+import { getPrintPositionConfig } from '@/data/printPositions'
 import { formatDateShort } from '@/utils/date'
 
 export function ArtworkMockupsTab({ order }: { order: Order }) {
@@ -40,27 +41,32 @@ export function ArtworkMockupsTab({ order }: { order: Order }) {
           <h3 className="text-sm font-semibold text-zinc-800">Mockups</h3>
         </CardHeader>
         <CardBody>
-          {order.mockups.length === 0 ? (
+          {order.printSpecs.length === 0 ? (
             <EmptyState icon={ImageIcon} title="No mockups saved for this order" />
           ) : (
             <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
-              {order.mockups.map((mockup) => {
-                const artwork = order.artwork.find((a) => a.id === mockup.artworkId)
+              {order.printSpecs.map((spec) => {
+                const artwork = order.artwork.find((a) => a.id === spec.artworkId)
+                const garmentType = spec.garmentType ?? order.garments[0]?.type
+                const garmentColour = spec.garmentColour || order.garments[0]?.colour || ''
+                if (!garmentType) return null
                 return (
-                  <div key={mockup.id} className="flex flex-col items-center gap-1.5 rounded-lg border border-zinc-100 bg-zinc-50/60 p-3">
+                  <div key={spec.id} className="flex flex-col items-center gap-1.5 rounded-lg border border-zinc-100 bg-zinc-50/60 p-3">
                     <GarmentMockup
-                      garmentType={mockup.garmentType}
-                      colour={mockup.colour}
-                      view={mockup.view}
-                      position={mockup.position}
+                      garmentType={garmentType}
+                      colour={garmentColour}
+                      view={getPrintPositionConfig(spec.position).view}
+                      position={spec.position}
                       artworkUrl={artwork?.previewUrl}
-                      widthMm={mockup.widthMm}
-                      heightMm={mockup.heightMm}
-                      offset={{ x: 0, y: 0 }}
+                      widthMm={spec.widthMm}
+                      heightMm={spec.heightMm}
+                      offset={{ x: spec.offsetX ?? 0, y: spec.offsetY ?? 0 }}
                       onOffsetChange={() => {}}
                       size={110}
                     />
-                    <p className="text-center text-xs font-medium text-zinc-600">{mockup.thumbnailLabel}</p>
+                    <p className="text-center text-xs font-medium text-zinc-600">
+                      {garmentColour} {garmentType} — {spec.position}
+                    </p>
                   </div>
                 )
               })}

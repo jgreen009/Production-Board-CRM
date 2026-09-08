@@ -44,8 +44,7 @@ const GARMENT_Y_OFFSET: Partial<Record<GarmentType, number>> = {
 }
 
 function isPositionVisible(position: PrintPosition, view: 'Front' | 'Back'): boolean {
-  const config = getPrintPositionConfig(position)
-  return config.view === 'Both' || config.view === view
+  return getPrintPositionConfig(position).view === view
 }
 
 function clamp(value: number, min: number, max: number): number {
@@ -67,17 +66,22 @@ export function GarmentMockup({
   const containerRef = useRef<HTMLDivElement>(null)
   const dragging = useRef<{ startX: number; startY: number; startOffset: MockupOffset } | null>(null)
 
-  const base = HEADWEAR_ANCHOR[garmentType] ?? getPrintPositionConfig(position)
-  const visible = HEADWEAR_ANCHOR[garmentType] ? true : isPositionVisible(position, view)
+  const headwearAnchor = HEADWEAR_ANCHOR[garmentType]
+  const config = getPrintPositionConfig(position)
+  const base = headwearAnchor ?? config
+  const visible = headwearAnchor ? true : isPositionVisible(position, view)
   const image = GARMENT_IMAGES[garmentType]
 
   // Print box size as a percentage of the garment image, scaled from the
-  // real mm dimensions (A6/A4/A3 per the paper form) and clamped so it
-  // stays a sensible size on the small mockup canvas.
-  const artWidthPct = clamp(widthMm * 0.15, 10, 46)
-  const artHeightPct = clamp(heightMm * 0.15, 10, 46)
+  // real mm dimensions but capped to the selected position's own realistic
+  // print area (a sleeve can't hold an "Oversize" print, Full Front can) —
+  // so the box always fits within the position rather than overflowing it.
+  const maxWidthPct = headwearAnchor ? 30 : config.maxWidthPct
+  const maxHeightPct = headwearAnchor ? 22 : config.maxHeightPct
+  const artWidthPct = clamp(widthMm * 0.15, 8, maxWidthPct)
+  const artHeightPct = clamp(heightMm * 0.15, 8, maxHeightPct)
 
-  const CANVAS_MARGIN_PCT = 3
+  const CANVAS_MARGIN_PCT = 2
   const rawX = base.x + offset.x
   const rawY = base.y + offset.y + (GARMENT_Y_OFFSET[garmentType] ?? 0)
   const artX = clamp(rawX, CANVAS_MARGIN_PCT + artWidthPct / 2, 100 - CANVAS_MARGIN_PCT - artWidthPct / 2)

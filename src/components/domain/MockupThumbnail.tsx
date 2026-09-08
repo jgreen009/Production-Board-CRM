@@ -1,16 +1,16 @@
 import { Shirt, ImageOff } from 'lucide-react'
-import type { Mockup } from '@/types'
+import type { PrintSpec } from '@/types'
 import { Tooltip } from '@/components/ui/Tooltip'
 
 interface MockupThumbnailProps {
-  mockups: Mockup[]
+  mockups: PrintSpec[]
   size?: number
 }
 
 export function MockupThumbnail({ mockups, size = 32 }: MockupThumbnailProps) {
-  const mockup = mockups[0]
+  const spec = mockups[0]
 
-  if (!mockup) {
+  if (!spec) {
     return (
       <div
         style={{ width: size, height: size }}
@@ -21,8 +21,10 @@ export function MockupThumbnail({ mockups, size = 32 }: MockupThumbnailProps) {
     )
   }
 
+  const label = `${spec.garmentColour ?? ''} ${spec.garmentType ?? ''} — ${spec.position}`.trim()
+
   return (
-    <Tooltip content={mockup.thumbnailLabel}>
+    <Tooltip content={label}>
       <div
         style={{ width: size, height: size }}
         className="flex items-center justify-center rounded-md border border-zinc-200 bg-zinc-100 text-zinc-500"

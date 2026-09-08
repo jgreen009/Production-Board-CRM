@@ -39,7 +39,7 @@ export default function SettingsMockups() {
                 garmentType={t.garmentType}
                 colour="Zinc"
                 view={t.view}
-                position={t.view === 'Front' ? 'Front 3 — Center Chest (A4)' : 'Back 2 — Mid Back (A4)'}
+                position={t.view === 'Front' ? 'Full Front' : 'Full Back'}
                 offset={{ x: 0, y: 0 }}
                 onOffsetChange={() => {}}
                 widthMm={0}

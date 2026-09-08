@@ -135,30 +135,21 @@ export interface OrderService {
   enabled: boolean
 }
 
-// Matches the paper form's numbered Print Position diagram verbatim: front
-// has 6 positions (1-6), back has 3 (1-3), each with the diagram's rough
-// size preset. Numbers repeat across front/back on the paper form itself
-// (e.g. front "1" and back "1" are different spots), so each value here is
-// prefixed with its view to stay unambiguous as a flat list.
+// Print position list: six front spots (both chests, an across-chest band,
+// a generic full-front placement, and both sleeves) plus three back spots.
+// Replaces the paper form's numbered A6/A4/A3 diagram with plain labels.
+// This is the single authoritative list — every position control in the
+// form (buttons, selects) reads from PRINT_POSITIONS, never a local copy.
 export type PrintPosition =
-  | 'Front 1 — Right Chest (A6)'
-  | 'Front 2 — Left Chest (A6)'
-  | 'Front 3 — Center Chest (A4)'
-  | 'Front 4 — Lower Front (A3)'
-  | 'Front 5 — Right Sleeve'
-  | 'Front 6 — Left Sleeve'
-  | 'Back 1 — Upper Back (A4)'
-  | 'Back 2 — Mid Back (A4)'
-  | 'Back 3 — Lower Back (A3)'
-  | 'Custom'
-
-export interface PrintDetail {
-  id: string
-  position: PrintPosition
-  colour: string
-  widthMm: number
-  heightMm: number
-}
+  | 'Left Chest'
+  | 'Right Chest'
+  | 'Across Chest'
+  | 'Full Front'
+  | 'Left Sleeve'
+  | 'Right Sleeve'
+  | 'Full Back'
+  | 'Top Back'
+  | 'Bottom Back'
 
 export type ArtworkFileType = 'PNG' | 'JPG' | 'WEBP' | 'SVG' | 'PDF' | 'AI'
 
@@ -171,18 +162,21 @@ export interface Artwork {
   previewUrl?: string // only present for browser-previewable types
 }
 
-export interface Mockup {
+// One entry per physical print: where it sits, what ink colour, what size,
+// and (optionally) which garment/colour/artwork to preview it on. A print
+// detail row and its mockup preview are the same concept, so this replaces
+// what used to be two separate lists (PrintDetail + Mockup).
+export interface PrintSpec {
   id: string
-  garmentType: GarmentType
-  colour: string
-  view: 'Front' | 'Back'
   position: PrintPosition
-  artworkId?: string
+  colour: string
   widthMm: number
   heightMm: number
-  printColours: string
-  notes?: string
-  thumbnailLabel: string
+  garmentType?: GarmentType
+  garmentColour?: string
+  artworkId?: string
+  offsetX?: number
+  offsetY?: number
 }
 
 export interface OrderActivityEntry {
@@ -235,9 +229,8 @@ export interface Order {
   specialisedApplicationDetails?: string
   services: OrderService[]
   garments: GarmentItem[]
-  printDetails: PrintDetail[]
+  printSpecs: PrintSpec[]
   artwork: Artwork[]
-  mockups: Mockup[]
   notes: string
   productionNotes: string
   staffCompleted: boolean

@@ -1,7 +1,6 @@
 import { useFieldArray, useFormContext } from 'react-hook-form'
 import { Plus } from 'lucide-react'
 import type { OrderFormValues } from '@/schemas/orderFormSchema'
-import { OrderFormSection } from '@/components/domain/OrderFormSection'
 import { GarmentCard } from '@/components/domain/GarmentCard'
 import { Button } from '@/components/ui/Button'
 import { emptyGarment } from '@/pages/new-order/defaultValues'
@@ -35,17 +34,17 @@ export function GarmentsSection() {
   )
 
   return (
-    <OrderFormSection
-      step={5}
-      title="Garments"
-      description="One card per garment type, matching the paper form's adult and youth size tables."
-      actions={
+    <div>
+      <div className="mb-3 flex items-center justify-between">
+        <div>
+          <p className="text-sm font-medium text-zinc-700">Garments</p>
+          <p className="text-xs text-zinc-400">One card per garment type, matching the paper form's adult and youth size tables.</p>
+        </div>
         <span className="text-sm font-semibold text-zinc-700">
           Sub Total: <span className="text-zinc-900">{subTotal}</span>
         </span>
-      }
-    >
-      {errors.garments?.message && <p className="text-xs text-red-600">{errors.garments.message}</p>}
+      </div>
+      {errors.garments?.message && <p className="mb-2 text-xs text-red-600">{errors.garments.message}</p>}
 
       <div className="flex flex-col gap-3">
         {fields.map((field, index) => (
@@ -65,12 +64,12 @@ export function GarmentsSection() {
         type="button"
         variant="secondary"
         size="sm"
-        className="self-start"
+        className="mt-3 self-start"
         onClick={() => append(emptyGarment())}
       >
         <Plus size={14} />
         Add Another Garment
       </Button>
-    </OrderFormSection>
+    </div>
   )
 }

@@ -1,4 +1,4 @@
-import { FileIcon, X, RefreshCw } from 'lucide-react'
+import { FileIcon, X } from 'lucide-react'
 import type { ArtworkFileFormValues } from '@/schemas/orderFormSchema'
 
 const TYPE_LABELS: Record<string, string> = {
@@ -13,10 +13,9 @@ const TYPE_LABELS: Record<string, string> = {
 interface ArtworkFileCardProps {
   file: ArtworkFileFormValues
   onRemove: () => void
-  onReplace: () => void
 }
 
-export function ArtworkFileCard({ file, onRemove, onReplace }: ArtworkFileCardProps) {
+export function ArtworkFileCard({ file, onRemove }: ArtworkFileCardProps) {
   return (
     <div className="flex items-center gap-3 rounded-lg border border-zinc-200 bg-white p-2.5">
       <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-md border border-zinc-100 bg-zinc-50">
@@ -36,14 +35,6 @@ export function ArtworkFileCard({ file, onRemove, onReplace }: ArtworkFileCardPr
       </div>
 
       <div className="flex shrink-0 items-center gap-1">
-        <button
-          type="button"
-          onClick={onReplace}
-          className="rounded-md p-1.5 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700"
-          aria-label="Replace file"
-        >
-          <RefreshCw size={14} />
-        </button>
         <button
           type="button"
           onClick={onRemove}

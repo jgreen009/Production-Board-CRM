@@ -43,7 +43,7 @@ export function OrderQuickView({ order, onClose }: OrderQuickViewProps) {
       {order && (
         <div className="flex flex-col gap-4">
           <div className="flex items-center gap-3">
-            <MockupThumbnail mockups={order.mockups} size={56} />
+            <MockupThumbnail mockups={order.printSpecs} size={56} />
             <div>
               <p className="text-sm font-medium text-zinc-800">{order.customer}</p>
               <p className="flex items-center gap-1 text-xs text-zinc-400"><Phone size={12} /> {order.phone}</p>

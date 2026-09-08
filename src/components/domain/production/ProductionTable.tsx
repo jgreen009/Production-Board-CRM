@@ -87,7 +87,7 @@ export function ProductionTable({
                 <td className="px-3 py-2.5 text-zinc-600">{order.deliveryMethod}</td>
               )}
               <td className="px-3 py-2.5">
-                <MockupThumbnail mockups={order.mockups} />
+                <MockupThumbnail mockups={order.printSpecs} />
               </td>
             </tr>
           ))}

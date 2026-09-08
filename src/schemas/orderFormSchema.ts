@@ -33,14 +33,6 @@ export const garmentFormSchema = z.object({
   youthQuantities: youthQuantitiesSchema,
 })
 
-export const printDetailFormSchema = z.object({
-  id: z.string(),
-  position: z.string().min(1, 'Select a print position'),
-  colour: z.string().min(1, 'Print colour is required'),
-  widthMm: z.number().min(1, 'Width must be greater than 0'),
-  heightMm: z.number().min(1, 'Height must be greater than 0'),
-})
-
 export const artworkFileFormSchema = z.object({
   id: z.string(),
   fileName: z.string(),
@@ -49,17 +41,20 @@ export const artworkFileFormSchema = z.object({
   previewUrl: z.string().optional(),
 })
 
-export const mockupFormSchema = z.object({
+// One entry per physical print: position + colour + size, plus the
+// garment/colour/artwork to preview it on. Replaces the old separate
+// printDetails/mockups lists — a print spec and its mockup are one thing.
+export const printSpecFormSchema = z.object({
   id: z.string(),
-  garmentType: z.string(),
-  colour: z.string(),
-  view: z.enum(['Front', 'Back']),
-  position: z.string(),
+  position: z.string().min(1, 'Select a print position'),
+  colour: z.string().min(1, 'Print colour is required'),
+  widthMm: z.number().min(1, 'Select a print size'),
+  heightMm: z.number().min(1, 'Select a print size'),
+  garmentType: z.string().optional(),
+  garmentColour: z.string().optional(),
   artworkId: z.string().optional(),
-  widthMm: z.number().min(0),
-  heightMm: z.number().min(0),
-  printColours: z.string(),
-  notes: z.string().optional(),
+  offsetX: z.number(),
+  offsetY: z.number(),
 })
 
 export const orderFormSchema = z
@@ -87,9 +82,7 @@ export const orderFormSchema = z
 
     artworkFiles: z.array(artworkFileFormSchema),
 
-    mockups: z.array(mockupFormSchema),
-
-    printDetails: z.array(printDetailFormSchema).min(1, 'Add at least one print detail'),
+    printSpecs: z.array(printSpecFormSchema).min(1, 'Add at least one print spec'),
 
     paymentStatus: z.enum(['Unpaid', 'Deposit Paid', 'Part Paid', 'Paid', 'On Account']),
     productionNotes: z.string().optional(),
@@ -103,6 +96,5 @@ export const orderFormSchema = z
 
 export type OrderFormValues = z.infer<typeof orderFormSchema>
 export type GarmentFormValues = z.infer<typeof garmentFormSchema>
-export type PrintDetailFormValues = z.infer<typeof printDetailFormSchema>
 export type ArtworkFileFormValues = z.infer<typeof artworkFileFormSchema>
-export type MockupFormValues = z.infer<typeof mockupFormSchema>
+export type PrintSpecFormValues = z.infer<typeof printSpecFormSchema>

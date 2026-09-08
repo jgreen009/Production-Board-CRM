@@ -1,7 +1,8 @@
-import type { OrderFormValues, GarmentFormValues, PrintDetailFormValues } from '@/schemas/orderFormSchema'
+import type { OrderFormValues, GarmentFormValues, PrintSpecFormValues } from '@/schemas/orderFormSchema'
 import { generateId } from '@/utils/id'
 import { todayIso, addDays } from '@/utils/date'
 import { PRINT_POSITIONS } from '@/data/printPositions'
+import { PRINT_SIZES } from '@/data/printSizes'
 
 export function emptyGarment(): GarmentFormValues {
   return {
@@ -15,14 +16,20 @@ export function emptyGarment(): GarmentFormValues {
   }
 }
 
-export function emptyPrintDetail(): PrintDetailFormValues {
+export function emptyPrintSpec(): PrintSpecFormValues {
   const first = PRINT_POSITIONS[0]
+  const defaultSize = PRINT_SIZES.find((s) => s.label === 'A4') ?? PRINT_SIZES[0]
   return {
     id: generateId('print'),
     position: first.value,
     colour: '',
-    widthMm: first.sizePreset?.widthMm ?? 200,
-    heightMm: first.sizePreset?.heightMm ?? 200,
+    widthMm: defaultSize.widthMm,
+    heightMm: defaultSize.heightMm,
+    garmentType: undefined,
+    garmentColour: '',
+    artworkId: undefined,
+    offsetX: 0,
+    offsetY: 0,
   }
 }
 
@@ -46,8 +53,7 @@ export function defaultOrderFormValues(): OrderFormValues {
     specialisedApplicationDetails: '',
     garments: [emptyGarment()],
     artworkFiles: [],
-    mockups: [],
-    printDetails: [emptyPrintDetail()],
+    printSpecs: [emptyPrintSpec()],
     paymentStatus: 'Unpaid',
     productionNotes: '',
     notes: '',

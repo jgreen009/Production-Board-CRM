@@ -72,8 +72,8 @@ export const TURNAROUNDS: StatusConfig<Turnaround>[] = [
 ]
 
 export const TURNAROUND_DESCRIPTIONS: Record<Turnaround, string> = {
-  Standard: 'Standard turnaround — 5–10 working days.',
-  Rush: 'Expedited — faster than standard turnaround, rush fee applies.',
+  Standard: 'Standard turnaround — 7–10 business days.',
+  Rush: 'Expedited — 3 days, rush fee applies.',
   'Same Day': 'Production required today.',
   Custom: 'Manually set due date.',
 }

@@ -149,12 +149,12 @@ export function OrderFormTab({ order }: { order: Order }) {
               </tr>
             </thead>
             <tbody>
-              {order.printDetails.map((pd) => (
-                <tr key={pd.id} className="border-b border-zinc-50 last:border-0">
-                  <td className="px-3 py-2 text-zinc-700">{pd.position}</td>
-                  <td className="px-3 py-2 text-zinc-600">{pd.colour}</td>
-                  <td className="px-3 py-2 text-zinc-600">{pd.widthMm}</td>
-                  <td className="px-3 py-2 text-zinc-600">{pd.heightMm}</td>
+              {order.printSpecs.map((spec) => (
+                <tr key={spec.id} className="border-b border-zinc-50 last:border-0">
+                  <td className="px-3 py-2 text-zinc-700">{spec.position}</td>
+                  <td className="px-3 py-2 text-zinc-600">{spec.colour}</td>
+                  <td className="px-3 py-2 text-zinc-600">{spec.widthMm}</td>
+                  <td className="px-3 py-2 text-zinc-600">{spec.heightMm}</td>
                 </tr>
               ))}
             </tbody>
