@@ -9,7 +9,7 @@ import { GarmentMockup } from '@/components/domain/GarmentMockup'
 import { emptyPrintSpec } from '@/pages/new-order/defaultValues'
 import { PRINT_POSITIONS, getPrintPositionConfig } from '@/data/printPositions'
 import { PRINT_SIZES } from '@/data/printSizes'
-import { useGarmentTypesSettings } from '@/hooks/useSettings'
+import { useGarmentTypesSettings, useMockupTemplates } from '@/hooks/useSettings'
 import { selectableCatalogNames } from '@/utils/catalog'
 
 export function PrintDetailsSection() {
@@ -25,7 +25,19 @@ export function PrintDetailsSection() {
   const garments = watch('garments')
   const artworkFiles = watch('artworkFiles')
   const { data: garmentTypesCatalog = [] } = useGarmentTypesSettings()
-  const activeGarmentTypeNames = garmentTypesCatalog.filter((g) => g.active).map((g) => g.name)
+  const { data: mockupTemplates = [] } = useMockupTemplates()
+
+  // A garment type is offered as a mockup preview only if it's both active
+  // as a catalog entry AND has an active mockup_templates row for the
+  // specific view this print spec needs (Front templates and Back
+  // templates for the same garment type can be toggled independently in
+  // Settings > Mockup Templates).
+  const previewGarmentOptions = (view: 'Front' | 'Back') => {
+    const activeForView = new Set(
+      mockupTemplates.filter((t) => t.view === view && t.active).map((t) => t.garmentTypeName),
+    )
+    return garmentTypesCatalog.map((g) => ({ name: g.name, active: g.active && activeForView.has(g.name) }))
+  }
 
   return (
     <div>
@@ -39,6 +51,8 @@ export function PrintDetailsSection() {
         {fields.map((field, index) => {
           const spec = printSpecs[index]
           const config = getPrintPositionConfig(spec.position as PrintPosition)
+          const previewCatalog = previewGarmentOptions(config.view)
+          const activeGarmentTypeNames = previewCatalog.filter((g) => g.active).map((g) => g.name)
           const effectiveGarmentType = (spec.garmentType || garments[0]?.type || activeGarmentTypeNames[0]) as GarmentType
           const effectiveColour =
             spec.garmentColour || garments.find((g) => g.type === effectiveGarmentType)?.colour || garments[0]?.colour || ''
@@ -146,9 +160,12 @@ export function PrintDetailsSection() {
                 </div>
 
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                  <FormField label="Preview Garment" hint="Any catalog type — not limited to garments added above.">
+                  <FormField
+                    label="Preview Garment"
+                    hint={`Any catalog type with an active ${config.view.toLowerCase()} mockup template.`}
+                  >
                     <Select value={effectiveGarmentType} onChange={(e) => update({ garmentType: e.target.value })}>
-                      {selectableCatalogNames(garmentTypesCatalog, effectiveGarmentType).map((t) => (
+                      {selectableCatalogNames(previewCatalog, effectiveGarmentType).map((t) => (
                         <option key={t} value={t}>{t}</option>
                       ))}
                     </Select>
