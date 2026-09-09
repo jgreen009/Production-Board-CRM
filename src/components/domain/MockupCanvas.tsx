@@ -1,180 +1,329 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef } from 'react'
 import * as fabric from 'fabric'
 import type { GarmentType } from '@/types'
+import type { PrintZone } from '@/config/printZones'
 import { garmentTemplateToDataUrl } from '@/config/garmentTemplates'
+import {
+  canvasPositionToZoneOffset,
+  normalizeRotationDeg,
+  physicalSizeToPixelSize,
+  pixelWidthToPhysicalWidth,
+  zoneBoxPx,
+  zoneOffsetToCanvasPosition,
+} from '@/utils/mockupGeometry'
+import { heightMmFromWidth } from '@/utils/printSizeConversion'
 
-// Phase 3 Milestone 1 architectural spike (docs/PHASE_3_PLAN.md §3/D1,
-// Milestone 1 item 2). This component's only job is to prove the
-// React <-> Fabric.js boundary works cleanly: own one canvas instance,
-// initialize/dispose it correctly, and expose a small imperative API so
-// the surrounding form code stays declarative React while Fabric owns only
-// the actual canvas pixels. It intentionally does NOT yet implement the
-// full Mockup Studio UI, print-zone rendering, drag/resize production
-// behavior, or persistence — those are Milestones 2-6.
+// Phase 3 Batch A — the real interactive Mockup Studio canvas, replacing
+// the Milestone 1 architectural spike. Editing-only: read-only surfaces
+// (Order Detail, etc.) keep using the lightweight GarmentMockup renderer.
 
-export interface MockupCanvasTransform {
-  offsetXPct: number
-  offsetYPct: number
+export interface MockupTransform {
+  offsetX: number
+  offsetY: number
   rotationDeg: number
+  widthMm: number
+  heightMm: number
 }
 
 export interface MockupCanvasHandle {
-  /** Loads (or replaces) the background garment image. */
-  setBackgroundImage: (url: string) => Promise<void>
-  /**
-   * Milestone 2: loads a garment's neutral-silhouette background directly
-   * from the centralized template config (garmentTemplates.ts) — the
-   * data/config module itself never imports Fabric, only this method does,
-   * keeping garment-template data reusable by non-canvas renderers
-   * (GarmentMockup.tsx) without pulling Fabric along with it.
-   */
-  setGarmentBackground: (type: GarmentType, view: 'Front' | 'Back', colour: string) => Promise<void>
-  /** Loads (or replaces) the artwork image object on the canvas. */
-  setArtworkImage: (url: string) => Promise<void>
-  /** Current artwork placement, relative to canvas size (0-1) — never raw pixels, per hard constraint #5. */
-  getTransform: () => MockupCanvasTransform | null
-  setTransform: (transform: MockupCanvasTransform) => void
   centerHorizontally: () => void
   centerVertically: () => void
+  resetPosition: () => void
   resetRotation: () => void
+  resetSize: (widthMm: number) => void
 }
 
 interface MockupCanvasProps {
   width: number
   height: number
-  onTransformChange?: (transform: MockupCanvasTransform) => void
+  garmentType: GarmentType
+  garmentColour: string
+  view: 'Front' | 'Back'
+  zone: PrintZone
+  /** Signed/object URL for previewable artwork — undefined shows the zone guide with no artwork. */
+  artworkUrl?: string
+  /** Canonical PrintSpec transform — the single source of truth this canvas renders from. */
+  transform: MockupTransform
+  /** Fires once a drag/resize/rotate interaction completes, with the recomputed canonical transform. */
+  onTransformCommit: (transform: MockupTransform) => void
+  /** Reports the loaded artwork's intrinsic aspect ratio (width/height), or null while none is loaded. */
+  onArtworkAspectRatio?: (ratio: number | null) => void
+  onError?: (message: string) => void
 }
 
 export const MockupCanvas = forwardRef<MockupCanvasHandle, MockupCanvasProps>(function MockupCanvas(
-  { width, height, onTransformChange },
+  { width, height, garmentType, garmentColour, view, zone, artworkUrl, transform, onTransformCommit, onArtworkAspectRatio, onError },
   ref,
 ) {
   const canvasElRef = useRef<HTMLCanvasElement>(null)
   const fabricCanvasRef = useRef<fabric.Canvas | null>(null)
   const artworkObjectRef = useRef<fabric.FabricImage | null>(null)
+  const guideRectRef = useRef<fabric.Rect | null>(null)
+  const aspectRatioRef = useRef<number | null>(null)
 
+  // Latest-value refs so the init effect (which must run once) and the
+  // async image-load effects always see current props without re-creating
+  // the Fabric canvas or re-subscribing listeners on every prop change.
+  const zoneRef = useRef(zone)
+  const transformRef = useRef(transform)
+  const onTransformCommitRef = useRef(onTransformCommit)
+  const onArtworkAspectRatioRef = useRef(onArtworkAspectRatio)
+  const onErrorRef = useRef(onError)
+  zoneRef.current = zone
+  transformRef.current = transform
+  onTransformCommitRef.current = onTransformCommit
+  onArtworkAspectRatioRef.current = onArtworkAspectRatio
+  onErrorRef.current = onError
+
+  function syncGuide() {
+    const canvas = fabricCanvasRef.current
+    const guide = guideRectRef.current
+    if (!canvas || !guide) return
+    const zonePx = zoneBoxPx(zoneRef.current, canvas.getWidth(), canvas.getHeight())
+    guide.set({ left: zonePx.x, top: zonePx.y, width: zonePx.width, height: zonePx.height })
+    guide.setCoords()
+  }
+
+  // Rebuilds the artwork object's on-canvas position/size/rotation purely
+  // from the canonical transform + current zone/canvas size — never the
+  // other way around. Fabric's own .set() does not fire 'object:modified',
+  // so calling this from a prop-sync effect can never trigger a feedback
+  // loop back into onTransformCommit.
+  function syncArtworkTransform() {
+    const canvas = fabricCanvasRef.current
+    const obj = artworkObjectRef.current
+    if (!canvas || !obj) return
+    const zonePx = zoneBoxPx(zoneRef.current, canvas.getWidth(), canvas.getHeight())
+    const pos = zoneOffsetToCanvasPosition(
+      { offsetX: transformRef.current.offsetX, offsetY: transformRef.current.offsetY },
+      zonePx,
+    )
+    const size = physicalSizeToPixelSize(transformRef.current.widthMm, transformRef.current.heightMm, zoneRef.current, zonePx)
+    const naturalWidth = obj.width || 1
+    const naturalHeight = obj.height || 1
+    obj.set({
+      left: pos.left,
+      top: pos.top,
+      angle: transformRef.current.rotationDeg,
+      scaleX: size.widthPx / naturalWidth,
+      scaleY: size.heightPx / naturalHeight,
+    })
+    obj.setCoords()
+  }
+
+  function commitFromFabricObject() {
+    const canvas = fabricCanvasRef.current
+    const obj = artworkObjectRef.current
+    if (!canvas || !obj) return
+    const zonePx = zoneBoxPx(zoneRef.current, canvas.getWidth(), canvas.getHeight())
+    const { offsetX, offsetY } = canvasPositionToZoneOffset({ left: obj.left ?? 0, top: obj.top ?? 0 }, zonePx)
+    const widthMm = pixelWidthToPhysicalWidth(obj.getScaledWidth(), zoneRef.current, zonePx)
+    const aspectRatio = aspectRatioRef.current ?? 1
+    const heightMm = heightMmFromWidth(widthMm, aspectRatio)
+    const rotationDeg = normalizeRotationDeg(obj.angle ?? 0)
+    onTransformCommitRef.current({ offsetX, offsetY, rotationDeg, widthMm, heightMm })
+  }
+
+  // Canvas init — runs once. Fabric init failure is caught so a broken
+  // canvas doesn't take down the surrounding order form.
   useEffect(() => {
     if (!canvasElRef.current) return
-
-    const canvas = new fabric.Canvas(canvasElRef.current, {
-      width,
-      height,
-      selection: false,
-    })
+    let canvas: fabric.Canvas
+    try {
+      canvas = new fabric.Canvas(canvasElRef.current, { width, height, selection: false })
+    } catch {
+      onErrorRef.current?.('Could not initialize the mockup canvas.')
+      return
+    }
     fabricCanvasRef.current = canvas
 
-    const emitTransform = () => {
-      if (!onTransformChange) return
-      const obj = artworkObjectRef.current
-      if (!obj) return
-      onTransformChange({
-        offsetXPct: (obj.left ?? 0) / canvas.getWidth(),
-        offsetYPct: (obj.top ?? 0) / canvas.getHeight(),
-        rotationDeg: obj.angle ?? 0,
-      })
-    }
-    canvas.on('object:modified', emitTransform)
+    const guide = new fabric.Rect({
+      left: 0,
+      top: 0,
+      width: 0,
+      height: 0,
+      fill: 'transparent',
+      stroke: 'rgba(37, 99, 235, 0.45)',
+      strokeDashArray: [6, 4],
+      strokeWidth: 1.5,
+      selectable: false,
+      evented: false,
+      excludeFromExport: true,
+      hoverCursor: 'default',
+    })
+    canvas.add(guide)
+    guideRectRef.current = guide
+    syncGuide()
+
+    canvas.on('object:modified', commitFromFabricObject)
 
     return () => {
-      canvas.off('object:modified', emitTransform)
+      canvas.off('object:modified', commitFromFabricObject)
       canvas.dispose()
       fabricCanvasRef.current = null
       artworkObjectRef.current = null
+      guideRectRef.current = null
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  useImperativeHandle(ref, () => ({
-    setBackgroundImage: async (url: string) => {
-      const canvas = fabricCanvasRef.current
-      if (!canvas) return
-      const img = await fabric.FabricImage.fromURL(url, { crossOrigin: 'anonymous' })
-      img.set({
-        scaleX: canvas.getWidth() / (img.width || 1),
-        scaleY: canvas.getHeight() / (img.height || 1),
-        selectable: false,
-        evented: false,
-      })
-      canvas.backgroundImage = img
-      canvas.requestRenderAll()
-    },
-    setGarmentBackground: async (type: GarmentType, view: 'Front' | 'Back', colour: string) => {
-      const canvas = fabricCanvasRef.current
-      if (!canvas) return
+  // Container resize (ResizeObserver-driven, from the parent) — presentation
+  // only: recompute pixel geometry from the same canonical form values, never
+  // write anything back to form state just because the viewport changed.
+  useEffect(() => {
+    const canvas = fabricCanvasRef.current
+    if (!canvas) return
+    canvas.setDimensions({ width, height })
+    const bg = canvas.backgroundImage
+    if (bg) {
+      bg.set({ scaleX: width / (bg.width || 1), scaleY: height / (bg.height || 1) })
+    }
+    syncGuide()
+    syncArtworkTransform()
+    canvas.requestRenderAll()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [width, height])
+
+  // Garment background — reloads on type/colour/view change. Locked,
+  // non-selectable, non-evented by construction (Fabric background images
+  // are never interactive), and excluded from any future export.
+  useEffect(() => {
+    const canvas = fabricCanvasRef.current
+    if (!canvas) return
+    let cancelled = false
+    ;(async () => {
       try {
-        const url = garmentTemplateToDataUrl(type, view, colour)
+        const url = garmentTemplateToDataUrl(garmentType, view, garmentColour)
         const img = await fabric.FabricImage.fromURL(url, { crossOrigin: 'anonymous' })
+        if (cancelled) return
         img.set({
           scaleX: canvas.getWidth() / (img.width || 1),
           scaleY: canvas.getHeight() / (img.height || 1),
           selectable: false,
           evented: false,
+          excludeFromExport: true,
         })
         canvas.backgroundImage = img
         canvas.requestRenderAll()
       } catch {
-        // Fallback handling per Milestone 2 scope — a broken template
-        // shouldn't crash the canvas; leave whatever background (or none)
-        // was already there rather than throwing out of an imperative call.
+        if (!cancelled) onErrorRef.current?.('Could not load the garment template for this preview.')
       }
-    },
-    setArtworkImage: async (url: string) => {
-      const canvas = fabricCanvasRef.current
-      if (!canvas) return
-      if (artworkObjectRef.current) {
-        canvas.remove(artworkObjectRef.current)
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [garmentType, garmentColour, view])
+
+  // Artwork object — reloads whenever the selected artwork's preview URL
+  // changes (including to/from undefined, e.g. a non-previewable file or
+  // no selection). Old object is always removed first so nothing stale
+  // lingers on the canvas.
+  useEffect(() => {
+    const canvas = fabricCanvasRef.current
+    if (!canvas) return
+    let cancelled = false
+
+    if (artworkObjectRef.current) {
+      canvas.remove(artworkObjectRef.current)
+      artworkObjectRef.current = null
+    }
+    aspectRatioRef.current = null
+    onArtworkAspectRatioRef.current?.(null)
+    canvas.requestRenderAll()
+
+    if (!artworkUrl) return
+
+    ;(async () => {
+      try {
+        const img = await fabric.FabricImage.fromURL(artworkUrl, { crossOrigin: 'anonymous' })
+        if (cancelled) return
+        img.set({
+          originX: 'center',
+          originY: 'center',
+          cornerSize: 12,
+          touchCornerSize: 26,
+          cornerStyle: 'circle',
+          transparentCorners: false,
+          cornerColor: '#18181b',
+          borderColor: '#18181b',
+        })
+        // Aspect ratio is locked by only exposing corner controls (Fabric's
+        // corner drag already scales both axes together) — side/middle
+        // handles that would allow a one-axis stretch are hidden entirely.
+        img.setControlsVisibility({ ml: false, mr: false, mt: false, mb: false })
+        canvas.add(img)
+        artworkObjectRef.current = img
+        const ratio = (img.width || 1) / (img.height || 1)
+        aspectRatioRef.current = ratio
+        onArtworkAspectRatioRef.current?.(ratio)
+        syncArtworkTransform()
+        canvas.setActiveObject(img)
+        canvas.requestRenderAll()
+      } catch {
+        if (!cancelled) onErrorRef.current?.('Could not load this artwork preview.')
       }
-      const img = await fabric.FabricImage.fromURL(url, { crossOrigin: 'anonymous' })
-      img.set({ originX: 'center', originY: 'center', left: canvas.getWidth() / 2, top: canvas.getHeight() / 2 })
-      canvas.add(img)
-      canvas.setActiveObject(img)
-      artworkObjectRef.current = img
-      canvas.requestRenderAll()
-    },
-    getTransform: () => {
-      const canvas = fabricCanvasRef.current
-      const obj = artworkObjectRef.current
-      if (!canvas || !obj) return null
-      return {
-        offsetXPct: (obj.left ?? 0) / canvas.getWidth(),
-        offsetYPct: (obj.top ?? 0) / canvas.getHeight(),
-        rotationDeg: obj.angle ?? 0,
-      }
-    },
-    setTransform: (transform: MockupCanvasTransform) => {
-      const canvas = fabricCanvasRef.current
-      const obj = artworkObjectRef.current
-      if (!canvas || !obj) return
-      obj.set({
-        left: transform.offsetXPct * canvas.getWidth(),
-        top: transform.offsetYPct * canvas.getHeight(),
-        angle: transform.rotationDeg,
-      })
-      obj.setCoords()
-      canvas.requestRenderAll()
-    },
+    })()
+
+    return () => {
+      cancelled = true
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [artworkUrl])
+
+  // Re-sync position/size/rotation whenever the canonical transform prop
+  // changes — covers switching PrintSpec (rehydrate from the newly active
+  // spec) and manual mm/rotation edits from the surrounding form controls.
+  useEffect(() => {
+    syncArtworkTransform()
+    fabricCanvasRef.current?.requestRenderAll()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [transform.offsetX, transform.offsetY, transform.rotationDeg, transform.widthMm, transform.heightMm])
+
+  // Re-sync the zone guide + artwork placement whenever the active print
+  // position's zone changes — physical width/height are preserved (they
+  // come from the transform prop unchanged); only their on-canvas pixel
+  // representation is recalculated against the new zone's calibration.
+  useEffect(() => {
+    syncGuide()
+    syncArtworkTransform()
+    fabricCanvasRef.current?.requestRenderAll()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [zone])
+
+  useImperativeHandle(ref, () => ({
     centerHorizontally: () => {
       const canvas = fabricCanvasRef.current
       const obj = artworkObjectRef.current
       if (!canvas || !obj) return
-      canvas.centerObjectH(obj)
+      const zonePx = zoneBoxPx(zoneRef.current, canvas.getWidth(), canvas.getHeight())
+      obj.set({ left: zonePx.x + zonePx.width / 2 })
+      obj.setCoords()
       canvas.requestRenderAll()
+      const { offsetX, offsetY } = canvasPositionToZoneOffset({ left: obj.left ?? 0, top: obj.top ?? 0 }, zonePx)
+      onTransformCommitRef.current({ ...transformRef.current, offsetX, offsetY })
     },
     centerVertically: () => {
       const canvas = fabricCanvasRef.current
       const obj = artworkObjectRef.current
       if (!canvas || !obj) return
-      canvas.centerObjectV(obj)
+      const zonePx = zoneBoxPx(zoneRef.current, canvas.getWidth(), canvas.getHeight())
+      obj.set({ top: zonePx.y + zonePx.height / 2 })
+      obj.setCoords()
       canvas.requestRenderAll()
+      const { offsetX, offsetY } = canvasPositionToZoneOffset({ left: obj.left ?? 0, top: obj.top ?? 0 }, zonePx)
+      onTransformCommitRef.current({ ...transformRef.current, offsetX, offsetY })
+    },
+    resetPosition: () => {
+      onTransformCommitRef.current({ ...transformRef.current, offsetX: 0, offsetY: 0 })
     },
     resetRotation: () => {
-      const obj = artworkObjectRef.current
-      if (!obj) return
-      obj.set({ angle: 0 })
-      obj.setCoords()
-      fabricCanvasRef.current?.requestRenderAll()
+      onTransformCommitRef.current({ ...transformRef.current, rotationDeg: 0 })
+    },
+    resetSize: (widthMm: number) => {
+      const aspectRatio = aspectRatioRef.current ?? 1
+      onTransformCommitRef.current({ ...transformRef.current, widthMm, heightMm: heightMmFromWidth(widthMm, aspectRatio) })
     },
   }))
 
-  return <canvas ref={canvasElRef} width={width} height={height} />
+  return <canvas ref={canvasElRef} width={width} height={height} role="img" aria-label="Mockup preview canvas" />
 })
