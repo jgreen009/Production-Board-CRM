@@ -136,3 +136,56 @@ describe('normalizeRotationDeg', () => {
     expect(normalizeRotationDeg(720)).toBe(0)
   })
 })
+
+// Batch B acceptance test B5 (viewport reconstruction): the same PrintSpec
+// (offset fractions, widthMm/heightMm, rotationDeg) must reconstruct to the
+// same *relative* placement and physical size at desktop/tablet/mobile
+// canvas sizes — never compared as exact pixels, since those necessarily
+// differ across viewport sizes.
+describe('cross-viewport reconstruction (Batch A/B "same offset/size/rotation at any canvas size")', () => {
+  const savedPrintSpec = {
+    offsetX: 0.3,
+    offsetY: -0.2,
+    rotationDeg: 42,
+    widthMm: 120,
+    heightMm: 96,
+  }
+
+  // Canvas pixel widths a real container could plausibly produce at each
+  // breakpoint, height derived to keep the GARMENT_VIEW_BOX 4:5 ratio —
+  // exactly as MockupStudio's own canvasHeight calculation does.
+  const viewports = {
+    desktop: { width: 420, height: Math.round((420 / 240) * 300) },
+    tablet: { width: 300, height: Math.round((300 / 240) * 300) },
+    mobile: { width: 220, height: Math.round((220 / 240) * 300) },
+  }
+
+  it('recovers the identical offset fractions and physical mm size at every viewport size', () => {
+    for (const { width, height } of Object.values(viewports)) {
+      const zonePx = zoneBoxPx(zone, width, height)
+      const pos = zoneOffsetToCanvasPosition({ offsetX: savedPrintSpec.offsetX, offsetY: savedPrintSpec.offsetY }, zonePx)
+      const recoveredOffset = canvasPositionToZoneOffset(pos, zonePx)
+      expect(recoveredOffset.offsetX).toBeCloseTo(savedPrintSpec.offsetX, 8)
+      expect(recoveredOffset.offsetY).toBeCloseTo(savedPrintSpec.offsetY, 8)
+
+      const sizePx = physicalSizeToPixelSize(savedPrintSpec.widthMm, savedPrintSpec.heightMm, zone, zonePx)
+      const recoveredWidthMm = pixelWidthToPhysicalWidth(sizePx.widthPx, zone, zonePx)
+      expect(recoveredWidthMm).toBeCloseTo(savedPrintSpec.widthMm, 8)
+
+      // rotationDeg is never viewport-dependent — persisted and reapplied verbatim.
+      expect(normalizeRotationDeg(savedPrintSpec.rotationDeg)).toBe(savedPrintSpec.rotationDeg)
+    }
+  })
+
+  it('renders a proportionally larger artwork box on a larger canvas, without changing the physical mm size', () => {
+    const desktopZonePx = zoneBoxPx(zone, viewports.desktop.width, viewports.desktop.height)
+    const mobileZonePx = zoneBoxPx(zone, viewports.mobile.width, viewports.mobile.height)
+    const desktopSize = physicalSizeToPixelSize(savedPrintSpec.widthMm, savedPrintSpec.heightMm, zone, desktopZonePx)
+    const mobileSize = physicalSizeToPixelSize(savedPrintSpec.widthMm, savedPrintSpec.heightMm, zone, mobileZonePx)
+    // absolute pixels differ (different canvas sizes)...
+    expect(desktopSize.widthPx).not.toBeCloseTo(mobileSize.widthPx, 0)
+    // ...but both recover the exact same physical width
+    expect(pixelWidthToPhysicalWidth(desktopSize.widthPx, zone, desktopZonePx)).toBeCloseTo(savedPrintSpec.widthMm, 8)
+    expect(pixelWidthToPhysicalWidth(mobileSize.widthPx, zone, mobileZonePx)).toBeCloseTo(savedPrintSpec.widthMm, 8)
+  })
+})

@@ -40,6 +40,16 @@ export function sortPrintSpecRows<T extends { sort_order: number }>(rows: T[]): 
   return [...rows].sort((a, b) => a.sort_order - b.sort_order)
 }
 
+// Batch B — Production Board's thumbnail (and any other single-preview
+// surface) picks "the first PrintSpec by sort order that has a generated
+// preview", falling back to the first PrintSpec at all so a "no preview
+// yet" state still has something to label. `specs` is expected already
+// sort_order-ordered (mapDatabaseOrderToDomain already sorts via
+// sortPrintSpecRows above), so this is a plain find, not a re-sort.
+export function selectPrimaryPrintSpec(specs: PrintSpec[]): PrintSpec | undefined {
+  return specs.find((s) => !!s.previewStoragePath) ?? specs[0]
+}
+
 // Form -> RPC payload shape for one printSpecs[] entry. Field names already
 // match the jsonb keys upsert_order reads (see supabase/migrations/
 // ..._order_core.sql) — this only exists so the mapping is named,

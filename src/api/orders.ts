@@ -41,6 +41,17 @@ export async function listDraftOrders(): Promise<Order[]> {
   return (data as unknown as OrderRow[]).map(mapDatabaseOrderToDomain)
 }
 
+// Batch B: the pre-save snapshot of which PrintSpec ids exist for an order,
+// used only to detect which ones a save removed (so their generated
+// mockup previews can be cleaned up) — see useUpsertOrder's onMutate and
+// src/api/mockupPreviews.ts. Deliberately just ids, not full rows: the
+// canonical preview path is derivable from (orderId, printSpecId) alone.
+export async function listPrintSpecIds(orderId: string): Promise<string[]> {
+  const { data, error } = await supabase.from('print_specs').select('id').eq('order_id', orderId)
+  if (error) throw error
+  return (data ?? []).map((row) => row.id as string)
+}
+
 export async function getOrder(id: string): Promise<Order | null> {
   const { data, error } = await supabase
     .from('orders')

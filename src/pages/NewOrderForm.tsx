@@ -112,7 +112,7 @@ export function OrderFormEditor({ orderId: existingOrderId, initialValues, previ
     }
     setAutosaveState('saving')
     upsertOrder.mutate(
-      { values, orderId: orderIdRef.current, finalize: false },
+      { values, orderId: orderIdRef.current, finalize: false, generatePreviews: true },
       {
         onSuccess: (id) => {
           orderIdRef.current = id
@@ -135,7 +135,7 @@ export function OrderFormEditor({ orderId: existingOrderId, initialValues, previ
         showToast('Order updated', 'success')
         navigate(`/orders/${id}`)
       } else {
-        const id = await upsertOrder.mutateAsync({ values, orderId: orderIdRef.current, finalize: true })
+        const id = await upsertOrder.mutateAsync({ values, orderId: orderIdRef.current, finalize: true, generatePreviews: true })
         showToast('Order created', 'success')
         navigate(`/orders/${id}`)
       }

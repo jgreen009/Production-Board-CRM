@@ -3,8 +3,10 @@ import { Card, CardBody, CardHeader } from '@/components/ui/Card'
 import { ADULT_SIZES, YOUTH_SIZES } from '@/types'
 import { garmentTotal } from '@/utils/quantity'
 import { formatDate } from '@/utils/date'
+import { useMockupPreviewUrls } from '@/hooks/useMockupPreviews'
 
 export function OrderFormTab({ order }: { order: Order }) {
+  const { data: mockupPreviewUrls = {} } = useMockupPreviewUrls(order.printSpecs.map((s) => s.previewStoragePath))
   const adultGarments = order.garments.filter((g) => g.sizing === 'Adult')
   const youthGarments = order.garments.filter((g) => g.sizing === 'Youth')
   const subTotal = order.garments.reduce((sum, g) => sum + garmentTotal(g), 0)
@@ -136,27 +138,46 @@ export function OrderFormTab({ order }: { order: Order }) {
 
       <Card>
         <CardHeader>
-          <h3 className="text-sm font-semibold text-zinc-800">Print Colour / Print Measurements</h3>
+          <h3 className="text-sm font-semibold text-zinc-800">Print Details</h3>
+          <p className="text-xs text-zinc-400">What's being printed, without needing to open the mockup editor.</p>
         </CardHeader>
         <CardBody className="overflow-x-auto p-0">
           <table className="w-full text-left text-sm">
             <thead>
               <tr className="border-b border-zinc-100 text-xs text-zinc-400">
+                <th className="px-3 py-2 font-medium">Preview</th>
                 <th className="px-3 py-2 font-medium">Position</th>
-                <th className="px-3 py-2 font-medium">Colour</th>
+                <th className="px-3 py-2 font-medium">Garment</th>
+                <th className="px-3 py-2 font-medium">Garment Colour</th>
+                <th className="px-3 py-2 font-medium">Artwork</th>
+                <th className="px-3 py-2 font-medium">Print Colour</th>
                 <th className="px-3 py-2 font-medium">Width (mm)</th>
                 <th className="px-3 py-2 font-medium">Height (mm)</th>
               </tr>
             </thead>
             <tbody>
-              {order.printSpecs.map((spec) => (
-                <tr key={spec.id} className="border-b border-zinc-50 last:border-0">
-                  <td className="px-3 py-2 text-zinc-700">{spec.position}</td>
-                  <td className="px-3 py-2 text-zinc-600">{spec.colour}</td>
-                  <td className="px-3 py-2 text-zinc-600">{spec.widthMm}</td>
-                  <td className="px-3 py-2 text-zinc-600">{spec.heightMm}</td>
-                </tr>
-              ))}
+              {order.printSpecs.map((spec) => {
+                const artwork = order.artwork.find((a) => a.id === spec.artworkId)
+                const previewUrl = spec.previewStoragePath ? mockupPreviewUrls[spec.previewStoragePath] : undefined
+                return (
+                  <tr key={spec.id} className="border-b border-zinc-50 last:border-0">
+                    <td className="px-3 py-2">
+                      {previewUrl ? (
+                        <img src={previewUrl} alt="" className="h-10 w-8 rounded border border-zinc-200 object-cover" />
+                      ) : (
+                        <div className="h-10 w-8 rounded border border-dashed border-zinc-200 bg-zinc-50" />
+                      )}
+                    </td>
+                    <td className="px-3 py-2 text-zinc-700">{spec.position}</td>
+                    <td className="px-3 py-2 text-zinc-600">{spec.garmentType || order.garments[0]?.type || '—'}</td>
+                    <td className="px-3 py-2 text-zinc-600">{spec.garmentColour || order.garments[0]?.colour || '—'}</td>
+                    <td className="px-3 py-2 text-zinc-600">{artwork?.fileName ?? '—'}</td>
+                    <td className="px-3 py-2 text-zinc-600">{spec.colour}</td>
+                    <td className="px-3 py-2 text-zinc-600">{spec.widthMm}</td>
+                    <td className="px-3 py-2 text-zinc-600">{spec.heightMm}</td>
+                  </tr>
+                )
+              })}
             </tbody>
           </table>
         </CardBody>
