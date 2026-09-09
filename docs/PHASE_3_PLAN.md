@@ -135,50 +135,94 @@ new external dependency behind one component boundary.
 
 ## 4. Coordinate system
 
+**Amended after DB inspection (Amendment 1).** Live-data check before finalizing this
+section:
+
+```sql
+select count(*), min(offset_x), max(offset_x), min(offset_y), max(offset_y)
+from print_specs where coalesce(offset_x,0)<>0 or coalesce(offset_y,0)<>0;
+-- → nonzero_count: 0
+```
+
+Both real `print_specs` rows in the database have `offset_x = 0, offset_y = 0` — there is
+**zero non-zero placement data** to lose or misinterpret. **Cutover strategy A applies**
+(brief Amendment 1): the coordinate-system reinterpretation below is a deliberate Phase 3
+cutover, not a silent reinterpretation of real data, because there is no real data at
+stake — every existing row's `(0, 0)` is valid and unambiguous under both the old and new
+semantics simultaneously (see below), so no backfill/reset UPDATE is even required; it's
+a documented semantic redefinition applied going forward.
+
 Two coordinate spaces, kept explicitly separate (this is the source of most mockup bugs
 in comparable systems if conflated):
 
 1. **Print-zone space** — percentage of the garment image's rendered box, already
    established by `PRINT_POSITIONS` (`x`, `y`, `maxWidthPct`, `maxHeightPct`). Unchanged
    by Phase 3 in spirit, just reshaped into `printZones.ts` (§7).
-2. **Artwork transform space** — the artwork's position/size *within* its print zone,
-   persisted as **percentages relative to the print zone's own box**, not the whole
-   canvas and not raw pixels (hard constraint #5). E.g. `offsetXPct: 0.5, offsetYPct:
-   0.5` = centered in the zone; `1.0` = touching the zone's right/bottom edge.
+2. **Artwork placement space** — `offset_x`/`offset_y` are **redefined** from "percentage
+   points added to the old center-point anchor, clamped ±40" to "fractional offset from
+   the print zone's own center, nominal range roughly ±0.5, where `(0, 0)` means
+   *centered in the zone*." This is chosen specifically because `(0, 0)` means "no
+   adjustment from the base/centered position" under **both** the old and new schemes —
+   the one value that exists in production today is valid unchanged under the new
+   semantics, which is exactly why Strategy A (reset-to-centered-default) requires no
+   actual data mutation here, only a documentation/code change.
 
-Reconstructing at any viewport size is then pure arithmetic: `zone box (%) × canvas
-render size (px, whatever it is right now) × artwork transform (%)` — no absolute pixel
-value is ever persisted or compared across viewport sizes, satisfying "must reconstruct
-identically at desktop, tablet and mobile."
+No artwork *size* is persisted as a percentage (see Amendment 2 / §5) — placement
+(`offset_x`/`offset_y`) and rotation (`rotation_deg`) are the only normalized values
+persisted, per hard constraint #5. Reconstructing at any viewport size is pure
+arithmetic: `zone box (%) × canvas render size (px, whatever it is right now) × offset
+(fraction)` — no absolute pixel value is ever persisted or compared across viewport
+sizes.
 
-## 5. Artwork scaling model — D2 (with D3)
+## 5. Artwork scaling model — D2 (amended)
 
-**Recommendation: `artwork_width_pct` / `artwork_height_pct`, not `scale_x`/`scale_y`.**
+**Amended (Amendment 2): do NOT persist `artwork_width_pct`/`artwork_height_pct`, and do
+NOT persist Fabric's `scale_x`/`scale_y`.**
 
-Rationale: physical width is primary (D3, brief's own recommendation, adopted as-is —
-staff think in "this logo is 100mm wide," not "this logo is scaled 0.4x"). Percentage-
-of-print-zone width/height derives directly and losslessly from `width_mm`/`height_mm`
-plus the print zone's known real-world size assumption, and round-trips cleanly through
-Fabric's own `scaleX`/`scaleY` object properties at render time (Fabric's internal scale
-is a rendering *implementation detail* of one specific canvas instance's current pixel
-size — persisting it directly would silently break reconstruction the moment the canvas
-renders at a different pixel size, e.g. mobile vs desktop, which is exactly the
-"identical reconstruction across viewports" requirement). Height is auto-derived from
-the artwork's intrinsic aspect ratio (fetched once from the loaded image element) unless
-proportions are explicitly unlocked — matching brief §5.9's worked example exactly
-(1.25 ratio, 250mm → 200mm, width changed to 300mm → height auto-becomes 240mm).
+`width_mm`/`height_mm` (already existing columns) remain the sole production source of
+truth for print size — this was already true before Phase 3 and stays true. The
+original D2 recommendation in this plan's first draft would have added a *second*,
+derived representation of the same size (a zone-relative percentage) sitting alongside
+`width_mm`/`height_mm` — that's duplicated state that can silently go stale the moment a
+print zone's calibration (`refWidthMm`, §7) is ever tuned, since the two values would no
+longer agree and nothing would tell either the RPC or the canvas which one to trust.
 
-`rotation_deg` is stored as a plain degree value (0–360, default 0) regardless of D2 —
-rotation isn't part of the scale-vs-percentage question, it's orthogonal.
+**What persists:** `offset_x`/`offset_y` (placement, §4) and `rotation_deg` (0–360,
+default 0) only. **What does not persist:** any form of scale, canvas-relative size, or
+percentage-of-zone dimension. Canvas-rendered size is *always derived at render time*
+from `width_mm`/`height_mm` + the artwork's intrinsic aspect ratio + the active print
+zone's `refWidthMm` calibration (§7) — never stored.
+
+The canvas and the physical-dimension form fields are therefore **two interfaces over
+one canonical state** (`width_mm`, with `height_mm` following the aspect-ratio rule
+unless unlocked): dragging a Fabric resize handle computes a new `width_mm` and writes it
+back into form state immediately (same field the manual mm input edits); typing into the
+mm input recomputes the canvas's rendered size on the next render. Neither is a second
+source of truth — there is only one, `width_mm`/`height_mm`, matching brief §5.9's
+worked example exactly (1.25 ratio, 250mm → 200mm, width changed to 300mm → height
+auto-becomes 240mm).
+
+New pure conversion utilities (Milestone 1, unit tested — see §20):
+- `physicalWidthToZoneRelativeSize(widthMm, aspectRatio, zone): { widthPct, heightPct }`
+- `zoneRelativeSizeToPhysicalWidth(widthPct, zone): widthMm`
+- round-trip test: `physicalWidthToZoneRelativeSize` then
+  `zoneRelativeSizeToPhysicalWidth` returns the original `widthMm` within an explicit
+  tolerance (**±0.5mm**, documented in the test itself — floating-point percentage
+  round-tripping through a real-world mm calibration is not expected to be exact to more
+  decimal places than a tape measure would be anyway).
+
+`rotation_deg` is orthogonal to this whole question and persists regardless, per D8.
 
 ## 6. Physical-size mapping — D3
 
 Adopted as recommended: **`width_mm` stays the primary editable field** (already true
 today — it's what the PRINT_SIZES presets set). Height is computed as
 `width_mm × (artwork intrinsic height / artwork intrinsic width)` and displayed
-read-only unless the user clicks "Unlock proportions." The mm value is then converted to
-a print-zone-relative percentage purely for rendering: `artwork_width_pct = width_mm /
-zone_real_world_width_mm` — this requires establishing one more piece of data the
+read-only unless the user clicks "Unlock proportions." The mm value is converted to a
+print-zone-relative percentage **only transiently, at render time, for that one paint**
+(`renderWidthPct = width_mm / zone_real_world_width_mm`) — per Amendment 2 (§5) this
+value is never written to `print_specs`; it's recomputed fresh every render from the
+canonical `width_mm`/`height_mm`. This requires establishing one more piece of data the
 current model doesn't have: **an assumed real-world width for each print zone** (e.g.
 "Full Front is roughly 350mm of usable garment width for a size-M-ish adult torso").
 This is a deliberate approximation, not a precision claim — printers already work this
@@ -205,33 +249,38 @@ source of truth, not two overlapping configs) — every current importer
 (`PrintDetailsSection.tsx`, `GarmentMockup.tsx`, `ArtworkMockupsTab.tsx`) is updated in
 the same milestone.
 
-## 8. Garment-image strategy
+## 8. Garment-image strategy (amended — Amendment 7)
 
-Priority order from the brief (T-shirt, Hoody, Polo, Crew neck, then Singlet, Hi-Viz
-vest, Shirt) is adopted as-is. Two structural changes beyond just swapping image files:
+**Confirmed: no clean garment photography/renders are being supplied for Phase 3.**
+Amendment 7 removes clean photography as a Milestone 2 dependency entirely — this
+plan's original draft flagged it as a hard external dependency blocking Milestone 2's
+close; that dependency is now resolved by removing the requirement, not by waiting on
+it.
 
-- **Sourcing clean replacement photography/renders is outside this session's ability to
-  produce** — this plan flags it as a **hard external dependency**: someone (the user,
-  or a contracted photographer/designer) needs to supply clean front/back garment images
-  before Milestone 2 can actually close. The milestone's own fallback clause ("do not
-  block Phase 3 on one obscure garment") is read broadly here: if clean images aren't
-  available for *any* garment when Milestone 2 starts, the neutral-silhouette fallback
-  (already partially built — see `FALLBACK_BODY` SVG in `GarmentMockup.tsx`, currently
-  used only for Shirt/Customized) becomes the answer for every garment without a clean
-  photo yet, and real photos are swapped in later without a schema/code change (they're
-  just files referenced by `garmentImages.ts` or `mockup_templates.image_storage_path`).
-- **Where the images live** — recommend moving from bundled `src/assets/` static imports
-  to Supabase Storage, finally using the existing-but-dormant
-  `mockup_templates.image_storage_path` column (a new small public-or-signed-URL bucket,
-  since these are the business's own reference art, not customer files — no privacy
-  requirement forces the private-bucket treatment artwork gets). This directly unblocks
-  Settings → Mockup Templates upload management (brief §5.15) and gets large PNGs out of
-  the git repo and Vite's static-asset pipeline. If this turns out to be more plumbing
-  than Milestone 2's budget allows, the fallback is: keep bundled assets for now, ship
-  the CRUD metadata (active/inactive, name) working as it already does, and revisit
-  Storage-backed images as a fast-follow — brief §5.15 explicitly permits this exact
-  fallback ("if disproportionately complex, ship seeded clean templates and keep CRUD
-  metadata working").
+**Phase 3 garment rendering is silhouette-first, not photo-first:**
+
+- A polished neutral silhouette system (evolving the existing `FALLBACK_BODY` SVG in
+  `GarmentMockup.tsx`, today used only for Shirt/Customized) becomes the **primary**
+  rendering path for every garment type, not a fallback for edge cases. Silhouettes
+  support garment colour directly via SVG fill (already how the no-photo path works
+  today — `resolveGarmentColour(colour)` sets the fill), which incidentally satisfies
+  D4's colour-rendering preference order better than any bundled photo could (no photo
+  can be re-tinted safely per hard constraint against "naive CSS filters that look
+  obviously fake"; an SVG fill has no such problem).
+- Consistent front/back silhouettes are added per garment type — a small, deliberately
+  simple set of body outlines (torso/hoody/tank/etc. shape variants), not photorealistic
+  art. This is a bounded, in-house-producible asset task (SVG paths), unlike photography.
+- **Bundled/static image delivery stays exactly as it is today** where any real photos
+  currently exist (`src/assets/mockups/*.png` via `garmentImages.ts`) — nothing is
+  deleted or migrated. They simply stop being the thing Phase 3 depends on shipping more
+  of.
+- **Storage-backed `mockup_templates.image_storage_path` upload/replacement plumbing is
+  removed from Phase 3 scope** (moved to §22 Deferred). Settings → Mockup Templates keeps
+  its existing metadata CRUD (name, view, active) exactly as it works today — no upload
+  UI is built this phase. Real garment photography can replace silhouettes later,
+  per-garment, without touching the PrintSpec/canvas model at all, since both a
+  silhouette and a photo are just "whatever `GarmentMockup`/`MockupCanvas` renders as the
+  background layer" — swapping one asset type for another is a rendering-layer decision.
 
 ## 9. Front/back model
 
@@ -286,6 +335,52 @@ successfully uploaded, not through the RPC — Storage operations can't particip
 RPC's SQL transaction, exactly the same reasoning Phase 2 already applied to artwork
 uploads.
 
+### 12a. PrintSpec ID stability — investigated per Amendment 3, real defect found
+
+Inspected `mapPrintSpecFormToPayload`, `mapDatabaseOrderToFormValues`, and the
+`upsert_order` RPC's `print_specs` insert (`supabase/migrations/
+20260908084613_order_core.sql` lines ~290–306). **Finding: PrintSpec IDs are NOT stable
+across saves today.** Two compounding facts:
+
+1. The RPC's `insert into print_specs (order_id, artwork_id, position, ...)` column list
+   has **no `id` column at all** — every insert relies on the table's
+   `default gen_random_uuid()`, so every `delete from print_specs where order_id = ...`
+   + reinsert cycle (which happens on **every single order save**, per the existing
+   whole-child-set-replace design) assigns every print spec a brand-new random UUID.
+2. `mapPrintSpecFormToPayload` doesn't include `id` in its output at all, and
+   `emptyPrintSpec()` (`src/pages/new-order/defaultValues.ts`) generates a new print
+   spec's client-side id via `generateId('print')` — a non-UUID string like
+   `print-l8x2k9-1` — so even if the payload carried it through today, casting it to
+   `::uuid` in the RPC would error.
+
+This confirms the brief's concern exactly: the proposed
+`mockup-previews/.../print-specs/{printSpecId}/preview.png` path would silently orphan
+every existing preview on the very next order save, with no error — a real, previously
+undiscovered defect in the existing (pre-Phase-3) persistence design, not a
+hypothetical risk.
+
+**Fix, scoped into Milestone 1** (this is schema/RPC/mapper work, not UI, so it belongs
+in the architecture milestone, not deferred to Milestone 7 when preview generation
+itself is built):
+
+- `emptyPrintSpec()` generates `crypto.randomUUID()` instead of `generateId('print')` —
+  the exact same pattern `ArtworkSection.tsx` already uses for `artworkId` before first
+  upload. Every print spec has a real, stable UUID from the moment it's created
+  client-side, whether or not it's ever saved.
+- `mapPrintSpecFormToPayload` includes `id: spec.id` in its output.
+- The RPC's `insert into print_specs (...)` adds `id` to both the column list and the
+  `select` list, reading `(p->>'id')::uuid` from the payload — since every id is now a
+  real UUID from creation time, no `coalesce`/fallback-generation branch is needed.
+- Net effect: an existing print spec keeps the exact same `id` through every
+  delete+reinsert cycle for the rest of its life (matching how `order_garments`/
+  `garment_quantities`/`order_services` behave today — they don't have this problem
+  because nothing outside the order currently references their ids by path; `print_specs`
+  is the first child table whose id needs to survive replacement, because Phase 3 is the
+  first thing to reference it externally, via the Storage path).
+- `sort_order` is explicitly **not** used as an identity substitute (per the brief's
+  instruction) — it already changes freely when specs are reordered/added/removed and
+  was never a candidate here regardless.
+
 ## 13. Preview/export generation
 
 Fabric.js provides `canvas.toDataURL()` / `canvas.toBlob()` natively at an arbitrary
@@ -303,24 +398,40 @@ to `mockup-previews/orders/{orderId}/print-specs/{printSpecId}/preview.png`, the
 export/upload must not roll back or block the already-successful order save (brief
 acceptance test #15) — it surfaces a distinct, non-blocking toast ("Order saved — mockup
 preview couldn't be generated, try saving again") and leaves the previous
-`preview_storage_path` (or null) in place.
+`preview_storage_path` (or null) in place. This flow depends entirely on PrintSpec IDs
+being stable across saves (§12a) — without that fix the `{printSpecId}` path segment
+would point at a different logical print spec after every save, which is exactly why
+§12a's fix is scoped into Milestone 1 rather than deferred to this milestone.
 
-## 14. Approval workflow — D5
+**Storage integrity verification, expanded per Amendment 3** to check both directions
+(same pattern already used for `artwork-originals` in the Phase 2.5 audit): (1) every
+non-null `print_specs.preview_storage_path` resolves to a real `storage.objects` row,
+and (2) every object under `mockup-previews/` is referenced by a current
+`print_specs.preview_storage_path` — direction (2) is the one that specifically catches
+orphans left behind by the exact ID-instability failure mode described in §12a, so it's
+not redundant with direction (1).
 
-**Recommendation: extend the existing order-level `ArtworkStatus`, do not add a
-per-PrintSpec approval field.** Rationale: every acceptance test and every current UI
-surface (Production Board, Dashboard, Order Detail's Production tab) already operates on
-one order-level `ArtworkStatus`; a real multi-mockup-approval need would require the
-*board and dashboard* to somehow roll up N independent per-spec statuses into one
-displayable badge, which is a materially bigger surface change than Phase 3's stated
-non-goals allow ("do not redesign unrelated areas," "single-company internal tool, no
-speculative complexity"). SALT PRINTS' actual workflow (per every doc read this phase)
-treats "the artwork" for a job as one approval gate, not N independent ones per print
-location — even orders with 3 print specs get approved as one job. The one genuinely new
-piece of data is an **approval note**, added as a plain nullable `text` column on
-`orders` (e.g. `artwork_approval_note`) rather than per-print-spec, surfaced next to the
-existing `ArtworkStatus` selector, logged into `order_activity` on change exactly like
-every other status field already is.
+## 14. Approval workflow — D5 (amended)
+
+**`ArtworkStatus` stays exactly where it is today: one order-level enum.** Unchanged
+from the original recommendation — every current UI surface (Production Board,
+Dashboard, Order Detail) already operates at order granularity, and SALT PRINTS' actual
+workflow treats "the artwork" for a job as one approval gate, not N independent ones.
+Rolling that up from per-spec statuses would be a materially bigger surface change than
+Phase 3's non-goals allow.
+
+**Amended (Amendment 4): the approval note moves to `print_specs.approval_note`, not
+`orders.artwork_approval_note`.** The status decision and the note-location decision are
+separable, and the brief is right that they don't belong on the same row: a note like
+"Move logo 20mm higher" is inherently about *one print location*, not the job as a
+whole — an order with a Left Chest logo and a Full Back print might get feedback on only
+one of them. Order-level `ArtworkStatus` still gates the overall job; `approval_note` is
+just a plain nullable text field on the print spec it concerns, requiring no status
+roll-up logic of any kind (it's not a status, just a comment). Surfaced next to each
+print spec's own artwork/approval indicator in the Mockup Studio UI, not as a single
+order-wide text box. Note *changes* are logged into `order_activity` (existing
+`artwork` category, referencing which print spec/position in the message text) exactly
+like every other field-change is today — no new activity category needed.
 
 ## 15. Production workflow improvements
 
@@ -336,42 +447,54 @@ implemented as small pure functions (`isReadyForProduction(order)`,
 `useProductionBoard.ts` logic, unit-testable the same way `diffOrderForActivity` already
 is.
 
-## 16. Required database changes
+## 16. Required database changes (amended)
 
-One migration, additive only (no destructive changes to existing columns):
+One migration, additive only (no destructive changes to existing columns). Per
+Amendments 2, 4, and 5, `artwork_width_pct`/`artwork_height_pct`/
+`orders.artwork_approval_note` are **removed** from scope; `approval_note` moves to
+`print_specs`; the id-column fix from §12a rides in the same migration file since it's
+an RPC-body change, not a new column, but is called out here for completeness:
 
-| Column | Table | Type | Justification |
+| Change | Table | Type | Justification |
 |---|---|---|---|
-| `rotation_deg` | `print_specs` | `numeric not null default 0` | New rotation capability (D8); default 0 means every existing row is valid with no backfill. |
-| `artwork_width_pct` | `print_specs` | `numeric` (nullable) | Chosen transform model (D2/§5) — artwork's rendered width as a fraction of its print zone. Nullable so existing rows (created before Phase 3) don't need a synthetic value; the canvas falls back to today's `widthMm`-derived heuristic for any row where it's null, so nothing breaks for orders that predate this migration. |
-| `artwork_height_pct` | `print_specs` | `numeric` (nullable) | Same reasoning as above; height half of the transform pair. |
-| `preview_storage_path` | `print_specs` | `text` (nullable) | Path to the generated mockup PNG in the new `mockup-previews` bucket (§13/§17). Nullable — a print spec has no preview until the order is saved at least once under Phase 3. |
-| `artwork_approval_note` | `orders` | `text` (nullable) | The one new field from the approval-workflow decision (§14). |
+| `rotation_deg` | `print_specs` | `numeric not null default 0` | New rotation capability (D8); default 0 means every existing row (both of them) is valid with no backfill. |
+| `preview_storage_path` | `print_specs` | `text` (nullable) | Path to the generated mockup PNG in the new `mockup-previews` bucket (§13/§17). Nullable — no print spec has a preview until Milestone 7 actually generates one. |
+| `approval_note` | `print_specs` | `text` (nullable) | Per-print-spec approval feedback (Amendment 4/§14) — not per-order. |
+| *(RPC body change, not a column)* `upsert_order`'s `print_specs` insert | — | — | Adds `id` to the insert column/select list, reading `(p->>'id')::uuid` from the payload, fixing the ID-instability defect found in §12a. Required before `preview_storage_path` can be trusted at all — sequencing this into the *same* migration as the column additions rather than a later one avoids a window where the new column exists but points at nothing reliable. |
 
-No changes to `garment_type`/`garment_colour`/`offset_x`/`offset_y`/`width_mm`/
-`height_mm` — all stay exactly as-is; `offset_x`/`offset_y` continue to mean "offset
-within the print zone," now just interpreted more precisely against the reshaped zone
-model (§4/§7), not renamed or retyped.
+**Offset semantics (Amendment 1):** no `offset_x`/`offset_y` value changes in this
+migration — confirmed via live-data inspection (§4) that both existing rows are already
+`(0, 0)`, which is valid under the new interpretation unchanged. This is a
+code/documentation-level semantic cutover (Strategy A), not a data migration; explicitly
+called out in the migration file's own header comment so a future reader doesn't assume
+a `data migration` step is missing.
 
-`mockup_templates.image_storage_path` needs no migration — the column already exists
-and is simply used for the first time (§8).
+No changes to `garment_type`/`garment_colour`/`width_mm`/`height_mm` — all stay exactly
+as-is, remaining the sole source of truth for print size per Amendment 2.
 
-## 17. Required storage changes
+`mockup_templates.image_storage_path` needs no migration and, per Amendment 7, is **not
+used this phase either** — see §8.
 
-Two additions, both via Supabase MCP/CLI migration + dashboard bucket creation (never
-manual dashboard schema edits per hard constraint #6 — bucket creation itself isn't
-schema DDL and is the one Storage action that has to go through the dashboard or the
-Supabase management API, same as `artwork-originals` was originally created):
+## 17. Required storage changes (amended)
 
-- **`mockup-previews`** bucket — private (matches `artwork-originals`'s treatment; these
-  previews are still customer/job-specific, not public marketing material), path
-  `orders/{orderId}/print-specs/{printSpecId}/preview.png`, RLS policies identical shape
-  to the existing `artwork-originals` policies (`authenticated` full CRUD, no `anon`).
-- **`mockup-templates`** bucket (only if §8's Storage-backed garment-image approach is
-  adopted rather than the bundled-assets fallback) — can be **public** read (these are
-  the business's own generic reference photography, not customer data), write restricted
-  to `owner`/`admin` matching the existing `is_admin_or_owner()` pattern used for every
-  other catalog table.
+**Amendment 6: bucket creation itself is versioned, not a manual dashboard step.**
+Supabase supports creating a Storage bucket and its `storage.objects` RLS policies from
+plain SQL (`insert into storage.buckets (...)`, then `create policy ... on
+storage.objects`) — exactly the mechanism the existing `artwork_storage` migration
+(`20260908091750_artwork_storage.sql`) already used for `artwork-originals`. The Phase 3
+migration follows the identical pattern, so no manual Supabase Dashboard bucket-creation
+step is required at all:
+
+- **`mockup-previews`** bucket — private, created via migration SQL, path
+  `orders/{orderId}/print-specs/{printSpecId}/preview.png`, RLS policies matching
+  `artwork-originals`'s shape exactly (`authenticated` full CRUD via `bucket_id =
+  'mockup-previews'`, no `anon` policy of any kind). Signed URLs only, generated on
+  demand — no storage path or signed URL is ever persisted anywhere except the plain
+  `storage_path` column itself, same rule as artwork.
+
+**Amendment 7 removes the `mockup-templates` bucket from this plan entirely** — see §8;
+Storage-backed garment template images are deferred, so no second bucket is created in
+Phase 3.
 
 ## 18. UI changes
 
@@ -429,32 +552,34 @@ already 1:1 by construction (canvas library/zones/schema → M1; images → M2; 
 canvas → M3; position/size → M4; multi-spec → M5; persistence → M6; preview export →
 M7; approval → M8; production polish → M9; responsive/perf → M10; hardening → M11).
 
-## 22. Deferred capabilities
+## 22. Deferred capabilities (amended — Amendment 7 additions)
 
 Everything in brief §1.3 (unchanged, out of scope): customer-facing approval portal,
 email/SMS proof sending, payments, invoicing, supplier ordering, inventory, AI
 artwork generation/vectorization/background removal/logo enhancement, mockup version
 history, multi-tenancy, ecommerce, PDF proof generation. Additionally, from this plan's
 own analysis: a dedicated `/orders/:id/mockups` route (§18/D7, deferred pending real
-usage evidence), and Storage-backed garment template images (§8/§17) are a soft-deferred
-fallback if the upload plumbing proves disproportionate within Milestone 2's own budget
-— not a hard Phase 3 non-goal, just a named fallback path.
+usage evidence). **Newly deferred per Amendment 7**: clean garment photography/renders
+sourcing, and Storage-backed `mockup_templates.image_storage_path` upload/replacement
+plumbing — both moved from "Milestone 2 dependency" to "later asset swap," to be
+revisited once real garment photography is actually supplied. Silhouette-based
+rendering (§8) is Phase 3's real, permanent-for-now answer, not a stopgap awaiting these.
 
 ---
 
-## Decisions summary (brief §4)
+## Decisions summary (brief §4) — revised status after review amendments
 
-| # | Decision | This plan's answer |
-|---|---|---|
-| D1 | Canvas library | **Fabric.js v6** — no React-version coupling risk found; replaces the existing hand-rolled pointer-event drag code, which has no resize/rotate concept to extend anyway. |
-| D2 | Transform persistence model | **`artwork_width_pct`/`artwork_height_pct` + `rotation_deg`** — not raw Fabric `scale_x`/`scale_y`, which is a rendering-instant implementation detail that wouldn't reconstruct identically across viewport sizes. |
-| D3 | Physical vs canvas size, primary | **Physical width primary** (brief's own recommendation, adopted as-is) — height auto-derives from the artwork's real intrinsic aspect ratio, unlockable. |
-| D4 | Garment colour rendering | **Real colour-specific asset → neutral silhouette with fill (already partly built) → label-only**, in that priority order, per garment — no CSS-filter tinting of real photos (looks fake, explicitly prohibited). |
-| D5 | Approval model | **Extend existing order-level `ArtworkStatus`**, add one new nullable `artwork_approval_note` text field on `orders`. No per-PrintSpec approval field — current UI/board/dashboard all operate at order granularity and SALT PRINTS' real workflow treats "the artwork" as one approval gate per job. |
-| D6 | Preview persistence | **Yes** — private `mockup-previews` Storage bucket, path persisted on `print_specs.preview_storage_path`. |
-| D7 | Dedicated `/orders/:id/mockups` route | **No**, not in Phase 3 — no demonstrated usability need found in this codebase; embedded editor stays the only entry point. Revisit post-Milestone 7 if real usage says otherwise. |
-| D8 | Rotation support | **Yes, supported** — Fabric.js provides it natively at near-zero extra complexity; always paired with a visible Reset Rotation control. |
-| D9 | `src/api/mockups.ts` | **No new file** — mockup persistence is entirely `print_specs` fields riding through the existing `upsert_order` RPC (`orders.ts`) plus preview-image Storage calls that are a natural extension of `artwork.ts`'s existing upload/signed-URL pattern. A separate file would split one cohesive read/write concern across two modules for no real separation-of-concerns benefit. |
+| # | Decision | Status | This plan's answer |
+|---|---|---|---|
+| D1 | Canvas library | **APPROVED** | **Fabric.js v6** — no React-version coupling risk found; replaces the existing hand-rolled pointer-event drag code, which has no resize/rotate concept to extend anyway. |
+| D2 | Transform persistence model | **AMENDED + APPROVED** | **Persist normalized placement (`offset_x`/`offset_y`) + `rotation_deg` only.** Do **not** persist `artwork_width_pct`/`artwork_height_pct` or any Fabric scale value — `width_mm`/`height_mm` remain the sole canonical physical size; canvas-relative size is always derived at render time, never stored, so it can't go stale against print-zone calibration. |
+| D3 | Physical vs canvas size, primary | **APPROVED** | **Physical width primary** (brief's own recommendation, adopted as-is) — height auto-derives from the artwork's real intrinsic aspect ratio, unlockable. |
+| D4 | Garment colour rendering | **APPROVED** | **Real colour-specific asset → neutral fillable silhouette → label-only**, in that priority order. **For Phase 3 specifically, the neutral fillable silhouette is the primary implementation** (Amendment 7) — no clean photography is currently supplied, so the "real asset" tier of this priority order is unused this phase, not absent from the model. |
+| D5 | Approval model | **AMENDED + APPROVED** | **`ArtworkStatus` stays order-level, unchanged.** Approval note moves to **`print_specs.approval_note`** (Amendment 4), not `orders.artwork_approval_note` — the note is inherently per-print-location even though the approval gate itself is per-job. |
+| D6 | Preview persistence | **APPROVED** | **Yes** — private `mockup-previews` Storage bucket (created via versioned migration, Amendment 6 — no manual dashboard step), path persisted on `print_specs.preview_storage_path`. Depends on PrintSpec ID stability (§12a, fixed in Milestone 1). |
+| D7 | Dedicated `/orders/:id/mockups` route | **APPROVED** | **No**, not in Phase 3 — no demonstrated usability need found in this codebase; embedded editor stays the only entry point. |
+| D8 | Rotation support | **APPROVED** | **Yes, supported** — Fabric.js provides it natively; always paired with a visible Reset Rotation control. Persisted as `rotation_deg` per D2. |
+| D9 | `src/api/mockups.ts` | **APPROVED** | **No new file** — mockup persistence is entirely `print_specs` fields riding through the existing `upsert_order` RPC (`orders.ts`) plus preview-image Storage calls extending `artwork.ts`'s existing pattern. |
 
 ---
 
