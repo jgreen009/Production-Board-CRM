@@ -47,7 +47,7 @@ export function TurnaroundDeliverySection() {
       <div>
         <p className="mb-1.5 text-sm font-medium text-zinc-700">Turnaround</p>
         <p className="mb-2 text-xs text-zinc-400">Internal staff field — not shown on the paper form.</p>
-        <div className="grid grid-cols-3 gap-2">
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
           {FORM_TURNAROUNDS.map((t) => (
             <button
               key={t.value}

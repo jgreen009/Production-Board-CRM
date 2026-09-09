@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/Button'
 import { FormField, Input, Select, Textarea } from '@/components/ui/Field'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { EmptyState } from '@/components/ui/EmptyState'
+import { ErrorBoundary } from '@/components/ui/ErrorBoundary'
 import { emptyPrintSpec } from '@/pages/new-order/defaultValues'
 import { PRINT_ZONES, getPrintZone } from '@/config/printZones'
 import { PRINT_SIZES } from '@/data/printSizes'
@@ -251,7 +252,7 @@ export function MockupStudio() {
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-[220px_minmax(0,1fr)_240px]">
         {/* LEFT: location / artwork / garment */}
-        <div className="flex flex-col gap-3 order-2 lg:order-1">
+        <div className="flex flex-col gap-3 order-1">
           <div>
             <p className="mb-1.5 text-xs font-medium text-zinc-500">POSITION</p>
             <div className="flex flex-wrap gap-1.5">
@@ -318,24 +319,40 @@ export function MockupStudio() {
         </div>
 
         {/* CENTER: canvas */}
-        <div ref={containerRef} className="order-1 flex flex-col items-center gap-2 lg:order-2">
+        <div ref={containerRef} className="order-2 flex flex-col items-center gap-2">
           <div className="relative rounded-lg border border-zinc-100 bg-zinc-50/60 p-3">
-            <Suspense fallback={<CanvasSkeleton width={canvasWidth} height={canvasHeight} />}>
-              <MockupCanvas
-                ref={canvasRef}
-                width={canvasWidth}
-                height={canvasHeight}
-                garmentType={effectiveGarmentType}
-                garmentColour={effectiveColour}
-                view={config.view}
-                zone={config}
-                artworkUrl={artworkPreviewable ? artwork?.previewUrl : undefined}
-                transform={transform}
-                onTransformCommit={(t) => update(t)}
-                onArtworkAspectRatio={setAspectRatio}
-                onError={setCanvasError}
-              />
-            </Suspense>
+            <ErrorBoundary
+              fallback={(retry) => (
+                <div
+                  style={{ width: canvasWidth, height: canvasHeight }}
+                  className="flex flex-col items-center justify-center gap-2 rounded-lg border border-red-100 bg-red-50/60 p-4 text-center"
+                >
+                  <p className="text-xs text-red-600">
+                    The mockup editor couldn&rsquo;t load. Check your connection and try again.
+                  </p>
+                  <Button type="button" variant="secondary" size="sm" onClick={retry}>
+                    Retry
+                  </Button>
+                </div>
+              )}
+            >
+              <Suspense fallback={<CanvasSkeleton width={canvasWidth} height={canvasHeight} />}>
+                <MockupCanvas
+                  ref={canvasRef}
+                  width={canvasWidth}
+                  height={canvasHeight}
+                  garmentType={effectiveGarmentType}
+                  garmentColour={effectiveColour}
+                  view={config.view}
+                  zone={config}
+                  artworkUrl={artworkPreviewable ? artwork?.previewUrl : undefined}
+                  transform={transform}
+                  onTransformCommit={(t) => update(t)}
+                  onArtworkAspectRatio={setAspectRatio}
+                  onError={setCanvasError}
+                />
+              </Suspense>
+            </ErrorBoundary>
             {!artwork && (
               <p className="pointer-events-none absolute inset-x-3 bottom-3 rounded-md bg-white/90 px-2 py-1.5 text-center text-xs text-zinc-500">
                 Upload or select artwork to preview it on the garment.

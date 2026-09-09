@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import type { ReactNode } from 'react'
 import { X } from 'lucide-react'
 import { clsx } from 'clsx'
@@ -12,6 +13,18 @@ interface DrawerProps {
 }
 
 export function Drawer({ open, onClose, title, subtitle, children, footer }: DrawerProps) {
+  // Batch D accessibility pass: Escape closes the drawer the same way the
+  // close button and backdrop click already do — keyboard users had no way
+  // to dismiss it otherwise.
+  useEffect(() => {
+    if (!open) return
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose()
+    }
+    document.addEventListener('keydown', onKeyDown)
+    return () => document.removeEventListener('keydown', onKeyDown)
+  }, [open, onClose])
+
   return (
     <div
       className={clsx(
@@ -25,6 +38,9 @@ export function Drawer({ open, onClose, title, subtitle, children, footer }: Dra
         onClick={onClose}
       />
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-label={title}
         className={clsx(
           'absolute right-0 top-0 h-full w-full max-w-md bg-white shadow-xl transition-transform flex flex-col',
           open ? 'translate-x-0' : 'translate-x-full',

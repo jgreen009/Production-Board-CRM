@@ -77,7 +77,7 @@ export function ProductionToolbar(props: ProductionToolbarProps) {
             )}
           </Button>
           {filtersOpen && (
-            <div className="absolute left-0 z-20 mt-2 w-72 rounded-lg border border-zinc-200 bg-white p-3 shadow-lg">
+            <div className="absolute left-0 z-20 mt-2 w-72 max-w-[calc(100vw-2rem)] rounded-lg border border-zinc-200 bg-white p-3 shadow-lg">
               <div className="mb-2 flex items-center justify-between">
                 <span className="text-xs font-semibold text-zinc-500">FILTERS</span>
                 <button

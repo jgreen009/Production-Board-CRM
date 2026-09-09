@@ -50,7 +50,7 @@ export function ServicesSection() {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-2">
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
         <Toggle
           label="Do you require us to supply Garments"
           checked={suppliesGarments}

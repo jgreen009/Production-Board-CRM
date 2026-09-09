@@ -21,7 +21,12 @@ export function AttentionBadge({ order }: { order: Order }) {
 
   return (
     <Tooltip content={tooltip}>
-      <span className={clsx('inline-flex', SEVERITY_COLOUR[warnings[0].severity])}>
+      <span
+        tabIndex={0}
+        role="img"
+        aria-label={tooltip}
+        className={clsx('inline-flex rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-400', SEVERITY_COLOUR[warnings[0].severity])}
+      >
         <AlertTriangle size={14} />
       </span>
     </Tooltip>
