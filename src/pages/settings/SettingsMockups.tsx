@@ -27,7 +27,7 @@ export default function SettingsMockups() {
       <button onClick={() => navigate('/settings')} className="mb-2 flex items-center gap-1 text-sm text-zinc-500 hover:text-zinc-800">
         <ArrowLeft size={14} /> Back to Settings
       </button>
-      <PageHeader title="Mockup Templates" description="Garment reference photos used in the mockup workspace" />
+      <PageHeader title="Mockup Templates" description="Garment silhouettes used in the mockup workspace, per garment type and view" />
 
       {isLoading ? (
         <Card>
@@ -53,7 +53,7 @@ export default function SettingsMockups() {
               <CardBody className="flex flex-col items-center gap-1.5 p-0 pt-2 text-center">
                 <p className="text-sm font-medium text-zinc-800">{t.name}</p>
                 {!t.hasImage && (
-                  <Badge className="border-amber-200 bg-amber-50 text-amber-700">Using local reference photo</Badge>
+                  <Badge className="border-amber-200 bg-amber-50 text-amber-700">Using built-in silhouette</Badge>
                 )}
                 <Toggle label="Active" checked={t.active} onChange={() => toggleActive(t.id, t.active)} />
               </CardBody>

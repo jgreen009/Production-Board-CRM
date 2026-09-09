@@ -1,5 +1,7 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef } from 'react'
 import * as fabric from 'fabric'
+import type { GarmentType } from '@/types'
+import { garmentTemplateToDataUrl } from '@/config/garmentTemplates'
 
 // Phase 3 Milestone 1 architectural spike (docs/PHASE_3_PLAN.md §3/D1,
 // Milestone 1 item 2). This component's only job is to prove the
@@ -19,6 +21,14 @@ export interface MockupCanvasTransform {
 export interface MockupCanvasHandle {
   /** Loads (or replaces) the background garment image. */
   setBackgroundImage: (url: string) => Promise<void>
+  /**
+   * Milestone 2: loads a garment's neutral-silhouette background directly
+   * from the centralized template config (garmentTemplates.ts) — the
+   * data/config module itself never imports Fabric, only this method does,
+   * keeping garment-template data reusable by non-canvas renderers
+   * (GarmentMockup.tsx) without pulling Fabric along with it.
+   */
+  setGarmentBackground: (type: GarmentType, view: 'Front' | 'Back', colour: string) => Promise<void>
   /** Loads (or replaces) the artwork image object on the canvas. */
   setArtworkImage: (url: string) => Promise<void>
   /** Current artwork placement, relative to canvas size (0-1) — never raw pixels, per hard constraint #5. */
@@ -87,6 +97,26 @@ export const MockupCanvas = forwardRef<MockupCanvasHandle, MockupCanvasProps>(fu
       })
       canvas.backgroundImage = img
       canvas.requestRenderAll()
+    },
+    setGarmentBackground: async (type: GarmentType, view: 'Front' | 'Back', colour: string) => {
+      const canvas = fabricCanvasRef.current
+      if (!canvas) return
+      try {
+        const url = garmentTemplateToDataUrl(type, view, colour)
+        const img = await fabric.FabricImage.fromURL(url, { crossOrigin: 'anonymous' })
+        img.set({
+          scaleX: canvas.getWidth() / (img.width || 1),
+          scaleY: canvas.getHeight() / (img.height || 1),
+          selectable: false,
+          evented: false,
+        })
+        canvas.backgroundImage = img
+        canvas.requestRenderAll()
+      } catch {
+        // Fallback handling per Milestone 2 scope — a broken template
+        // shouldn't crash the canvas; leave whatever background (or none)
+        // was already there rather than throwing out of an imperative call.
+      }
     },
     setArtworkImage: async (url: string) => {
       const canvas = fabricCanvasRef.current

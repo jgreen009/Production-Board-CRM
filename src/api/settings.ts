@@ -149,10 +149,13 @@ interface MockupTemplateRow {
   garment_types: { name: string } | null
 }
 
-// image_storage_path stays unused this phase (see the migration) — the app
-// keeps using the local reference photos in src/assets/mockups/, so
-// hasImage is really "has a real uploaded template photo" for a later
-// phase, not "has a preview at all."
+// image_storage_path stays unused this phase (Phase 3 Amendment 7 — no
+// Storage-backed template upload plumbing is built) — this table is purely
+// per-garment/view metadata (name/active), separate from and unrelated to
+// the actual rendering source, which is the bundled neutral-silhouette
+// system in src/config/garmentTemplates.ts. hasImage is really "has a real
+// uploaded template photo" for a later phase, not "has a preview at all" —
+// GarmentMockup always has a silhouette to render regardless of this flag.
 export async function listMockupTemplates(): Promise<MockupTemplateItem[]> {
   const { data, error } = await supabase
     .from('mockup_templates')
