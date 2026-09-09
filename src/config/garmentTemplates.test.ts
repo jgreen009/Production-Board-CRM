@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import {
   GARMENT_TEMPLATES,
+  garmentTemplateToDataUrl,
   garmentTemplateToSvgMarkup,
+  getGarmentImage,
   getGarmentShapes,
   getGarmentTemplate,
 } from './garmentTemplates'
@@ -77,6 +79,35 @@ describe('headwear special cases moved into template config', () => {
   it('a standard torso garment has neither override', () => {
     expect(GARMENT_TEMPLATES['T-shirt'].printAnchorOverride).toBeUndefined()
     expect(GARMENT_TEMPLATES['T-shirt'].verticalOffsetPct).toBeUndefined()
+  })
+})
+
+describe('getGarmentImage (real artwork, when available)', () => {
+  it('returns a front and back image for every type except Customized', () => {
+    for (const type of ALL_TYPES) {
+      const front = getGarmentImage(type, 'Front')
+      const back = getGarmentImage(type, 'Back')
+      if (type === 'Customized') {
+        expect(front).toBeUndefined()
+        expect(back).toBeUndefined()
+      } else {
+        expect(front).toBeTruthy()
+        expect(back).toBeTruthy()
+      }
+    }
+  })
+})
+
+describe('garmentTemplateToDataUrl', () => {
+  it('prefers real artwork over the generated vector markup when available', () => {
+    const url = garmentTemplateToDataUrl('T-shirt', 'Front', 'Navy')
+    expect(url).not.toContain('data:image/svg+xml')
+    expect(url).toBe(getGarmentImage('T-shirt', 'Front'))
+  })
+
+  it('falls back to generated vector markup for a type with no real artwork', () => {
+    const url = garmentTemplateToDataUrl('Customized', 'Front', 'Navy')
+    expect(url).toContain('data:image/svg+xml')
   })
 })
 

@@ -2,7 +2,7 @@ import { useRef } from 'react'
 import type { PointerEvent as ReactPointerEvent } from 'react'
 import type { GarmentType, PrintPosition } from '@/types'
 import { getPrintZone } from '@/config/printZones'
-import { GARMENT_VIEW_BOX, getGarmentShapeStyle, getGarmentShapes, getGarmentTemplate } from '@/config/garmentTemplates'
+import { GARMENT_VIEW_BOX, getGarmentImage, getGarmentShapeStyle, getGarmentShapes, getGarmentTemplate } from '@/config/garmentTemplates'
 import { resolveGarmentColour } from '@/utils/colour'
 
 export interface MockupOffset {
@@ -58,6 +58,7 @@ export function GarmentMockup({
   const visible = template.printAnchorOverride ? true : isPositionVisible(position, view)
   const shapes = getGarmentShapes(garmentType, view)
   const shapeFill = resolveGarmentColour(colour)
+  const garmentImage = getGarmentImage(garmentType, view)
 
   // Print box size as a percentage of the garment image, scaled from the
   // real mm dimensions but capped to the selected position's own realistic
@@ -101,18 +102,27 @@ export function GarmentMockup({
       className="relative mx-auto select-none"
       style={{ width: size }}
     >
-      <svg
-        viewBox={GARMENT_VIEW_BOX}
-        width={size}
-        height={(size / 240) * 300}
-        className="pointer-events-none block w-full"
-        aria-label={`${garmentType} ${view}`}
-      >
-        {shapes.map((shape, i) => {
-          const style = getGarmentShapeStyle(shape.role, shapeFill)
-          return <path key={i} d={shape.d} fill={style.fill} stroke={style.stroke} />
-        })}
-      </svg>
+      {garmentImage ? (
+        <img
+          src={garmentImage}
+          alt={`${garmentType} ${view}`}
+          className="pointer-events-none block w-full"
+          draggable={false}
+        />
+      ) : (
+        <svg
+          viewBox={GARMENT_VIEW_BOX}
+          width={size}
+          height={(size / 240) * 300}
+          className="pointer-events-none block w-full"
+          aria-label={`${garmentType} ${view}`}
+        >
+          {shapes.map((shape, i) => {
+            const style = getGarmentShapeStyle(shape.role, shapeFill)
+            return <path key={i} d={shape.d} fill={style.fill} stroke={style.stroke} />
+          })}
+        </svg>
+      )}
 
       {visible && artworkUrl && (
         <img

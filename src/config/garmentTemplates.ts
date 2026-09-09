@@ -1,18 +1,54 @@
 import type { GarmentType } from '@/types'
 import { resolveGarmentColour } from '@/utils/colour'
 
-// Phase 3 Milestone 2 — the ONE source of truth for garment rendering,
-// replacing src/data/garmentImages.ts (the old marked paper-form photos)
-// and the FALLBACK_BODY/HEADWEAR_ANCHOR/GARMENT_Y_OFFSET hacks that used to
-// live inline in GarmentMockup.tsx. No clean garment photography is being
-// supplied for this phase (see docs/PHASE_3_PLAN.md §8/Amendment 7), so
-// every garment type renders from a polished neutral SVG silhouette here —
-// this is the primary Phase 3 rendering strategy, not a fallback.
+import tshirtFront from '@/assets/mockups/tshirt-front.png'
+import tshirtBack from '@/assets/mockups/tshirt-back.png'
+import poloFront from '@/assets/mockups/polo-front.png'
+import poloBack from '@/assets/mockups/polo-back.png'
+import shirtFront from '@/assets/mockups/shirt-front.png'
+import shirtBack from '@/assets/mockups/shirt-back.png'
+import hiVizVestFront from '@/assets/mockups/hi-viz-vest-front.png'
+import hiVizVestBack from '@/assets/mockups/hi-viz-vest-back.png'
+import singletFront from '@/assets/mockups/singlet-front.png'
+import singletBack from '@/assets/mockups/singlet-back.png'
+import crewNeckFront from '@/assets/mockups/crew-neck-front.png'
+import crewNeckBack from '@/assets/mockups/crew-neck-back.png'
+import hoodyFront from '@/assets/mockups/hoody-front.png'
+import hoodyBack from '@/assets/mockups/hoody-back.png'
+import shortsFront from '@/assets/mockups/shorts-front.png'
+import shortsBack from '@/assets/mockups/shorts-back.png'
+import pantsFront from '@/assets/mockups/pants-front.png'
+import pantsBack from '@/assets/mockups/pants-back.png'
+import bennieFront from '@/assets/mockups/bennie-front.png'
+import bennieBack from '@/assets/mockups/bennie-back.png'
+import hatsFront from '@/assets/mockups/hats-front.png'
+import hatsBack from '@/assets/mockups/hats-back.png'
+
+// Phase 3 Milestone 2 (amended) — the ONE source of truth for garment
+// rendering, replacing the old src/data/garmentImages.ts (marked paper-form
+// photos, deleted) and the FALLBACK_BODY/HEADWEAR_ANCHOR/GARMENT_Y_OFFSET
+// hacks that used to live inline in GarmentMockup.tsx.
 //
-// Deliberately framework-independent: no React, no Fabric.js import. Both
-// GarmentMockup.tsx (plain SVG/JSX) and MockupCanvas.tsx (via
+// Originally built as pure neutral SVG silhouettes (Amendment 7 — no clean
+// garment art was available yet). Clean technical-flat-sketch artwork
+// (src/assets/mockups/*.png, supplied directly by the user) has since been
+// wired in as the real per-garment/view images for every catalog type
+// except Customized (a generic catch-all with no real garment to draw).
+// Per the plan's own §8 note, this is exactly the kind of "later asset
+// swap" that was designed to need no PrintSpec/canvas model changes — only
+// this config file changed; GarmentMockup.tsx and MockupCanvas.tsx consume
+// whichever representation (image or vector shapes) a template provides.
+//
+// These are flat black-outline-on-white technical sketches, not photos —
+// they do NOT support the garment-colour fill the vector shapes did (an
+// opaque raster image can't be recoloured the way an SVG path's fill can).
+// Garment colour stays a separate, staff-entered label shown alongside the
+// mockup rather than baked into the image itself; see GarmentMockup.tsx.
+//
+// Deliberately framework-independent otherwise: no React, no Fabric.js
+// import. Both GarmentMockup.tsx (plain JSX) and MockupCanvas.tsx (via
 // garmentTemplateToDataUrl below, which Fabric loads as an image URL)
-// consume the same shape data — one rendering source, two renderers.
+// consume the same template data — one rendering source, two renderers.
 
 export type GarmentSilhouetteCategory =
   | 'torso'
@@ -29,6 +65,11 @@ export interface GarmentShape {
   role: ShapeRole
 }
 
+export interface GarmentImagePair {
+  front: string
+  back: string
+}
+
 export interface GarmentTemplate {
   type: GarmentType
   category: GarmentSilhouetteCategory
@@ -37,6 +78,13 @@ export interface GarmentTemplate {
   defaultColour: string
   front: GarmentShape[]
   back: GarmentShape[]
+  /**
+   * Real garment artwork, when available — takes rendering priority over
+   * `front`/`back`'s vector shapes (see file header). Absent only for
+   * Customized, which has no real garment to draw and falls back to the
+   * vector torso shapes.
+   */
+  images?: GarmentImagePair
   /**
    * Garment-specific print-anchor override, replacing the old inline
    * HEADWEAR_ANCHOR hack. Headwear doesn't have a chest/sleeve/back the
@@ -116,6 +164,7 @@ export const GARMENT_TEMPLATES: Record<GarmentType, GarmentTemplate> = {
     defaultColour: '#a1a1aa',
     front: torsoFront,
     back: torsoBack,
+    images: { front: tshirtFront, back: tshirtBack },
   },
   Polo: {
     type: 'Polo',
@@ -128,6 +177,7 @@ export const GARMENT_TEMPLATES: Record<GarmentType, GarmentTemplate> = {
       { role: 'outline', d: 'M120,26 L120,55' },
     ],
     back: torsoBack,
+    images: { front: poloFront, back: poloBack },
   },
   Shirt: {
     type: 'Shirt',
@@ -140,6 +190,7 @@ export const GARMENT_TEMPLATES: Record<GarmentType, GarmentTemplate> = {
       { role: 'outline', d: 'M120,42 L120,282' },
     ],
     back: torsoBack,
+    images: { front: shirtFront, back: shirtBack },
   },
   'Hi-Viz vest': {
     type: 'Hi-Viz vest',
@@ -164,6 +215,7 @@ export const GARMENT_TEMPLATES: Record<GarmentType, GarmentTemplate> = {
       { role: 'accent', d: 'M70,110 L170,110 L170,120 L70,120 Z' },
       { role: 'accent', d: 'M70,230 L170,230 L170,240 L70,240 Z' },
     ],
+    images: { front: hiVizVestFront, back: hiVizVestBack },
   },
   Singlet: {
     type: 'Singlet',
@@ -173,6 +225,7 @@ export const GARMENT_TEMPLATES: Record<GarmentType, GarmentTemplate> = {
     front: sleevelessBody,
     back: sleevelessBody,
     verticalOffsetPct: 9,
+    images: { front: singletFront, back: singletBack },
   },
   'Crew neck (jumper)': {
     type: 'Crew neck (jumper)',
@@ -181,6 +234,7 @@ export const GARMENT_TEMPLATES: Record<GarmentType, GarmentTemplate> = {
     defaultColour: '#a1a1aa',
     front: [...torsoFront, { role: 'shade', d: 'M95,26 Q120,14 145,26 Q120,34 95,26 Z' }],
     back: [...torsoBack, { role: 'shade', d: 'M88,30 Q120,20 152,30 Q120,38 88,30 Z' }],
+    images: { front: crewNeckFront, back: crewNeckBack },
   },
   Hoody: {
     type: 'Hoody',
@@ -197,6 +251,7 @@ export const GARMENT_TEMPLATES: Record<GarmentType, GarmentTemplate> = {
       },
     ],
     back: [...torsoBack, { role: 'accent', d: 'M85,15 Q120,-5 155,15 Q150,35 120,38 Q90,35 85,15 Z' }],
+    images: { front: hoodyFront, back: hoodyBack },
   },
   Shorts: {
     type: 'Shorts',
@@ -205,6 +260,7 @@ export const GARMENT_TEMPLATES: Record<GarmentType, GarmentTemplate> = {
     defaultColour: '#a1a1aa',
     front: bottoms(148),
     back: bottoms(148),
+    images: { front: shortsFront, back: shortsBack },
   },
   Pants: {
     type: 'Pants',
@@ -213,6 +269,7 @@ export const GARMENT_TEMPLATES: Record<GarmentType, GarmentTemplate> = {
     defaultColour: '#a1a1aa',
     front: bottoms(275),
     back: bottoms(275),
+    images: { front: pantsFront, back: pantsBack },
   },
   Bennie: {
     type: 'Bennie',
@@ -222,6 +279,7 @@ export const GARMENT_TEMPLATES: Record<GarmentType, GarmentTemplate> = {
     front: beanie,
     back: beanie,
     printAnchorOverride: { x: 50, y: 71 },
+    images: { front: bennieFront, back: bennieBack },
   },
   Hats: {
     type: 'Hats',
@@ -231,6 +289,7 @@ export const GARMENT_TEMPLATES: Record<GarmentType, GarmentTemplate> = {
     front: capFront,
     back: capBack,
     printAnchorOverride: { x: 50, y: 43 },
+    images: { front: hatsFront, back: hatsBack },
   },
   Customized: {
     type: 'Customized',
@@ -249,6 +308,14 @@ export function getGarmentTemplate(type: GarmentType): GarmentTemplate {
 export function getGarmentShapes(type: GarmentType, view: 'Front' | 'Back'): GarmentShape[] {
   const template = getGarmentTemplate(type)
   return view === 'Front' ? template.front : template.back
+}
+
+// Real garment artwork for a type/view, when the template has one — this is
+// what GarmentMockup.tsx renders in preference to the vector shapes above.
+export function getGarmentImage(type: GarmentType, view: 'Front' | 'Back'): string | undefined {
+  const images = getGarmentTemplate(type).images
+  if (!images) return undefined
+  return view === 'Front' ? images.front : images.back
 }
 
 // Shared by both renderers (GarmentMockup's plain JSX and the SVG-markup
@@ -277,7 +344,12 @@ export function garmentTemplateToSvgMarkup(type: GarmentType, view: 'Front' | 'B
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${GARMENT_VIEW_BOX}">${paths}</svg>`
 }
 
+// Background-image source for MockupCanvas (Fabric needs a URL, not a React
+// tree either way) — real artwork when the template has it, otherwise the
+// generated vector-shape data: URL.
 export function garmentTemplateToDataUrl(type: GarmentType, view: 'Front' | 'Back', colour: string): string {
+  const image = getGarmentImage(type, view)
+  if (image) return image
   const markup = garmentTemplateToSvgMarkup(type, view, colour)
   return `data:image/svg+xml;utf8,${encodeURIComponent(markup)}`
 }
