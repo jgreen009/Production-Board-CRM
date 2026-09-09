@@ -1,5 +1,6 @@
 import type { Order } from '@/types'
-import { daysUntil, isDueToday, isOverdue } from '@/utils/date'
+import { daysUntil, isDueToday } from '@/utils/date'
+import { getAttentionWarnings } from '@/utils/productionReadiness'
 
 export function activeOrders(orders: Order[]): Order[] {
   return orders.filter((o) => o.productionStatus !== 'Completed')
@@ -32,30 +33,19 @@ export interface AttentionItem {
   issue: string
 }
 
+// Batch C: delegates to the same getAttentionWarnings(order) logic the
+// Production Board uses, so Dashboard and Board can never disagree about
+// what counts as "needs attention" (two independent rule sets used to
+// exist here and there — this removes that duplication). Dashboard has
+// room for one line per order, so it shows only the single most severe
+// warning; Production Board (via getAttentionWarnings directly) can show
+// all of them.
 export function ordersRequiringAttention(orders: Order[]): AttentionItem[] {
   const items: AttentionItem[] = []
 
   for (const order of orders) {
-    if (order.productionStatus === 'Completed') continue
-
-    let issue: string | null = null
-    if (isOverdue(order.dueDate)) {
-      issue = 'Order is overdue'
-    } else if (order.artworkStatus === 'Need Vectored') {
-      issue = 'Artwork needs vectoring'
-    } else if (order.artworkStatus === 'Need Artwork') {
-      issue = 'Artwork required from customer'
-    } else if (order.garmentStatus === 'Follow Up') {
-      issue = 'Garment supplier follow-up needed'
-    } else if (order.garmentStatus === 'Need Ordering') {
-      issue = 'Garments need ordering'
-    } else if (order.productionStatus === 'On Hold') {
-      issue = 'Production on hold'
-    } else if (order.artworkStatus === 'Awaiting Approval') {
-      issue = 'Waiting on customer artwork approval'
-    }
-
-    if (issue) items.push({ order, issue })
+    const warnings = getAttentionWarnings(order)
+    if (warnings.length > 0) items.push({ order, issue: warnings[0].message })
   }
 
   return items.sort(

@@ -1,7 +1,9 @@
-import { Download, FileIcon, Image as ImageIcon } from 'lucide-react'
+import { Link } from 'react-router-dom'
+import { Download, FileIcon, Image as ImageIcon, Pencil } from 'lucide-react'
 import type { Order } from '@/types'
 import { Card, CardBody, CardHeader } from '@/components/ui/Card'
 import { EmptyState } from '@/components/ui/EmptyState'
+import { StatusBadge } from '@/components/domain/StatusBadge'
 import { GarmentMockup } from '@/components/domain/GarmentMockup'
 import { getPrintZone } from '@/config/printZones'
 import { formatDateShort } from '@/utils/date'
@@ -46,8 +48,19 @@ export function ArtworkMockupsTab({ order }: { order: Order }) {
       </Card>
 
       <Card>
-        <CardHeader>
-          <h3 className="text-sm font-semibold text-zinc-800">Mockups</h3>
+        <CardHeader className="flex items-center justify-between">
+          <div>
+            <h3 className="text-sm font-semibold text-zinc-800">Mockups</h3>
+            <p className="text-xs text-zinc-400">
+              Artwork status: <StatusBadge kind="artwork" value={order.artworkStatus} />
+            </p>
+          </div>
+          <Link
+            to={`/orders/${order.id}/edit`}
+            className="flex items-center gap-1 text-xs font-medium text-zinc-600 hover:text-zinc-900"
+          >
+            <Pencil size={12} /> Edit Mockup
+          </Link>
         </CardHeader>
         <CardBody>
           {order.printSpecs.length === 0 ? (
@@ -92,6 +105,11 @@ export function ArtworkMockupsTab({ order }: { order: Order }) {
                       {spec.colour} · {spec.widthMm} × {spec.heightMm} mm
                       {artwork && ` · ${artwork.fileName}`}
                     </p>
+                    {spec.approvalNote && (
+                      <p className="w-full rounded bg-amber-50 px-2 py-1 text-center text-[11px] text-amber-700">
+                        {spec.approvalNote}
+                      </p>
+                    )}
                     {savedPreviewUrl && (
                       <a
                         href={savedPreviewUrl}

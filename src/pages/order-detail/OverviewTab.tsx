@@ -1,14 +1,55 @@
 import type { ReactNode } from 'react'
-import { Mail, Phone } from 'lucide-react'
+import { CheckCircle2, Mail, Phone } from 'lucide-react'
 import type { Order } from '@/types'
 import { StatusBadge } from '@/components/domain/StatusBadge'
 import { MockupThumbnail } from '@/components/domain/MockupThumbnail'
 import { Card, CardBody, CardHeader } from '@/components/ui/Card'
 import { formatDate } from '@/utils/date'
+import { getAttentionWarnings, getProductionBlockers, isReadyForProduction } from '@/utils/productionReadiness'
 
 export function OverviewTab({ order }: { order: Order }) {
+  const ready = isReadyForProduction(order)
+  const blockers = getProductionBlockers(order)
+  const warnings = getAttentionWarnings(order)
+
   return (
     <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+      {(warnings.length > 0 || !ready) && (
+        <Card className="lg:col-span-3 border-l-4 border-l-amber-400">
+          <CardBody className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-center gap-2">
+              {ready ? (
+                <span className="flex items-center gap-1.5 text-sm font-medium text-emerald-700">
+                  <CheckCircle2 size={15} /> Ready for Production
+                </span>
+              ) : (
+                <span className="text-sm font-medium text-zinc-700">
+                  Not ready for production — {blockers.join(', ') || 'check status'}
+                </span>
+              )}
+            </div>
+            {warnings.length > 0 && (
+              <div className="flex flex-wrap gap-x-3 gap-y-1">
+                {warnings.map((w) => (
+                  <span
+                    key={w.message}
+                    className={
+                      w.severity === 'critical'
+                        ? 'text-xs font-medium text-red-600'
+                        : w.severity === 'warning'
+                          ? 'text-xs font-medium text-amber-600'
+                          : 'text-xs text-zinc-500'
+                    }
+                  >
+                    ⚠ {w.message}
+                  </span>
+                ))}
+              </div>
+            )}
+          </CardBody>
+        </Card>
+      )}
+
       <Card className="lg:col-span-2">
         <CardHeader>
           <h3 className="text-sm font-semibold text-zinc-800">Customer & Dates</h3>

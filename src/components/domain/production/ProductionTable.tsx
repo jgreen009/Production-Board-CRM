@@ -2,6 +2,7 @@ import type { Order, ProductionStatus } from '@/types'
 import { StatusBadge } from '@/components/domain/StatusBadge'
 import { StatusSelect } from '@/components/domain/StatusSelect'
 import { MockupThumbnail } from '@/components/domain/MockupThumbnail'
+import { AttentionBadge } from '@/components/domain/production/AttentionBadge'
 import { PRODUCTION_STATUSES } from '@/data/mockStatuses'
 import { dueDateLabel, isDueToday, isDueSoon, isOverdue } from '@/utils/date'
 import { clsx } from 'clsx'
@@ -11,6 +12,7 @@ interface ProductionTableProps {
   showDelivery: boolean
   onRowClick: (order: Order) => void
   onProductionStatusChange: (orderId: string, status: ProductionStatus) => void
+  onPreviewClick: (order: Order) => void
 }
 
 export function ProductionTable({
@@ -18,6 +20,7 @@ export function ProductionTable({
   showDelivery,
   onRowClick,
   onProductionStatusChange,
+  onPreviewClick,
 }: ProductionTableProps) {
   return (
     <div className="overflow-x-auto rounded-lg border border-zinc-200 bg-white">
@@ -45,7 +48,10 @@ export function ProductionTable({
               className="cursor-pointer border-b border-zinc-50 last:border-0 hover:bg-zinc-50"
             >
               <td className="px-3 py-2.5">
-                <p className="font-medium text-zinc-800">{order.orderNumber}</p>
+                <div className="flex items-center gap-1.5">
+                  <p className="font-medium text-zinc-800">{order.orderNumber}</p>
+                  <AttentionBadge order={order} />
+                </div>
                 <p className="text-xs text-zinc-400">{order.jobName}</p>
               </td>
               <td className="px-3 py-2.5 text-zinc-600">{order.customer}</td>
@@ -86,8 +92,15 @@ export function ProductionTable({
               {showDelivery && (
                 <td className="px-3 py-2.5 text-zinc-600">{order.deliveryMethod}</td>
               )}
-              <td className="px-3 py-2.5">
-                <MockupThumbnail mockups={order.printSpecs} />
+              <td className="px-3 py-2.5" onClick={(e) => e.stopPropagation()}>
+                <button
+                  type="button"
+                  onClick={() => onPreviewClick(order)}
+                  aria-label="Preview mockup"
+                  className="rounded-md focus:outline-none focus:ring-2 focus:ring-zinc-900/10"
+                >
+                  <MockupThumbnail mockups={order.printSpecs} />
+                </button>
               </td>
             </tr>
           ))}

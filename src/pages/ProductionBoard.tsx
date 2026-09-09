@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { PageHeader } from '@/components/domain/PageHeader'
 import { OrderCard } from '@/components/domain/OrderCard'
 import { StatusBadge } from '@/components/domain/StatusBadge'
@@ -6,11 +7,14 @@ import { TableSkeleton } from '@/components/ui/LoadingSkeleton'
 import { ProductionToolbar } from '@/components/domain/production/ProductionToolbar'
 import { ProductionTable } from '@/components/domain/production/ProductionTable'
 import { OrderQuickView } from '@/components/domain/production/OrderQuickView'
+import { MockupPreviewDrawer } from '@/components/domain/production/MockupPreviewDrawer'
 import { useProductionBoard } from '@/hooks/useProductionBoard'
+import type { Order } from '@/types'
 import { KanbanSquare } from 'lucide-react'
 
 export default function ProductionBoard() {
   const board = useProductionBoard()
+  const [previewOrder, setPreviewOrder] = useState<Order | null>(null)
 
   return (
     <div>
@@ -58,6 +62,7 @@ export default function ProductionBoard() {
               showDelivery={board.showDelivery}
               onRowClick={(order) => board.setSelectedOrderId(order.id)}
               onProductionStatusChange={board.updateProductionStatus}
+              onPreviewClick={setPreviewOrder}
             />
           </div>
 
@@ -81,6 +86,7 @@ export default function ProductionBoard() {
       )}
 
       <OrderQuickView order={board.selectedOrder} onClose={() => board.setSelectedOrderId(null)} />
+      <MockupPreviewDrawer order={previewOrder} onClose={() => setPreviewOrder(null)} />
     </div>
   )
 }

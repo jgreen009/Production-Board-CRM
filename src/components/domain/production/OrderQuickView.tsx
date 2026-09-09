@@ -1,11 +1,12 @@
 import { useNavigate } from 'react-router-dom'
-import { Phone, Mail } from 'lucide-react'
+import { CheckCircle2, Mail, Phone } from 'lucide-react'
 import type { Order } from '@/types'
 import { Drawer } from '@/components/ui/Drawer'
 import { Button } from '@/components/ui/Button'
 import { StatusBadge } from '@/components/domain/StatusBadge'
 import { MockupThumbnail } from '@/components/domain/MockupThumbnail'
 import { formatDate } from '@/utils/date'
+import { getAttentionWarnings, getProductionBlockers, isReadyForProduction } from '@/utils/productionReadiness'
 
 interface OrderQuickViewProps {
   order: Order | null
@@ -67,6 +68,37 @@ export function OrderQuickView({ order, onClose }: OrderQuickViewProps) {
               <StatusBadge kind="priority" value={order.priority} />
             </div>
           </div>
+
+          {isReadyForProduction(order) ? (
+            <div className="flex items-center gap-1.5 rounded-md bg-emerald-50 px-2.5 py-1.5 text-sm font-medium text-emerald-700">
+              <CheckCircle2 size={14} /> Ready for Production
+            </div>
+          ) : (
+            getProductionBlockers(order).length > 0 && (
+              <div className="rounded-md bg-zinc-50 px-2.5 py-1.5 text-xs text-zinc-500">
+                Not ready — {getProductionBlockers(order).join(', ')}
+              </div>
+            )
+          )}
+
+          {getAttentionWarnings(order).length > 0 && (
+            <div className="flex flex-col gap-1">
+              {getAttentionWarnings(order).map((w) => (
+                <p
+                  key={w.message}
+                  className={
+                    w.severity === 'critical'
+                      ? 'text-xs font-medium text-red-600'
+                      : w.severity === 'warning'
+                        ? 'text-xs font-medium text-amber-600'
+                        : 'text-xs text-zinc-500'
+                  }
+                >
+                  ⚠ {w.message}
+                </p>
+              ))}
+            </div>
+          )}
 
           <div>
             <p className="mb-1 text-xs font-semibold text-zinc-500">NOTES</p>

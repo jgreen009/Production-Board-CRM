@@ -81,4 +81,78 @@ describe('diffOrderForActivity', () => {
       { activityType: 'payment', message: 'Payment status changed to Deposit Paid' },
     ])
   })
+
+  it('logs a mockup entry when a print spec approval note changed', () => {
+    const previous = makeOrder({
+      printSpecs: [
+        {
+          id: 'ps1',
+          position: 'Left Chest',
+          colour: 'White',
+          widthMm: 100,
+          heightMm: 100,
+          offsetX: 0,
+          offsetY: 0,
+          rotationDeg: 0,
+          approvalNote: 'Please check logo colour',
+        },
+      ],
+    })
+    const values = defaultOrderFormValues()
+    values.priority = previous.priority
+    values.paymentStatus = previous.paymentStatus
+    values.printSpecs = [
+      {
+        id: 'ps1',
+        position: 'Left Chest',
+        colour: 'White',
+        widthMm: 100,
+        heightMm: 100,
+        offsetX: 0,
+        offsetY: 0,
+        rotationDeg: 0,
+        approvalNote: 'Looks good, approved',
+      },
+    ]
+
+    expect(diffOrderForActivity(previous, values)).toEqual([
+      { activityType: 'mockup', message: 'Mockup note updated for Left Chest' },
+    ])
+  })
+
+  it('does not log a mockup entry when the approval note is unchanged', () => {
+    const previous = makeOrder({
+      printSpecs: [
+        {
+          id: 'ps1',
+          position: 'Left Chest',
+          colour: 'White',
+          widthMm: 100,
+          heightMm: 100,
+          offsetX: 0,
+          offsetY: 0,
+          rotationDeg: 0,
+          approvalNote: 'Same note',
+        },
+      ],
+    })
+    const values = defaultOrderFormValues()
+    values.priority = previous.priority
+    values.paymentStatus = previous.paymentStatus
+    values.printSpecs = [
+      {
+        id: 'ps1',
+        position: 'Left Chest',
+        colour: 'White',
+        widthMm: 100,
+        heightMm: 100,
+        offsetX: 0,
+        offsetY: 0,
+        rotationDeg: 0,
+        approvalNote: 'Same note',
+      },
+    ]
+
+    expect(diffOrderForActivity(previous, values)).toEqual([])
+  })
 })

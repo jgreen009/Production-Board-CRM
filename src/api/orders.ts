@@ -134,6 +134,12 @@ export function diffOrderForActivity(previous: Order, values: OrderFormValues): 
   if (previous.paymentStatus !== values.paymentStatus) {
     entries.push({ activityType: 'payment', message: `Payment status changed to ${values.paymentStatus}` })
   }
+  for (const spec of values.printSpecs) {
+    const prevSpec = previous.printSpecs.find((s) => s.id === spec.id)
+    if (prevSpec && (prevSpec.approvalNote ?? '') !== (spec.approvalNote ?? '')) {
+      entries.push({ activityType: 'mockup', message: `Mockup note updated for ${spec.position}` })
+    }
+  }
   return entries
 }
 

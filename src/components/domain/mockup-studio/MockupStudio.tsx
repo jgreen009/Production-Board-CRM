@@ -5,7 +5,7 @@ import { ImageOff } from 'lucide-react'
 import type { OrderFormValues, PrintSpecFormValues } from '@/schemas/orderFormSchema'
 import type { GarmentType, PrintPosition } from '@/types'
 import { Button } from '@/components/ui/Button'
-import { FormField, Input, Select } from '@/components/ui/Field'
+import { FormField, Input, Select, Textarea } from '@/components/ui/Field'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { emptyPrintSpec } from '@/pages/new-order/defaultValues'
@@ -306,6 +306,15 @@ export function MockupStudio() {
               onSelect={(id) => update({ artworkId: id })}
             />
           </div>
+
+          <FormField label="Approval Note" hint="Feedback for this print location, e.g. &ldquo;Move logo 20mm higher&rdquo;">
+            <Textarea
+              value={spec.approvalNote ?? ''}
+              onChange={(e) => update({ approvalNote: e.target.value || undefined })}
+              rows={2}
+              placeholder="Optional note for this print location"
+            />
+          </FormField>
         </div>
 
         {/* CENTER: canvas */}

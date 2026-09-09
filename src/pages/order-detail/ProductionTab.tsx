@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import { CheckCircle2, XCircle } from 'lucide-react'
 import type { Order } from '@/types'
 import { Card, CardBody, CardHeader } from '@/components/ui/Card'
 import { StatusSelect } from '@/components/domain/StatusSelect'
@@ -12,6 +13,7 @@ import {
 } from '@/hooks/useOrders'
 import { useToast } from '@/components/ui/toast-context'
 import { staffErrorMessage } from '@/utils/errorMessage'
+import { getAttentionWarnings, getProductionBlockers, isReadyForProduction } from '@/utils/productionReadiness'
 
 interface ProductionTabProps {
   order: Order
@@ -27,6 +29,10 @@ export function ProductionTab({ order, isRealOrder }: ProductionTabProps) {
 
   const onError = (err: unknown) => showToast(staffErrorMessage(err, 'Failed to update status'), 'info')
   const hint = isRealOrder ? undefined : 'Demo order — status changes here aren\'t saved'
+
+  const ready = isReadyForProduction(order)
+  const blockers = getProductionBlockers(order)
+  const warnings = getAttentionWarnings(order)
 
   return (
     <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
@@ -87,6 +93,38 @@ export function ProductionTab({ order, isRealOrder }: ProductionTabProps) {
             />
           }
         />
+
+        <Card className={`col-span-2 p-3 ${ready ? 'border-emerald-200 bg-emerald-50/50' : 'border-zinc-200'}`}>
+          <p className="mb-1.5 text-xs font-medium text-zinc-400">Ready for Production</p>
+          {ready ? (
+            <p className="flex items-center gap-1.5 text-sm font-medium text-emerald-700">
+              <CheckCircle2 size={14} /> Yes
+            </p>
+          ) : (
+            <p className="flex items-start gap-1.5 text-sm font-medium text-zinc-600">
+              <XCircle size={14} className="mt-0.5 shrink-0 text-zinc-400" />
+              No — {blockers.join(', ') || 'check status'}
+            </p>
+          )}
+          {warnings.length > 0 && (
+            <div className="mt-1.5 flex flex-col gap-0.5">
+              {warnings.map((w) => (
+                <p
+                  key={w.message}
+                  className={
+                    w.severity === 'critical'
+                      ? 'text-[11px] font-medium text-red-600'
+                      : w.severity === 'warning'
+                        ? 'text-[11px] font-medium text-amber-600'
+                        : 'text-[11px] text-zinc-500'
+                  }
+                >
+                  ⚠ {w.message}
+                </p>
+              ))}
+            </div>
+          )}
+        </Card>
       </div>
 
       <Card>
