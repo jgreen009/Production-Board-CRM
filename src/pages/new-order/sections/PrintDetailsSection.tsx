@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/Button'
 import { FormField, Input, Select } from '@/components/ui/Field'
 import { GarmentMockup } from '@/components/domain/GarmentMockup'
 import { emptyPrintSpec } from '@/pages/new-order/defaultValues'
-import { PRINT_POSITIONS, getPrintPositionConfig } from '@/data/printPositions'
+import { PRINT_ZONES, getPrintZone } from '@/config/printZones'
 import { PRINT_SIZES } from '@/data/printSizes'
 import { useGarmentTypesSettings, useMockupTemplates } from '@/hooks/useSettings'
 import { selectableCatalogNames } from '@/utils/catalog'
@@ -50,7 +50,7 @@ export function PrintDetailsSection() {
       <div className="flex flex-col gap-3">
         {fields.map((field, index) => {
           const spec = printSpecs[index]
-          const config = getPrintPositionConfig(spec.position as PrintPosition)
+          const config = getPrintZone(spec.position as PrintPosition)
           const previewCatalog = previewGarmentOptions(config.view)
           const activeGarmentTypeNames = previewCatalog.filter((g) => g.active).map((g) => g.name)
           const effectiveGarmentType = (spec.garmentType || garments[0]?.type || activeGarmentTypeNames[0]) as GarmentType
@@ -80,14 +80,14 @@ export function PrintDetailsSection() {
                 <div>
                   <p className="mb-1.5 text-xs font-medium text-zinc-500">POSITION</p>
                   <div className="flex flex-wrap gap-1.5">
-                    {PRINT_POSITIONS.map((p) => (
+                    {PRINT_ZONES.map((p) => (
                       <button
-                        key={p.value}
+                        key={p.position}
                         type="button"
-                        onClick={() => update({ position: p.value })}
+                        onClick={() => update({ position: p.position })}
                         className={clsx(
                           'rounded-md border px-2.5 py-1.5 text-xs font-medium transition-colors',
-                          spec.position === p.value
+                          spec.position === p.position
                             ? 'border-zinc-900 bg-zinc-900 text-white'
                             : 'border-zinc-200 bg-white text-zinc-600 hover:border-zinc-300',
                         )}

@@ -1,7 +1,7 @@
 import { useRef } from 'react'
 import type { PointerEvent as ReactPointerEvent } from 'react'
 import type { GarmentType, PrintPosition } from '@/types'
-import { getPrintPositionConfig } from '@/data/printPositions'
+import { getPrintZone } from '@/config/printZones'
 import { GARMENT_IMAGES } from '@/data/garmentImages'
 import { resolveGarmentColour } from '@/utils/colour'
 
@@ -44,7 +44,7 @@ const GARMENT_Y_OFFSET: Partial<Record<GarmentType, number>> = {
 }
 
 function isPositionVisible(position: PrintPosition, view: 'Front' | 'Back'): boolean {
-  return getPrintPositionConfig(position).view === view
+  return getPrintZone(position).view === view
 }
 
 function clamp(value: number, min: number, max: number): number {
@@ -67,8 +67,14 @@ export function GarmentMockup({
   const dragging = useRef<{ startX: number; startY: number; startOffset: MockupOffset } | null>(null)
 
   const headwearAnchor = HEADWEAR_ANCHOR[garmentType]
-  const config = getPrintPositionConfig(position)
-  const base = headwearAnchor ?? config
+  const zone = getPrintZone(position)
+  // GarmentMockup still works in center-point coordinates (this component's
+  // drag/clamp math predates the Phase 3 print-zone reshape and is left
+  // as-is here — replacing it is Milestone 3/4's job, not Milestone 1's
+  // architecture-only scope). Center is derived from the zone's top-left
+  // box shape so behavior is unchanged even though the config shape is new.
+  const zoneCenter = { x: zone.xPct + zone.widthPct / 2, y: zone.yPct + zone.heightPct / 2 }
+  const base = headwearAnchor ?? zoneCenter
   const visible = headwearAnchor ? true : isPositionVisible(position, view)
   const image = GARMENT_IMAGES[garmentType]
 
@@ -76,8 +82,8 @@ export function GarmentMockup({
   // real mm dimensions but capped to the selected position's own realistic
   // print area (a sleeve can't hold an "Oversize" print, Full Front can) —
   // so the box always fits within the position rather than overflowing it.
-  const maxWidthPct = headwearAnchor ? 30 : config.maxWidthPct
-  const maxHeightPct = headwearAnchor ? 22 : config.maxHeightPct
+  const maxWidthPct = headwearAnchor ? 30 : zone.widthPct
+  const maxHeightPct = headwearAnchor ? 22 : zone.heightPct
   const artWidthPct = clamp(widthMm * 0.15, 8, maxWidthPct)
   const artHeightPct = clamp(heightMm * 0.15, 8, maxHeightPct)
 

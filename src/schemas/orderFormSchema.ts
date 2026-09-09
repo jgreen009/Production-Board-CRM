@@ -59,6 +59,9 @@ export const printSpecFormSchema = z.object({
   artworkId: z.string().optional(),
   offsetX: z.number(),
   offsetY: z.number(),
+  rotationDeg: z.number(),
+  previewStoragePath: z.string().optional(),
+  approvalNote: z.string().optional(),
 })
 
 export const orderFormSchema = z

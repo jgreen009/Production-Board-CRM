@@ -139,7 +139,8 @@ export interface OrderService {
 // a generic full-front placement, and both sleeves) plus three back spots.
 // Replaces the paper form's numbered A6/A4/A3 diagram with plain labels.
 // This is the single authoritative list — every position control in the
-// form (buttons, selects) reads from PRINT_POSITIONS, never a local copy.
+// form (buttons, selects) reads from PRINT_ZONES (src/config/printZones.ts),
+// never a local copy.
 export type PrintPosition =
   | 'Left Chest'
   | 'Right Chest'
@@ -178,6 +179,12 @@ export interface PrintSpec {
   artworkId?: string
   offsetX?: number
   offsetY?: number
+  /** Degrees, 0-360, default 0 — Phase 3. Optional so Phase 1 mock/demo fixtures don't all need updating; real (DB-backed) print specs always have a value. */
+  rotationDeg?: number
+  /** Path to the generated clean mockup PNG in the private mockup-previews bucket — never a signed URL. Phase 3. */
+  previewStoragePath?: string
+  /** Per-print-location approval feedback (e.g. "Move logo 20mm higher") — Phase 3. Order-level ArtworkStatus is the approval gate; this is just a note. */
+  approvalNote?: string
 }
 
 export interface OrderActivityEntry {

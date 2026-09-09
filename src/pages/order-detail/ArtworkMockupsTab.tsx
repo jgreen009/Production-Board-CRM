@@ -3,7 +3,7 @@ import type { Order } from '@/types'
 import { Card, CardBody, CardHeader } from '@/components/ui/Card'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { GarmentMockup } from '@/components/domain/GarmentMockup'
-import { getPrintPositionConfig } from '@/data/printPositions'
+import { getPrintZone } from '@/config/printZones'
 import { formatDateShort } from '@/utils/date'
 import { useArtworkPreviewUrls } from '@/hooks/useArtwork'
 
@@ -57,7 +57,7 @@ export function ArtworkMockupsTab({ order }: { order: Order }) {
                     <GarmentMockup
                       garmentType={garmentType}
                       colour={garmentColour}
-                      view={getPrintPositionConfig(spec.position).view}
+                      view={getPrintZone(spec.position).view}
                       position={spec.position}
                       artworkUrl={artwork?.previewUrl ?? (artwork ? previewUrls[artwork.id] : undefined)}
                       widthMm={spec.widthMm}

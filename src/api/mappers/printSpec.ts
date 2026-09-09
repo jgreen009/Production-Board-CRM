@@ -13,6 +13,9 @@ export interface PrintSpecRow {
   offset_x: number | null
   offset_y: number | null
   sort_order: number
+  rotation_deg: number
+  preview_storage_path: string | null
+  approval_note: string | null
 }
 
 export function mapPrintSpecRowToDomain(row: PrintSpecRow): PrintSpec {
@@ -27,6 +30,9 @@ export function mapPrintSpecRowToDomain(row: PrintSpecRow): PrintSpec {
     artworkId: row.artwork_id ?? undefined,
     offsetX: row.offset_x ?? undefined,
     offsetY: row.offset_y ?? undefined,
+    rotationDeg: row.rotation_deg,
+    previewStoragePath: row.preview_storage_path ?? undefined,
+    approvalNote: row.approval_note ?? undefined,
   }
 }
 
@@ -38,8 +44,17 @@ export function sortPrintSpecRows<T extends { sort_order: number }>(rows: T[]): 
 // match the jsonb keys upsert_order reads (see supabase/migrations/
 // ..._order_core.sql) — this only exists so the mapping is named,
 // unit-tested, and in one place rather than inlined at the call site.
+//
+// `id` is included (Phase 3 plan §12a) so upsert_order's whole-child-set
+// replace can reinsert this exact row with the same primary key instead of
+// generating a fresh one on every save — required for preview_storage_path
+// to keep pointing at a valid Storage object across saves. Every id here is
+// guaranteed a real UUID from the moment the print spec is created
+// client-side (see defaultValues.ts's emptyPrintSpec), so no fallback
+// generation is needed on either side.
 export function mapPrintSpecFormToPayload(spec: PrintSpecFormValues) {
   return {
+    id: spec.id,
     position: spec.position,
     colour: spec.colour,
     widthMm: spec.widthMm,
@@ -49,5 +64,7 @@ export function mapPrintSpecFormToPayload(spec: PrintSpecFormValues) {
     artworkId: spec.artworkId,
     offsetX: spec.offsetX ?? 0,
     offsetY: spec.offsetY ?? 0,
+    rotationDeg: spec.rotationDeg ?? 0,
+    approvalNote: spec.approvalNote,
   }
 }

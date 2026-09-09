@@ -160,6 +160,9 @@ describe('mapDatabaseOrderToFormValues', () => {
         offset_x: null,
         offset_y: null,
         sort_order: 0,
+        rotation_deg: 0,
+        preview_storage_path: null,
+        approval_note: null,
       },
     ],
     artwork: [
