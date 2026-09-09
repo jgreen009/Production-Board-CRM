@@ -124,7 +124,7 @@ export function PrintDetailsSection() {
                       placeholder="e.g. White, Gold"
                     />
                   </FormField>
-                  <FormField label="Artwork" hint="From files uploaded below">
+                  <FormField label="Artwork" hint="From files uploaded above">
                     <Select
                       value={spec.artworkId ?? ''}
                       onChange={(e) => update({ artworkId: e.target.value || undefined })}

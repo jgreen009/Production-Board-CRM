@@ -16,9 +16,9 @@ export function GarmentStylesSection({ orderId }: GarmentStylesSectionProps) {
     >
       <GarmentsSection />
       <hr className="border-zinc-100" />
-      <PrintDetailsSection />
-      <hr className="border-zinc-100" />
       <ArtworkSection orderId={orderId} />
+      <hr className="border-zinc-100" />
+      <PrintDetailsSection />
     </OrderFormSection>
   )
 }
