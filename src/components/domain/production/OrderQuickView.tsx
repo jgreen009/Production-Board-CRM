@@ -5,7 +5,6 @@ import { Drawer } from '@/components/ui/Drawer'
 import { Button } from '@/components/ui/Button'
 import { StatusBadge } from '@/components/domain/StatusBadge'
 import { MockupThumbnail } from '@/components/domain/MockupThumbnail'
-import { useToast } from '@/components/ui/toast-context'
 import { formatDate } from '@/utils/date'
 
 interface OrderQuickViewProps {
@@ -15,7 +14,6 @@ interface OrderQuickViewProps {
 
 export function OrderQuickView({ order, onClose }: OrderQuickViewProps) {
   const navigate = useNavigate()
-  const { showToast } = useToast()
 
   return (
     <Drawer
@@ -27,10 +25,7 @@ export function OrderQuickView({ order, onClose }: OrderQuickViewProps) {
         order && (
           <div className="flex justify-end gap-2">
             <Button variant="ghost" onClick={onClose}>Close</Button>
-            <Button
-              variant="secondary"
-              onClick={() => showToast('Full edit form arrives with backend integration.', 'info')}
-            >
+            <Button variant="secondary" onClick={() => navigate(`/orders/${order.id}/edit`)}>
               Edit
             </Button>
             <Button variant="primary" onClick={() => navigate(`/orders/${order.id}`)}>

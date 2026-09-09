@@ -5,14 +5,6 @@ export function generateId(prefix: string): string {
   return `${prefix}-${Date.now().toString(36)}-${counter}`
 }
 
-export function nextOrderNumber(existing: string[]): string {
-  const nums = existing
-    .map((n) => Number(n.replace(/[^0-9]/g, '')))
-    .filter((n) => !Number.isNaN(n))
-  const max = nums.length ? Math.max(...nums) : 1000
-  return `SP-${max + 1}`
-}
-
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 // Distinguishes a real Supabase order (uuid primary key) from one of the 14
