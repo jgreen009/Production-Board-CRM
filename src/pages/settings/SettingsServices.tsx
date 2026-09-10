@@ -1,11 +1,12 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ArrowLeft, Plus } from 'lucide-react'
+import { ArrowLeft, Plus, Wrench } from 'lucide-react'
 import { PageHeader } from '@/components/domain/PageHeader'
 import { Card, CardBody } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Input, Toggle } from '@/components/ui/Field'
 import { TableSkeleton } from '@/components/ui/LoadingSkeleton'
+import { EmptyState } from '@/components/ui/EmptyState'
 import { useToast } from '@/components/ui/toast-context'
 import { useServicesSettings } from '@/hooks/useSettings'
 import { staffErrorMessage } from '@/utils/errorMessage'
@@ -56,9 +57,11 @@ export default function SettingsServices() {
       />
 
       <Card>
-        <CardBody className="flex flex-col gap-2">
+        <CardBody className={catalog.length === 0 && !isLoading ? undefined : 'flex flex-col gap-2'}>
           {isLoading ? (
             <TableSkeleton />
+          ) : catalog.length === 0 ? (
+            <EmptyState icon={Wrench} title="No services yet" description="Add a service above to make it available on the order form." />
           ) : (
             catalog.map((service) => (
               <Toggle

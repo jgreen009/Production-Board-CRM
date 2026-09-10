@@ -1,11 +1,12 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ArrowLeft, Plus } from 'lucide-react'
+import { ArrowLeft, Plus, Shirt } from 'lucide-react'
 import { PageHeader } from '@/components/domain/PageHeader'
 import { Card, CardBody } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Field'
 import { TableSkeleton } from '@/components/ui/LoadingSkeleton'
+import { EmptyState } from '@/components/ui/EmptyState'
 import { useToast } from '@/components/ui/toast-context'
 import { useGarmentTypesSettings } from '@/hooks/useSettings'
 import { staffErrorMessage } from '@/utils/errorMessage'
@@ -56,10 +57,16 @@ export default function SettingsGarments() {
       />
 
       <Card>
-        <CardBody className="overflow-x-auto p-0">
-          {isLoading ? (
+        {isLoading ? (
+          <CardBody className="p-0">
             <TableSkeleton />
-          ) : (
+          </CardBody>
+        ) : catalog.length === 0 ? (
+          <CardBody>
+            <EmptyState icon={Shirt} title="No garment types yet" description="Add a garment type above to make it available on the order form." />
+          </CardBody>
+        ) : (
+          <CardBody className="overflow-x-auto p-0">
             <table className="w-full text-left text-sm">
               <thead>
                 <tr className="border-b border-zinc-100 text-xs text-zinc-400">
@@ -74,17 +81,20 @@ export default function SettingsGarments() {
                     <td className="px-4 py-2.5">
                       <button
                         onClick={() => toggleActive(g.id, g.active)}
-                        className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${g.active ? 'bg-zinc-900' : 'bg-zinc-200'}`}
+                        role="switch"
+                        aria-checked={g.active}
+                        aria-label={`${g.active ? 'Deactivate' : 'Activate'} ${g.name}`}
+                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${g.active ? 'bg-brand-accent' : 'bg-zinc-200'}`}
                       >
-                        <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${g.active ? 'translate-x-4' : 'translate-x-1'}`} />
+                        <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${g.active ? 'translate-x-6' : 'translate-x-1'}`} />
                       </button>
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
-          )}
-        </CardBody>
+          </CardBody>
+        )}
       </Card>
     </div>
   )

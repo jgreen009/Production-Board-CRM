@@ -1,10 +1,11 @@
 import { useNavigate } from 'react-router-dom'
-import { ArrowLeft } from 'lucide-react'
+import { ArrowLeft, Layers } from 'lucide-react'
 import { PageHeader } from '@/components/domain/PageHeader'
 import { Card, CardBody } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
 import { Toggle } from '@/components/ui/Field'
 import { TableSkeleton } from '@/components/ui/LoadingSkeleton'
+import { EmptyState } from '@/components/ui/EmptyState'
 import { GarmentMockup } from '@/components/domain/GarmentMockup'
 import { useToast } from '@/components/ui/toast-context'
 import { useMockupTemplates } from '@/hooks/useSettings'
@@ -33,6 +34,12 @@ export default function SettingsMockups() {
         <Card>
           <TableSkeleton />
         </Card>
+      ) : templates.length === 0 ? (
+        <Card>
+          <CardBody>
+            <EmptyState icon={Layers} title="No mockup templates yet" description="Mockup templates will appear here once configured." />
+          </CardBody>
+        </Card>
       ) : (
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
           {templates.map((t) => (
@@ -53,7 +60,7 @@ export default function SettingsMockups() {
               <CardBody className="flex flex-col items-center gap-1.5 p-0 pt-2 text-center">
                 <p className="text-sm font-medium text-zinc-800">{t.name}</p>
                 {!t.hasImage && (
-                  <Badge className="border-amber-200 bg-amber-50 text-amber-700">Using built-in silhouette</Badge>
+                  <Badge className="border-warning/20 bg-warning-soft text-warning">Using built-in silhouette</Badge>
                 )}
                 <Toggle label="Active" checked={t.active} onChange={() => toggleActive(t.id, t.active)} />
               </CardBody>
