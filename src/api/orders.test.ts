@@ -155,4 +155,50 @@ describe('diffOrderForActivity', () => {
 
     expect(diffOrderForActivity(previous, values)).toEqual([])
   })
+
+  it('logs an assignment entry when an unassigned order gets a new assignee', () => {
+    const previous = makeOrder({ assignedTo: undefined, assignedToName: null })
+    const values = defaultOrderFormValues()
+    values.priority = previous.priority
+    values.paymentStatus = previous.paymentStatus
+    values.assignedTo = 'staff-1'
+
+    expect(diffOrderForActivity(previous, values, 'James Smith')).toEqual([
+      { activityType: 'assignment', message: 'Order assigned to James Smith' },
+    ])
+  })
+
+  it('logs a reassignment entry with both names when the assignee changes', () => {
+    const previous = makeOrder({ assignedTo: 'staff-1', assignedToName: 'James Smith' })
+    const values = defaultOrderFormValues()
+    values.priority = previous.priority
+    values.paymentStatus = previous.paymentStatus
+    values.assignedTo = 'staff-2'
+
+    expect(diffOrderForActivity(previous, values, 'Sarah Jones')).toEqual([
+      { activityType: 'assignment', message: 'Order reassigned from James Smith to Sarah Jones' },
+    ])
+  })
+
+  it('logs an unassignment entry when assignedTo is cleared', () => {
+    const previous = makeOrder({ assignedTo: 'staff-1', assignedToName: 'James Smith' })
+    const values = defaultOrderFormValues()
+    values.priority = previous.priority
+    values.paymentStatus = previous.paymentStatus
+    values.assignedTo = undefined
+
+    expect(diffOrderForActivity(previous, values)).toEqual([
+      { activityType: 'assignment', message: 'Order unassigned' },
+    ])
+  })
+
+  it('does not log anything when the assignee is unchanged', () => {
+    const previous = makeOrder({ assignedTo: 'staff-1', assignedToName: 'James Smith' })
+    const values = defaultOrderFormValues()
+    values.priority = previous.priority
+    values.paymentStatus = previous.paymentStatus
+    values.assignedTo = 'staff-1'
+
+    expect(diffOrderForActivity(previous, values, 'James Smith')).toEqual([])
+  })
 })

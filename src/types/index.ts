@@ -200,6 +200,7 @@ export interface OrderActivityEntry {
     | 'production'
     | 'mockup'
     | 'payment'
+    | 'assignment'
 }
 
 export interface Customer {
@@ -242,4 +243,12 @@ export interface Order {
   notes: string
   productionNotes: string
   staffCompleted: boolean
+  // Phase 4 Milestone 2 — one optional owner per order. assignedToName/
+  // assignedToActive are denormalized from the joined profiles row purely
+  // for display (never written back) — assignedToActive lets a historical
+  // assignee who's since been deactivated still show their name, with an
+  // "Inactive" indicator, without a second lookup.
+  assignedTo?: string
+  assignedToName?: string | null
+  assignedToActive?: boolean
 }

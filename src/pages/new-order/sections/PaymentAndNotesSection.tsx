@@ -1,10 +1,18 @@
 import { useFormContext } from 'react-hook-form'
 import type { OrderFormValues } from '@/schemas/orderFormSchema'
 import { OrderFormSection } from '@/components/domain/OrderFormSection'
+import { AssigneeSelector } from '@/components/domain/AssigneeSelector'
 import { FormField, Select, Textarea } from '@/components/ui/Field'
 import { PAYMENT_STATUSES } from '@/data/mockStatuses'
 
-export function PaymentAndNotesSection() {
+interface PaymentAndNotesSectionProps {
+  // Only present in edit-active mode — lets the AssigneeSelector show a
+  // now-inactive current assignee's name instead of silently dropping it.
+  currentAssigneeName?: string | null
+  currentAssigneeActive?: boolean
+}
+
+export function PaymentAndNotesSection({ currentAssigneeName, currentAssigneeActive }: PaymentAndNotesSectionProps) {
   const { register, watch, setValue } = useFormContext<OrderFormValues>()
 
   return (
@@ -20,6 +28,15 @@ export function PaymentAndNotesSection() {
               <option key={s.value} value={s.value}>{s.label}</option>
             ))}
           </Select>
+        </FormField>
+        <FormField label="Assigned To" htmlFor="assignedTo" hint="Optional — the staff member responsible for this order.">
+          <AssigneeSelector
+            id="assignedTo"
+            value={watch('assignedTo')}
+            onChange={(id) => setValue('assignedTo', id)}
+            currentAssigneeName={currentAssigneeName}
+            currentAssigneeActive={currentAssigneeActive}
+          />
         </FormField>
       </OrderFormSection>
 

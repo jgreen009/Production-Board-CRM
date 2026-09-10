@@ -63,6 +63,14 @@ export function OverviewTab({ order }: { order: Order }) {
           <Field label="Turnaround" value={<StatusBadge kind="turnaround" value={order.turnaroundType} />} />
           <Field label="Delivery Method" value={order.deliveryMethod} />
           <Field label="Rush Fee" value={order.rushFee ? 'Yes' : 'No'} />
+          <Field
+            label="Assigned To"
+            value={
+              order.assignedTo
+                ? `${order.assignedToName || 'Unnamed staff'}${order.assignedToActive === false ? ' — Inactive' : ''}`
+                : 'Unassigned'
+            }
+          />
         </CardBody>
       </Card>
 

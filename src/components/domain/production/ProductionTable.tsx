@@ -53,6 +53,11 @@ export function ProductionTable({
                   <AttentionBadge order={order} />
                 </div>
                 <p className="text-xs text-zinc-400">{order.jobName}</p>
+                <p className="text-[11px] text-zinc-400">
+                  {order.assignedTo
+                    ? `${order.assignedToName || 'Unnamed staff'}${order.assignedToActive === false ? ' (inactive)' : ''}`
+                    : 'Unassigned'}
+                </p>
               </td>
               <td className="px-3 py-2.5 text-zinc-600">{order.customer}</td>
               <td className="px-3 py-2.5 text-zinc-600">{order.quantity}</td>

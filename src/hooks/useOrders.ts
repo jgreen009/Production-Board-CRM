@@ -9,6 +9,7 @@ import {
   listRecentActivity,
   updateArtworkStatus,
   updateGarmentStatus,
+  updateOrderAssignment,
   updateOrderWithActivity,
   updatePaymentStatus,
   updateProductionStatus,
@@ -140,6 +141,7 @@ interface UpdateOrderWithActivityInput {
   values: OrderFormValues
   orderId: string
   previous: Order
+  newAssigneeName?: string | null
 }
 
 // Edit Order's save path — finalizes via the same upsert_order RPC, then
@@ -151,8 +153,8 @@ export function useUpdateOrderWithActivity() {
   const queryClient = useQueryClient()
   const { showToast } = useToast()
   return useMutation({
-    mutationFn: ({ values, orderId, previous }: UpdateOrderWithActivityInput) =>
-      updateOrderWithActivity(orderId, values, previous),
+    mutationFn: ({ values, orderId, previous, newAssigneeName }: UpdateOrderWithActivityInput) =>
+      updateOrderWithActivity(orderId, values, previous, newAssigneeName),
     onSuccess: (id, variables) => {
       queryClient.invalidateQueries({ queryKey: ['orders'] })
       queryClient.invalidateQueries({ queryKey: ['orders', id] })
@@ -224,4 +226,49 @@ export function useUpdateGarmentStatus() {
 
 export function useUpdatePaymentStatus() {
   return useOptimisticStatusField<PaymentStatus>('paymentStatus', updatePaymentStatus)
+}
+
+interface UpdateOrderAssignmentInput {
+  orderId: string
+  assignedTo: string | null
+  assigneeName: string | null
+  previousAssigneeName: string | null
+}
+
+// Quick reassignment from Order Detail — mirrors useOptimisticStatusField's
+// shape (optimistic update, roll back on error, invalidate on settle) but
+// isn't built on that generic helper since it needs the extra name fields
+// for the activity message, not just the raw column value.
+export function useUpdateOrderAssignment() {
+  const queryClient = useQueryClient()
+
+  return useMutation<void, Error, UpdateOrderAssignmentInput, StatusMutationContext>({
+    mutationFn: ({ orderId, assignedTo, assigneeName, previousAssigneeName }) =>
+      updateOrderAssignment(orderId, assignedTo, assigneeName, previousAssigneeName),
+    onMutate: async ({ orderId, assignedTo, assigneeName }) => {
+      await queryClient.cancelQueries({ queryKey: ['orders'] })
+      await queryClient.cancelQueries({ queryKey: ['orders', orderId] })
+
+      const previousList = queryClient.getQueryData<Order[]>(['orders'])
+      const previousDetail = queryClient.getQueryData<Order>(['orders', orderId])
+
+      const patch = { assignedTo: assignedTo ?? undefined, assignedToName: assigneeName, assignedToActive: true }
+      queryClient.setQueryData<Order[]>(['orders'], (old) =>
+        old?.map((o) => (o.id === orderId ? { ...o, ...patch } : o)),
+      )
+      queryClient.setQueryData<Order>(['orders', orderId], (old) => (old ? { ...old, ...patch } : old))
+
+      return { previousList, previousDetail }
+    },
+    onError: (_err, { orderId }, context) => {
+      if (context?.previousList) queryClient.setQueryData(['orders'], context.previousList)
+      if (context?.previousDetail) queryClient.setQueryData(['orders', orderId], context.previousDetail)
+    },
+    onSettled: (_data, _err, { orderId }) => {
+      queryClient.invalidateQueries({ queryKey: ['orders'] })
+      queryClient.invalidateQueries({ queryKey: ['orders', orderId] })
+      queryClient.invalidateQueries({ queryKey: ['orders', orderId, 'activity'] })
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] })
+    },
+  })
 }

@@ -7,6 +7,7 @@ import type { OrderFormValues } from '@/schemas/orderFormSchema'
 import type { Order } from '@/types'
 import { defaultOrderFormValues } from '@/pages/new-order/defaultValues'
 import { useUpdateOrderWithActivity, useUpsertOrder, useOrderFormValues } from '@/hooks/useOrders'
+import { useActiveStaff } from '@/hooks/useStaff'
 import { useToast } from '@/components/ui/toast-context'
 import { staffErrorMessage } from '@/utils/errorMessage'
 import { Button } from '@/components/ui/Button'
@@ -45,6 +46,7 @@ export function OrderFormEditor({ orderId: existingOrderId, initialValues, previ
   const { showToast } = useToast()
   const upsertOrder = useUpsertOrder()
   const updateOrderWithActivity = useUpdateOrderWithActivity()
+  const { data: activeStaff = [] } = useActiveStaff()
 
   const [orderId, setOrderId] = useState<string | null>(existingOrderId ?? null)
   const [autosaveState, setAutosaveState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle')
@@ -146,7 +148,15 @@ export function OrderFormEditor({ orderId: existingOrderId, initialValues, previ
   const onSubmit = async (values: OrderFormValues) => {
     try {
       if (isEditingActive && previousOrder) {
-        const id = await updateOrderWithActivity.mutateAsync({ values, orderId: existingOrderId!, previous: previousOrder })
+        const newAssigneeName = values.assignedTo
+          ? (activeStaff.find((s) => s.id === values.assignedTo)?.fullName ?? null)
+          : null
+        const id = await updateOrderWithActivity.mutateAsync({
+          values,
+          orderId: existingOrderId!,
+          previous: previousOrder,
+          newAssigneeName,
+        })
         showToast('Order updated', 'success')
         navigate(`/orders/${id}`)
       } else {
@@ -202,7 +212,10 @@ export function OrderFormEditor({ orderId: existingOrderId, initialValues, previ
             <TurnaroundDeliverySection />
             <ServicesSection />
             <GarmentStylesSection orderId={orderId} ensureOrderId={ensureOrderId} />
-            <PaymentAndNotesSection />
+            <PaymentAndNotesSection
+              currentAssigneeName={previousOrder?.assignedToName}
+              currentAssigneeActive={previousOrder?.assignedToActive}
+            />
           </div>
 
           <div className="lg:sticky lg:top-20 lg:h-fit">

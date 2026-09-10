@@ -6,6 +6,7 @@ import {
   Layers,
   DollarSign,
   Flag,
+  UserCog,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import type { OrderActivityEntry } from '@/types'
@@ -20,6 +21,7 @@ const TYPE_ICON: Record<OrderActivityEntry['type'], LucideIcon> = {
   production: Factory,
   mockup: Layers,
   payment: DollarSign,
+  assignment: UserCog,
 }
 
 const TYPE_COLOR: Record<OrderActivityEntry['type'], string> = {
@@ -30,6 +32,7 @@ const TYPE_COLOR: Record<OrderActivityEntry['type'], string> = {
   production: 'bg-blue-50 text-blue-600',
   mockup: 'bg-indigo-50 text-indigo-600',
   payment: 'bg-emerald-50 text-emerald-600',
+  assignment: 'bg-teal-50 text-teal-600',
 }
 
 interface ActivityTimelineProps {

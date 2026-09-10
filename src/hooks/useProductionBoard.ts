@@ -6,6 +6,7 @@ import type {
   ProductionStatus,
 } from '@/types'
 import { useOrders, useUpdateProductionStatus } from '@/hooks/useOrders'
+import { useProfile } from '@/hooks/useProfile'
 import { useToast } from '@/components/ui/toast-context'
 import { daysUntil } from '@/utils/date'
 import { staffErrorMessage } from '@/utils/errorMessage'
@@ -18,9 +19,13 @@ export type BoardView =
   | 'artwork-attention'
   | 'garment-followup'
   | 'completed'
+  | 'my-orders'
+  | 'unassigned'
 
 export const BOARD_VIEWS: { key: BoardView; label: string }[] = [
   { key: 'all', label: 'All Orders' },
+  { key: 'my-orders', label: 'My Orders' },
+  { key: 'unassigned', label: 'Unassigned' },
   { key: 'due-today', label: 'Due Today' },
   { key: 'upcoming', label: 'Upcoming' },
   { key: 'urgent', label: 'Urgent' },
@@ -62,6 +67,7 @@ const DEFAULT_FILTERS: BoardFilters = {
 
 export function useProductionBoard() {
   const { data: orders = [], isLoading } = useOrders()
+  const { data: currentProfile } = useProfile()
   const { showToast } = useToast()
   const updateProductionStatusMutation = useUpdateProductionStatus()
   const [search, setSearch] = useState('')
@@ -97,6 +103,12 @@ export function useProductionBoard() {
         break
       case 'urgent':
         result = result.filter((o) => o.priority === 'Urgent')
+        break
+      case 'my-orders':
+        result = result.filter((o) => !!currentProfile && o.assignedTo === currentProfile.id)
+        break
+      case 'unassigned':
+        result = result.filter((o) => !o.assignedTo)
         break
       case 'artwork-attention':
         result = result.filter((o) => ARTWORK_ATTENTION.includes(o.artworkStatus))
@@ -147,7 +159,7 @@ export function useProductionBoard() {
     })
 
     return sorted
-  }, [orders, view, filters, search, sortKey, sortDir])
+  }, [orders, view, filters, search, sortKey, sortDir, currentProfile])
 
   const selectedOrder = orders.find((o) => o.id === selectedOrderId) ?? null
 

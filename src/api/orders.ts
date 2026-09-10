@@ -10,6 +10,7 @@ import { getArtworkSignedUrl } from '@/api/artwork'
 const ORDER_SELECT = `
   *,
   customers ( name, company ),
+  assignee:profiles ( full_name, is_active ),
   order_garments ( id, garment_type_label, garment_brand_label, colour, sizing_type, sort_order,
     garment_quantities ( size, quantity ) ),
   order_services ( services ( name ) ),
@@ -126,7 +127,16 @@ interface ActivityDiffEntry {
 // matching order_activity.activity_type in the schema's check constraint,
 // so a due-date change isn't logged here — priority and payment status
 // are the two edit-form fields that do have one.
-export function diffOrderForActivity(previous: Order, values: OrderFormValues): ActivityDiffEntry[] {
+// `newAssigneeName` is resolved by the caller (from whatever active-staff
+// list it already loaded for the AssigneeSelector) rather than looked up
+// here — this function stays pure/DB-free, per the doc comment above.
+// Only needed when the assignment actually changed and the new value is
+// non-null; omit or pass undefined otherwise.
+export function diffOrderForActivity(
+  previous: Order,
+  values: OrderFormValues,
+  newAssigneeName?: string | null,
+): ActivityDiffEntry[] {
   const entries: ActivityDiffEntry[] = []
   if (previous.priority !== values.priority) {
     entries.push({ activityType: 'priority', message: `Priority changed to ${values.priority}` })
@@ -140,6 +150,18 @@ export function diffOrderForActivity(previous: Order, values: OrderFormValues): 
       entries.push({ activityType: 'mockup', message: `Mockup note updated for ${spec.position}` })
     }
   }
+  if ((previous.assignedTo ?? undefined) !== (values.assignedTo ?? undefined)) {
+    if (!values.assignedTo) {
+      entries.push({ activityType: 'assignment', message: 'Order unassigned' })
+    } else if (!previous.assignedTo) {
+      entries.push({ activityType: 'assignment', message: `Order assigned to ${newAssigneeName ?? 'a staff member'}` })
+    } else {
+      entries.push({
+        activityType: 'assignment',
+        message: `Order reassigned from ${previous.assignedToName ?? 'a staff member'} to ${newAssigneeName ?? 'a staff member'}`,
+      })
+    }
+  }
   return entries
 }
 
@@ -149,10 +171,11 @@ export async function updateOrderWithActivity(
   orderId: string,
   values: OrderFormValues,
   previous: Order,
+  newAssigneeName?: string | null,
 ): Promise<string> {
   const id = await upsertOrder(values, orderId, true)
 
-  const diffs = diffOrderForActivity(previous, values)
+  const diffs = diffOrderForActivity(previous, values, newAssigneeName)
   if (diffs.length > 0) {
     const { data: userData } = await supabase.auth.getUser()
     const { error } = await supabase.from('order_activity').insert(
@@ -238,4 +261,35 @@ export function updateGarmentStatus(orderId: string, status: GarmentStatus) {
 
 export function updatePaymentStatus(orderId: string, status: PaymentStatus) {
   return updateOrderStatus(orderId, 'payment_status', status, 'payment', 'Payment status')
+}
+
+// Quick reassignment from Order Detail — same direct-update-then-log
+// shape as the four status mutations above, not the full upsert_order
+// path. Safe against assigning to an inactive/unknown profile even via a
+// raw call: `orders_validate_assignment` (a BEFORE trigger, Phase 4
+// Milestone 2) enforces that server-side regardless of which write path
+// reaches this column.
+export async function updateOrderAssignment(
+  orderId: string,
+  assignedTo: string | null,
+  assigneeName: string | null,
+  previousAssigneeName: string | null,
+): Promise<void> {
+  const { error: updateError } = await supabase.from('orders').update({ assigned_to: assignedTo }).eq('id', orderId)
+  if (updateError) throw updateError
+
+  const message = !assignedTo
+    ? 'Order unassigned'
+    : !previousAssigneeName
+      ? `Order assigned to ${assigneeName ?? 'a staff member'}`
+      : `Order reassigned from ${previousAssigneeName} to ${assigneeName ?? 'a staff member'}`
+
+  const { data: userData } = await supabase.auth.getUser()
+  const { error: activityError } = await supabase.from('order_activity').insert({
+    order_id: orderId,
+    user_id: userData.user?.id,
+    activity_type: 'assignment',
+    message,
+  })
+  if (activityError) throw activityError
 }

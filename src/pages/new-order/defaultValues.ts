@@ -65,5 +65,6 @@ export function defaultOrderFormValues(): OrderFormValues {
     productionNotes: '',
     notes: '',
     staffCompleted: false,
+    assignedTo: undefined,
   }
 }

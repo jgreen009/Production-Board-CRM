@@ -46,7 +46,9 @@ export interface OrderRow {
   production_notes: string | null
   staff_completed: boolean
   order_state: 'Draft' | 'Active'
+  assigned_to: string | null
   customers: { name: string; company: string | null } | null
+  assignee: { full_name: string | null; is_active: boolean } | null
   order_garments: OrderGarmentRow[]
   order_services: { services: { name: string } | null }[]
   print_specs: PrintSpecRow[]
@@ -89,6 +91,9 @@ export function mapDatabaseOrderToDomain(row: OrderRow): Order {
     notes: row.notes ?? '',
     productionNotes: row.production_notes ?? '',
     staffCompleted: row.staff_completed,
+    assignedTo: row.assigned_to ?? undefined,
+    assignedToName: row.assignee?.full_name ?? null,
+    assignedToActive: row.assignee?.is_active,
   }
 }
 
@@ -169,6 +174,7 @@ export function mapDatabaseOrderToFormValues(row: OrderRow): OrderFormValues {
     productionNotes: row.production_notes ?? '',
     notes: row.notes ?? '',
     staffCompleted: row.staff_completed,
+    assignedTo: row.assigned_to ?? undefined,
   }
 }
 
@@ -194,6 +200,7 @@ export function mapOrderFormToUpsertPayload(values: OrderFormValues) {
     productionNotes: values.productionNotes ?? '',
     paymentStatus: values.paymentStatus,
     staffCompleted: values.staffCompleted,
+    assignedTo: values.assignedTo ?? undefined,
     garments: values.garments.map((g) => ({
       type: g.type,
       brand: g.brand,

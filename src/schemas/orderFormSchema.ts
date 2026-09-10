@@ -99,6 +99,10 @@ export const orderFormSchema = z
     paymentStatus: z.enum(['Unpaid', 'Deposit Paid', 'Part Paid', 'Paid', 'On Account']),
     productionNotes: z.string().optional(),
     notes: z.string().optional(),
+    // Phase 4 Milestone 2 — one optional owner. Absent/undefined means
+    // unassigned; the server (upsert_order) is the actual authority on
+    // whether a non-null value is a valid, active staff member.
+    assignedTo: z.string().optional(),
     staffCompleted: z.boolean(),
   })
   .refine(

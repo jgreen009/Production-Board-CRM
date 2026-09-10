@@ -47,7 +47,9 @@ describe('mapDatabaseOrderToDomain', () => {
     production_notes: '',
     staff_completed: false,
     order_state: 'Active',
+    assigned_to: null,
     customers: { name: 'Dave Kelston', company: 'Kelston Rugby Club' },
+    assignee: null,
     order_garments: [
       {
         id: 'g1',
@@ -103,6 +105,34 @@ describe('mapDatabaseOrderToDomain', () => {
       { id: 'aw1', fileName: 'logo.png', fileType: 'PNG', sizeKb: 2, uploadedAt: '2026-01-01T00:00:00Z', storagePath: 'x' },
     ])
   })
+
+  it('is unassigned when assigned_to is null', () => {
+    const order = mapDatabaseOrderToDomain({ ...baseRow, assigned_to: null, assignee: null })
+    expect(order.assignedTo).toBeUndefined()
+    expect(order.assignedToName).toBeNull()
+  })
+
+  it('surfaces the joined assignee name and active status', () => {
+    const order = mapDatabaseOrderToDomain({
+      ...baseRow,
+      assigned_to: 'staff-1',
+      assignee: { full_name: 'James Smith', is_active: true },
+    })
+    expect(order.assignedTo).toBe('staff-1')
+    expect(order.assignedToName).toBe('James Smith')
+    expect(order.assignedToActive).toBe(true)
+  })
+
+  it('preserves a historical assignee’s name even when they’re now inactive', () => {
+    const order = mapDatabaseOrderToDomain({
+      ...baseRow,
+      assigned_to: 'staff-1',
+      assignee: { full_name: 'James Smith', is_active: false },
+    })
+    expect(order.assignedTo).toBe('staff-1')
+    expect(order.assignedToName).toBe('James Smith')
+    expect(order.assignedToActive).toBe(false)
+  })
 })
 
 describe('mapDatabaseOrderToFormValues', () => {
@@ -131,7 +161,9 @@ describe('mapDatabaseOrderToFormValues', () => {
     production_notes: '',
     staff_completed: false,
     order_state: 'Active',
+    assigned_to: null,
     customers: { name: 'Dave Kelston', company: 'Kelston Rugby Club' },
+    assignee: null,
     order_garments: [
       {
         id: 'g1',
@@ -199,5 +231,11 @@ describe('mapDatabaseOrderToFormValues', () => {
     const values = mapDatabaseOrderToFormValues(row)
     expect(values.specialisedApplication).toBe(true)
     expect(values.specialisedApplicationDetails).toBe('Puff print on logo')
+  })
+
+  it('carries assigned_to through to assignedTo for the edit form', () => {
+    const assignedRow: OrderRow = { ...row, assigned_to: 'staff-1' }
+    const values = mapDatabaseOrderToFormValues(assignedRow)
+    expect(values.assignedTo).toBe('staff-1')
   })
 })

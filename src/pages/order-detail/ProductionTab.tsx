@@ -3,14 +3,17 @@ import { CheckCircle2, XCircle } from 'lucide-react'
 import type { Order } from '@/types'
 import { Card, CardBody, CardHeader } from '@/components/ui/Card'
 import { StatusSelect } from '@/components/domain/StatusSelect'
+import { AssigneeSelector } from '@/components/domain/AssigneeSelector'
 import { ProductionTimeline } from '@/components/domain/ProductionTimeline'
 import { PAYMENT_STATUSES, ARTWORK_STATUSES, GARMENT_STATUSES, PRODUCTION_STATUSES } from '@/data/mockStatuses'
 import {
   useUpdateArtworkStatus,
   useUpdateGarmentStatus,
+  useUpdateOrderAssignment,
   useUpdatePaymentStatus,
   useUpdateProductionStatus,
 } from '@/hooks/useOrders'
+import { useActiveStaff } from '@/hooks/useStaff'
 import { useToast } from '@/components/ui/toast-context'
 import { staffErrorMessage } from '@/utils/errorMessage'
 import { getAttentionWarnings, getProductionBlockers, isReadyForProduction } from '@/utils/productionReadiness'
@@ -26,6 +29,8 @@ export function ProductionTab({ order, isRealOrder }: ProductionTabProps) {
   const updateArtwork = useUpdateArtworkStatus()
   const updateGarment = useUpdateGarmentStatus()
   const updatePayment = useUpdatePaymentStatus()
+  const updateAssignment = useUpdateOrderAssignment()
+  const { data: activeStaff = [] } = useActiveStaff()
 
   const onError = (err: unknown) => showToast(staffErrorMessage(err, 'Failed to update status'), 'info')
   const hint = isRealOrder ? undefined : 'Demo order — status changes here aren\'t saved'
@@ -89,6 +94,26 @@ export function ProductionTab({ order, isRealOrder }: ProductionTabProps) {
               onChange={(status) => {
                 if (!isRealOrder) return
                 updateProduction.mutate({ orderId: order.id, status }, { onError })
+              }}
+            />
+          }
+        />
+
+        <StatusBlock
+          label="Assigned To"
+          hint={hint}
+          control={
+            <AssigneeSelector
+              value={order.assignedTo}
+              currentAssigneeName={order.assignedToName}
+              currentAssigneeActive={order.assignedToActive}
+              onChange={(id) => {
+                if (!isRealOrder) return
+                const assigneeName = id ? (activeStaff.find((s) => s.id === id)?.fullName ?? null) : null
+                updateAssignment.mutate(
+                  { orderId: order.id, assignedTo: id ?? null, assigneeName, previousAssigneeName: order.assignedToName ?? null },
+                  { onError },
+                )
               }}
             />
           }

@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { PageHeader } from '@/components/domain/PageHeader'
 import { OrderCard } from '@/components/domain/OrderCard'
 import { StatusBadge } from '@/components/domain/StatusBadge'
+import { Badge } from '@/components/ui/Badge'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { TableSkeleton } from '@/components/ui/LoadingSkeleton'
 import { ProductionToolbar } from '@/components/domain/production/ProductionToolbar'
@@ -77,6 +78,9 @@ export default function ProductionBoard() {
                     <StatusBadge kind="payment" value={order.paymentStatus} />
                     <StatusBadge kind="artwork" value={order.artworkStatus} />
                     <StatusBadge kind="garment" value={order.garmentStatus} />
+                    <Badge className="border-zinc-200 bg-zinc-50 text-zinc-500">
+                      {order.assignedTo ? order.assignedToName || 'Unnamed staff' : 'Unassigned'}
+                    </Badge>
                   </>
                 }
               />
