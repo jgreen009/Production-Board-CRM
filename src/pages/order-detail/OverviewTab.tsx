@@ -1,37 +1,14 @@
 import type { ReactNode } from 'react'
-import { CheckCircle2, Mail, Phone, User } from 'lucide-react'
+import { Mail, Phone, User } from 'lucide-react'
 import type { Order } from '@/types'
 import { StatusBadge } from '@/components/domain/StatusBadge'
 import { MockupThumbnail } from '@/components/domain/MockupThumbnail'
 import { Card, CardBody, CardHeader } from '@/components/ui/Card'
 import { formatDate } from '@/utils/date'
-import { getProductionBlockers, isReadyForProduction } from '@/utils/productionReadiness'
 
 export function OverviewTab({ order }: { order: Order }) {
-  const ready = isReadyForProduction(order)
-  const blockers = getProductionBlockers(order)
-
   return (
     <div className="flex flex-col gap-4">
-      {/* Readiness banner — the single "can this go into production" signal.
-          The artwork-approval/due-date attention warnings that used to also
-          render here were removed from Order Detail specifically per staff
-          feedback; Dashboard and Production Board still surface them via
-          getAttentionWarnings() unchanged. */}
-      <Card className={ready ? 'border-l-4 border-l-success bg-success-soft/40' : 'border-l-4 border-l-warning bg-warning-soft/40'}>
-        <CardBody className="flex items-center gap-2">
-          {ready ? (
-            <span className="flex items-center gap-1.5 text-sm font-semibold text-success">
-              <CheckCircle2 size={15} /> Ready for Production
-            </span>
-          ) : (
-            <span className="text-sm font-semibold text-zinc-800">
-              Not ready for production — {blockers.join(', ') || 'check status'}
-            </span>
-          )}
-        </CardBody>
-      </Card>
-
       {/* At-a-glance row: who / when / who owns it, plus the mockup */}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         <Card className="lg:col-span-2">
