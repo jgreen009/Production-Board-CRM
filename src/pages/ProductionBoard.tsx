@@ -6,7 +6,8 @@ import { Badge } from '@/components/ui/Badge'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { TableSkeleton } from '@/components/ui/LoadingSkeleton'
 import { ProductionToolbar } from '@/components/domain/production/ProductionToolbar'
-import { ProductionTable } from '@/components/domain/production/ProductionTable'
+import { ProductionTable, QueueDot } from '@/components/domain/production/ProductionTable'
+import { AttentionBadge } from '@/components/domain/production/AttentionBadge'
 import { OrderQuickView } from '@/components/domain/production/OrderQuickView'
 import { MockupPreviewDrawer } from '@/components/domain/production/MockupPreviewDrawer'
 import { useProductionBoard } from '@/hooks/useProductionBoard'
@@ -75,12 +76,16 @@ export default function ProductionBoard() {
                 onClick={(o) => board.setSelectedOrderId(o.id)}
                 extra={
                   <>
-                    <StatusBadge kind="payment" value={order.paymentStatus} />
+                    <QueueDot order={order} />
+                    <AttentionBadge order={order} />
                     <StatusBadge kind="artwork" value={order.artworkStatus} />
-                    <StatusBadge kind="garment" value={order.garmentStatus} />
                     <Badge className="border-zinc-200 bg-zinc-50 text-zinc-500">
                       {order.assignedTo ? order.assignedToName || 'Unnamed staff' : 'Unassigned'}
                     </Badge>
+                    <div className="mt-1 flex w-full flex-wrap items-center gap-1.5 opacity-80">
+                      <StatusBadge kind="payment" value={order.paymentStatus} />
+                      <StatusBadge kind="garment" value={order.garmentStatus} />
+                    </div>
                   </>
                 }
               />
