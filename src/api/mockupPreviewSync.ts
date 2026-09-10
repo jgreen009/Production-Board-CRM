@@ -62,9 +62,8 @@ function effectiveGarmentType(spec: PrintSpecFormValues, garments: { type: strin
 // Acceptable for a small per-order spec count; the canonical path is
 // stable and overwritten in place, so regeneration is always safe and
 // idempotent even when nothing actually changed. Called ONLY from an
-// explicit save success handler (Save Draft, Create Order, Save Changes)
-// — never from the periodic autosave — per the "generate only on explicit
-// save" requirement.
+// explicit save success handler (Create Order, Save Changes) — there is
+// no autosave any more, so every call here already is an explicit save.
 //
 // Failure boundary: order persistence already succeeded by the time this
 // runs (it's only ever called from a save mutation's onSuccess). A failure

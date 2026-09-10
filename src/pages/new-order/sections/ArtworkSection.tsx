@@ -13,37 +13,52 @@ import { staffErrorMessage } from '@/utils/errorMessage'
 const PREVIEWABLE_TYPES = ['PNG', 'JPG', 'WEBP', 'SVG']
 
 interface ArtworkSectionProps {
+  // Real, already-persisted order id — present for Edit Order (the order
+  // already exists) and, on the Create path, only after Create Order has
+  // actually been clicked. Never created early just because a file was
+  // selected — see NewOrderForm.tsx: nothing is written to the database
+  // until the Create Order button itself runs.
   orderId: string | null
-  ensureOrderId: () => Promise<string>
 }
 
-export function ArtworkSection({ orderId, ensureOrderId }: ArtworkSectionProps) {
+export function ArtworkSection({ orderId }: ArtworkSectionProps) {
   const { watch, setValue } = useFormContext<OrderFormValues>()
   const { showToast } = useToast()
   const files = watch('artworkFiles')
   const [uploadingNames, setUploadingNames] = useState<string[]>([])
 
   const handleFilesSelected = async (selected: File[]) => {
-    let currentOrderId = orderId
-    if (!currentOrderId) {
-      try {
-        currentOrderId = await ensureOrderId()
-      } catch (err) {
-        showToast(staffErrorMessage(err, 'Failed to start this order — try again'), 'info')
-        return
-      }
-    }
-
     for (const file of selected) {
       const validation = validateArtworkFile(file)
-      if (!validation.valid) {
+      if (!validation.valid || !validation.fileType) {
         showToast(`${file.name}: ${validation.reason}`, 'info')
+        continue
+      }
+      const fileType = validation.fileType
+
+      // No real order to attach this to yet (still filling in the Create
+      // Order form) — hold it locally. NewOrderForm's Create Order submit
+      // uploads every pendingFile for real once the order itself exists,
+      // never before.
+      if (!orderId) {
+        const previewUrl = PREVIEWABLE_TYPES.includes(fileType) ? URL.createObjectURL(file) : undefined
+        setValue('artworkFiles', [
+          ...watch('artworkFiles'),
+          {
+            id: crypto.randomUUID(),
+            fileName: file.name,
+            fileType,
+            sizeKb: Math.round(file.size / 1024),
+            previewUrl,
+            pendingFile: file,
+          },
+        ])
         continue
       }
 
       setUploadingNames((prev) => [...prev, file.name])
       try {
-        const artwork = await uploadArtwork(currentOrderId, file)
+        const artwork = await uploadArtwork(orderId, file)
         const previewUrl = PREVIEWABLE_TYPES.includes(artwork.fileType) ? URL.createObjectURL(file) : undefined
         setValue('artworkFiles', [
           ...watch('artworkFiles'),
@@ -76,6 +91,8 @@ export function ArtworkSection({ orderId, ensureOrderId }: ArtworkSectionProps) 
         showToast(staffErrorMessage(err, 'Failed to delete file from storage'), 'info')
       }
     }
+    // A pendingFile was never uploaded anywhere — removing it from form
+    // state above is the entire cleanup, nothing server-side to undo.
   }
 
   return (

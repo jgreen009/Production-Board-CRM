@@ -9,12 +9,12 @@ import { EmptyState } from '@/components/ui/EmptyState'
 import { OrderCard } from '@/components/domain/OrderCard'
 import { StatusBadge } from '@/components/domain/StatusBadge'
 import { TableSkeleton } from '@/components/ui/LoadingSkeleton'
-import { useOrders, useDraftOrders } from '@/hooks/useOrders'
+import { useOrders } from '@/hooks/useOrders'
 import { formatDateShort, dueDateLabel, isOverdue, isDueToday } from '@/utils/date'
 import { clsx } from 'clsx'
 import type { Order } from '@/types'
 
-type OrdersTab = 'all' | 'active' | 'completed' | 'on-hold' | 'drafts'
+type OrdersTab = 'all' | 'active' | 'completed' | 'on-hold'
 type SortKey = 'due' | 'orderNumber' | 'customer'
 
 const TABS: { key: OrdersTab; label: string }[] = [
@@ -22,7 +22,6 @@ const TABS: { key: OrdersTab; label: string }[] = [
   { key: 'active', label: 'Active' },
   { key: 'completed', label: 'Completed' },
   { key: 'on-hold', label: 'On Hold' },
-  { key: 'drafts', label: 'Drafts' },
 ]
 
 const SORT_OPTIONS: { key: SortKey; label: string }[] = [
@@ -50,13 +49,9 @@ export default function OrdersList() {
   const [sortKey, setSortKey] = useState<SortKey>('due')
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc')
   const { data: allOrders = [], isLoading } = useOrders()
-  const { data: draftOrders = [], isLoading: draftsLoading } = useDraftOrders()
-
-  const isDraftsTab = tab === 'drafts'
-  const sourceOrders = isDraftsTab ? draftOrders : allOrders
 
   const orders = useMemo(() => {
-    let result = sourceOrders
+    let result = allOrders
     if (tab === 'active') result = result.filter((o) => !['Completed', 'On Hold'].includes(o.productionStatus))
     if (tab === 'completed') result = result.filter((o) => o.productionStatus === 'Completed')
     if (tab === 'on-hold') result = result.filter((o) => o.productionStatus === 'On Hold')
@@ -73,12 +68,9 @@ export default function OrdersList() {
 
     const sorted = [...result].sort((a, b) => compareOrders(a, b, sortKey))
     return sortDir === 'desc' ? sorted.reverse() : sorted
-  }, [sourceOrders, tab, search, sortKey, sortDir])
+  }, [allOrders, tab, search, sortKey, sortDir])
 
-  const handleRowClick = (orderId: string) => {
-    if (isDraftsTab) navigate(`/orders/new?draft=${orderId}`)
-    else navigate(`/orders/${orderId}`)
-  }
+  const handleRowClick = (orderId: string) => navigate(`/orders/${orderId}`)
 
   return (
     <div>
@@ -132,21 +124,15 @@ export default function OrdersList() {
         </div>
       </div>
 
-      {(isDraftsTab ? draftsLoading : isLoading) ? (
+      {isLoading ? (
         <div className="rounded-lg border border-zinc-200 bg-white">
           <TableSkeleton />
         </div>
       ) : orders.length === 0 ? (
         <EmptyState
           icon={ClipboardList}
-          title={sourceOrders.length === 0 ? (isDraftsTab ? 'No drafts' : 'No orders yet') : 'No orders found'}
-          description={
-            sourceOrders.length === 0
-              ? isDraftsTab
-                ? 'Orders you start and leave unfinished will show up here to resume.'
-                : 'Create your first order to see it here.'
-              : 'Try a different tab or search term.'
-          }
+          title={allOrders.length === 0 ? 'No orders yet' : 'No orders found'}
+          description={allOrders.length === 0 ? 'Create your first order to see it here.' : 'Try a different tab or search term.'}
         />
       ) : (
         <>
@@ -173,7 +159,7 @@ export default function OrdersList() {
                   >
                     <td className="px-3 py-2.5 font-medium text-zinc-800">
                       <Link
-                        to={isDraftsTab ? `/orders/new?draft=${order.id}` : `/orders/${order.id}`}
+                        to={`/orders/${order.id}`}
                         onClick={(e) => e.stopPropagation()}
                         className="hover:underline"
                       >

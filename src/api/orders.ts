@@ -18,26 +18,19 @@ const ORDER_SELECT = `
   artwork ( id, file_name, file_type, file_size_bytes, storage_path, created_at )
 `
 
-// Drafts are deliberately excluded from the default list — they're not
-// surfaced as active production orders anywhere (Production Board,
-// dashboards, Orders List's default view) until explicitly finalized.
-// listDraftOrders below is the dedicated drafts view (Milestone 11).
+// Restricted to Active orders — order_state can technically still be
+// 'Draft' internally for the few milliseconds between the shell-order
+// insert and the final finalize=true save that happens within a single
+// Create Order click (see NewOrderForm.tsx's runSaveNow — never a
+// user-visible or resumable state any more; there is no Save Draft/
+// autosave/drafts-list feature), so Draft rows are excluded from every
+// listing rather than assumed not to exist at all.
 export async function listOrders(): Promise<Order[]> {
   const { data, error } = await supabase
     .from('orders')
     .select(ORDER_SELECT)
     .eq('order_state', 'Active')
     .order('created_at', { ascending: false })
-  if (error) throw error
-  return (data as unknown as OrderRow[]).map(mapDatabaseOrderToDomain)
-}
-
-export async function listDraftOrders(): Promise<Order[]> {
-  const { data, error } = await supabase
-    .from('orders')
-    .select(ORDER_SELECT)
-    .eq('order_state', 'Draft')
-    .order('updated_at', { ascending: false })
   if (error) throw error
   return (data as unknown as OrderRow[]).map(mapDatabaseOrderToDomain)
 }
@@ -65,8 +58,9 @@ export async function getOrder(id: string): Promise<Order | null> {
 
 const PREVIEWABLE_ARTWORK_TYPES = ['PNG', 'JPG', 'WEBP', 'SVG']
 
-// For editing (Milestone 8) and, later, resuming a draft (Milestone 11) —
-// same reverse mapping either way. Signed preview URLs are fetched here
+// For Edit Order (Milestone 8) and for rebuilding a Reorder's source
+// values (Phase 4 Milestone 5) — same reverse mapping either way. Signed
+// preview URLs are fetched here
 // (not baked into the pure mapper) so an edited order's file cards show a
 // real thumbnail, same as a fresh upload would; a failed signed-url fetch
 // just leaves that one file without a preview rather than failing the
@@ -97,8 +91,8 @@ export async function getOrderFormValues(id: string): Promise<OrderFormValues | 
   return { ...values, artworkFiles }
 }
 
-// The one write path behind Save Draft, Create Order, and Edit Order alike
-// (spec §11) — wraps the upsert_order RPC. Returns the order's id, stable
+// The one write path behind Create Order and Save Changes alike (spec
+// §11) — wraps the upsert_order RPC. Returns the order's id, stable
 // across repeated calls once it exists (pass it back in as `orderId` to
 // update the same row instead of inserting a new one).
 export async function upsertOrder(

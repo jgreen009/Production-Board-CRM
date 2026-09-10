@@ -23,3 +23,22 @@ export function adminActionErrorMessage(err: unknown, fallback: string): string 
   console.error(err)
   return err instanceof Error && err.message ? err.message : fallback
 }
+
+// Order save/create failures specifically: show the real underlying
+// reason (a Supabase PostgrestError's .message — either upsert_order's
+// own raised business-rule text, e.g. "Cannot assign this order to an
+// inactive or unknown staff member", or Postgres' own error text, e.g. a
+// malformed value) rather than a blanket "Failed to create order" that
+// leaves staff with no way to tell what actually went wrong or report it
+// usefully. Deliberately narrower than the blanket staffErrorMessage()
+// rule elsewhere: this project's own upsert_order function doesn't raise
+// anything containing a password/token/secret, and PostgrestError.message
+// is already a short, human-readable line (not a stack trace) — appending
+// it to a toast is a real diagnostic aid, not a leak, for this one path.
+export function orderSaveErrorMessage(err: unknown, fallback: string): string {
+  console.error(err)
+  if (err && typeof err === 'object' && 'message' in err && typeof err.message === 'string' && err.message) {
+    return `${fallback}: ${err.message}`
+  }
+  return fallback
+}

@@ -3,7 +3,6 @@ import {
   getOrder,
   getOrderFormValues,
   listActivityForOrder,
-  listDraftOrders,
   listOrders,
   listPrintSpecIds,
   listRecentActivity,
@@ -23,14 +22,6 @@ export function useOrders() {
   return useQuery({ queryKey: ['orders'], queryFn: listOrders })
 }
 
-// The drafts view (Milestone 11) — ['orders', 'drafts'] rather than
-// ['orders'] itself (that key is Active-only everywhere else), but still
-// covered by every existing invalidateQueries({ queryKey: ['orders'] })
-// call throughout, since TanStack Query invalidates by array-key prefix.
-export function useDraftOrders() {
-  return useQuery({ queryKey: ['orders', 'drafts'], queryFn: listDraftOrders })
-}
-
 // Prefixed with 'dashboard' so the existing invalidateQueries({ queryKey:
 // ['dashboard'] }) calls in every status mutation's onSettled (Milestone 7)
 // already cover this — TanStack Query invalidates by key prefix.
@@ -46,8 +37,8 @@ export function useOrder(id: string | undefined | null) {
   })
 }
 
-// Edit Order (Milestone 8) and, later, resuming a draft (Milestone 11) —
-// the reverse mapping needed to hydrate the New Order form from an
+// Edit Order (Milestone 8) and Reorder (Phase 4 Milestone 5) — the
+// reverse mapping needed to hydrate the New Order form from an
 // existing row. Separate query key from ['orders', id] since it returns a
 // different shape (OrderFormValues, not Order) and is only ever needed
 // once, on mount, not kept live like the detail view.
@@ -74,11 +65,11 @@ interface UpsertOrderInput {
   finalize: boolean
   /**
    * Batch B: generate/refresh mockup preview PNGs after this save succeeds.
-   * Deliberately opt-in and false by default — the periodic background
-   * autosave (Phase 2) calls this same mutation on every debounced form
-   * change, which is exactly the "drag/resize/position-change" category
-   * Batch B says must NOT trigger preview generation. Only an explicit
-   * user action (Save Draft, Create Order) passes true.
+   * Deliberately opt-in and false by default — only an explicit Create
+   * Order / Save Changes submission passes true; the internal shell-order
+   * save that precedes uploading pending artwork on a brand-new order
+   * (see NewOrderForm.tsx) does not, since nothing about it is a
+   * user-visible save action.
    */
   generatePreviews?: boolean
 }
@@ -118,8 +109,12 @@ async function syncPreviewsAfterSave(
   }
 }
 
-// The one write path behind Save Draft, background autosave, and Create
-// Order alike (spec §11) — every call just wraps the same upsert_order RPC.
+// The one write path behind Create Order and Save Changes alike — every
+// call just wraps the same upsert_order RPC. No order is ever created or
+// modified except by an explicit Create Order / Save Changes submission
+// (or, transparently within that same click, the shell-order step that
+// precedes uploading pending artwork on a brand-new order) — there is no
+// autosave and no separate Save Draft path any more.
 export function useUpsertOrder() {
   const queryClient = useQueryClient()
   const { showToast } = useToast()

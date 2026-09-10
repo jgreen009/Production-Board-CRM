@@ -41,8 +41,18 @@ export const artworkFileFormSchema = z.object({
   previewUrl: z.string().optional(),
   // Set once a file is actually uploaded to Storage — needed to call
   // removeArtwork(id, storagePath) later. Absent while a file is still
-  // uploading (see ArtworkUploader's optimistic "Uploading..." row).
+  // uploading (see ArtworkUploader's optimistic "Uploading..." row), or
+  // while it's a pendingFile (below) held locally.
   storagePath: z.string().optional(),
+  // No order exists yet to attach a Storage upload to (a brand-new order
+  // is never persisted before Create Order is clicked — see
+  // NewOrderForm.tsx) — the raw File sits here, in memory only, until the
+  // real order is created, at which point it's uploaded for real and this
+  // is cleared. Never sent to the server (mapOrderFormToUpsertPayload
+  // doesn't include artworkFiles at all — artwork is its own table, never
+  // part of the upsert_order payload) and never present once storagePath
+  // is set.
+  pendingFile: z.instanceof(File).optional(),
 })
 
 // One entry per physical print: position + colour + size, plus the

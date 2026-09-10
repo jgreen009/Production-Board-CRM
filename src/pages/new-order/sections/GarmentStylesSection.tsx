@@ -5,10 +5,9 @@ import { ArtworkSection } from '@/pages/new-order/sections/ArtworkSection'
 
 interface GarmentStylesSectionProps {
   orderId: string | null
-  ensureOrderId: () => Promise<string>
 }
 
-export function GarmentStylesSection({ orderId, ensureOrderId }: GarmentStylesSectionProps) {
+export function GarmentStylesSection({ orderId }: GarmentStylesSectionProps) {
   return (
     <OrderFormSection
       step={5}
@@ -17,7 +16,7 @@ export function GarmentStylesSection({ orderId, ensureOrderId }: GarmentStylesSe
     >
       <GarmentsSection />
       <hr className="border-zinc-100" />
-      <ArtworkSection orderId={orderId} ensureOrderId={ensureOrderId} />
+      <ArtworkSection orderId={orderId} />
       <hr className="border-zinc-100" />
       <PrintDetailsSection />
     </OrderFormSection>
