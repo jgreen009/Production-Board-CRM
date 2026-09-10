@@ -58,10 +58,11 @@ export function CustomerJobSection() {
 
   return (
     <OrderFormSection step={2} title="Customer / Job">
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <FormField
           label="Name"
           required
+          className="sm:col-span-2"
           error={errors.jobName?.message || errors.newCustomerName?.message}
         >
           <CustomerSelector
@@ -79,7 +80,7 @@ export function CustomerJobSection() {
         <FormField label="Email" required htmlFor="email" error={errors.email?.message}>
           <Input id="email" type="email" placeholder="name@company.com.au" {...register('email')} />
         </FormField>
-        <FormField label="Due Date" required htmlFor="dueDate" error={errors.dueDate?.message}>
+        <FormField label="Due Date" required htmlFor="dueDate" error={errors.dueDate?.message} className="sm:col-span-2">
           <Input id="dueDate" type="date" {...register('dueDate')} />
         </FormField>
       </div>

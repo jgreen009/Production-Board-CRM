@@ -47,21 +47,21 @@ export function TurnaroundDeliverySection() {
       <div>
         <p className="mb-1.5 text-sm font-medium text-zinc-700">Turnaround</p>
         <p className="mb-2 text-xs text-zinc-400">Internal staff field — not shown on the paper form.</p>
-        <div className="grid grid-cols-3 gap-2">
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
           {FORM_TURNAROUNDS.map((t) => (
             <button
               key={t.value}
               type="button"
               onClick={() => handleTurnaroundChange(t.value)}
               className={clsx(
-                'rounded-md border px-3 py-2 text-left text-sm transition-colors',
+                'min-h-11 rounded-md border px-3 py-2 text-left text-sm transition-colors',
                 turnaround === t.value
-                  ? 'border-zinc-900 bg-zinc-900 text-white'
+                  ? 'border-brand-accent bg-brand-accent-soft text-zinc-900'
                   : 'border-zinc-200 bg-white text-zinc-700 hover:border-zinc-300',
               )}
             >
               <p className="font-medium">{t.label}</p>
-              <p className={clsx('mt-0.5 text-xs', turnaround === t.value ? 'text-zinc-300' : 'text-zinc-400')}>
+              <p className={clsx('mt-0.5 text-xs', turnaround === t.value ? 'text-zinc-600' : 'text-zinc-400')}>
                 {turnaroundDescriptions[t.value]}
               </p>
             </button>
@@ -71,22 +71,22 @@ export function TurnaroundDeliverySection() {
 
       <div>
         <p className="mb-1.5 text-sm font-medium text-zinc-700">Pick Up / Delivery</p>
-        <div className="flex gap-2">
+        <div className="flex flex-col gap-2 sm:flex-row">
           {DELIVERY_OPTIONS.map((opt) => (
             <button
               key={opt.value}
               type="button"
               onClick={() => setValue('deliveryMethod', opt.value)}
               className={clsx(
-                'flex-1 rounded-md border px-3 py-2 text-sm font-medium transition-colors',
+                'min-h-11 flex-1 rounded-md border px-3 py-2 text-sm font-medium transition-colors',
                 deliveryMethod === opt.value
-                  ? 'border-zinc-900 bg-zinc-900 text-white'
+                  ? 'border-brand-accent bg-brand-accent-soft text-zinc-900'
                   : 'border-zinc-200 bg-white text-zinc-700 hover:border-zinc-300',
               )}
             >
               {opt.label}
               {opt.hint && (
-                <span className={clsx('block text-xs font-normal', deliveryMethod === opt.value ? 'text-zinc-300' : 'text-zinc-400')}>
+                <span className={clsx('block text-xs font-normal', deliveryMethod === opt.value ? 'text-zinc-600' : 'text-zinc-400')}>
                   {opt.hint}
                 </span>
               )}
@@ -107,7 +107,7 @@ export function TurnaroundDeliverySection() {
               type="button"
               onClick={() => setValue('priority', p.value as Priority)}
               className={clsx(
-                'flex-1 rounded-md border px-3 py-2 text-sm font-medium transition-colors',
+                'min-h-11 flex-1 rounded-md border px-3 py-2 text-sm font-medium transition-colors',
                 priority === p.value ? p.className : 'border-zinc-200 bg-white text-zinc-500 hover:border-zinc-300',
               )}
             >
