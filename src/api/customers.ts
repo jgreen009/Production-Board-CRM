@@ -13,29 +13,6 @@ export async function listCustomers(): Promise<Customer[]> {
   return data.map(mapCustomerRowToDomain)
 }
 
-export async function searchCustomers(query: string): Promise<Customer[]> {
-  const trimmed = query.trim()
-  if (!trimmed) {
-    const { data, error } = await supabase
-      .from('customers')
-      .select(SELECT_COLUMNS)
-      .order('name', { ascending: true })
-      .limit(6)
-    if (error) throw error
-    return data.map(mapCustomerRowToDomain)
-  }
-
-  const pattern = `%${trimmed}%`
-  const { data, error } = await supabase
-    .from('customers')
-    .select(SELECT_COLUMNS)
-    .or(`name.ilike.${pattern},company.ilike.${pattern},email.ilike.${pattern},phone.ilike.${pattern}`)
-    .order('name', { ascending: true })
-    .limit(20)
-  if (error) throw error
-  return data.map(mapCustomerRowToDomain)
-}
-
 export async function getCustomer(id: string): Promise<Customer | null> {
   const { data, error } = await supabase
     .from('customers')

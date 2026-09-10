@@ -1,10 +1,8 @@
-import { useEffect, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   createCustomer,
   getCustomer,
   listCustomers,
-  searchCustomers,
   updateCustomerNotes,
 } from '@/api/customers'
 import type { CreateCustomerInput } from '@/api/customers'
@@ -18,24 +16,6 @@ export function useCustomer(id: string | undefined) {
     queryKey: ['customers', id],
     queryFn: () => getCustomer(id!),
     enabled: !!id,
-  })
-}
-
-// Debounced ~250ms so fast typing doesn't fire a request per keystroke.
-function useDebouncedValue<T>(value: T, delayMs: number): T {
-  const [debounced, setDebounced] = useState(value)
-  useEffect(() => {
-    const timeout = setTimeout(() => setDebounced(value), delayMs)
-    return () => clearTimeout(timeout)
-  }, [value, delayMs])
-  return debounced
-}
-
-export function useCustomerSearch(query: string) {
-  const debouncedQuery = useDebouncedValue(query, 250)
-  return useQuery({
-    queryKey: ['customers', 'search', debouncedQuery],
-    queryFn: () => searchCustomers(debouncedQuery),
   })
 }
 

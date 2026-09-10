@@ -1,13 +1,8 @@
-import { useState } from 'react'
+import { User } from 'lucide-react'
 import { useFormContext } from 'react-hook-form'
 import type { OrderFormValues } from '@/schemas/orderFormSchema'
-import type { Customer } from '@/types'
 import { OrderFormSection } from '@/components/domain/OrderFormSection'
-import { CustomerSelector } from '@/components/domain/CustomerSelector'
 import { FormField, Input } from '@/components/ui/Field'
-import { useCreateCustomer } from '@/hooks/useCustomers'
-import { useToast } from '@/components/ui/toast-context'
-import { staffErrorMessage } from '@/utils/errorMessage'
 
 export function CustomerJobSection() {
   const {
@@ -16,44 +11,20 @@ export function CustomerJobSection() {
     setValue,
     formState: { errors },
   } = useFormContext<OrderFormValues>()
-  const { showToast } = useToast()
-  const createCustomer = useCreateCustomer()
 
-  const customerId = watch('customerId')
-  const newCustomerName = watch('newCustomerName') ?? ''
-  // Holds the full selected Customer (name/company for display) — the form
-  // field itself only stores customerId, so this is purely presentational,
-  // reset whenever the picker is cleared or a different one is selected.
-  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null)
-
-  const handleSelectCustomer = (customer: Customer) => {
-    setValue('customerId', customer.id)
-    setValue('newCustomerName', '')
-    setValue('jobName', customer.company || customer.name)
-    setValue('email', customer.email)
-    setValue('phone', customer.phone)
-    setSelectedCustomer(customer)
-  }
-
-  // Inserts into customers immediately (never a client-generated fake id —
-  // per spec §9/plan §11, the real UUID is what ends up on orders.customer_id).
-  // Never fuzzy-matches or dedupes an existing name — an exact duplicate
-  // creating a second customer row is accepted, not a bug, per the same
-  // section.
-  const handleCreateNew = async (name: string) => {
-    setValue('jobName', name)
-    try {
-      const customer = await createCustomer.mutateAsync({ name })
-      handleSelectCustomer(customer)
-    } catch (err) {
-      showToast(staffErrorMessage(err, 'Failed to create customer'), 'info')
-    }
-  }
-
-  const handleClear = () => {
+  // Plain manual entry — no customer search/autocomplete any more (staff
+  // feedback: typing here should never trigger a lookup or suggestion
+  // list). customerId stays null; newCustomerName mirrors the typed name
+  // so the existing "customerId set OR newCustomerName non-empty" schema
+  // rule (a customer record still gets created from this name on save)
+  // is satisfied without any picker UI. Phone/email are no longer
+  // auto-filled from a matched customer, since there's no longer a match
+  // to auto-fill from — staff enter them directly, same as any other field.
+  const jobName = watch('jobName') ?? ''
+  const handleNameChange = (value: string) => {
+    setValue('jobName', value)
+    setValue('newCustomerName', value)
     setValue('customerId', null)
-    setValue('newCustomerName', '')
-    setSelectedCustomer(null)
   }
 
   return (
@@ -62,16 +33,19 @@ export function CustomerJobSection() {
         <FormField
           label="Name"
           required
+          htmlFor="jobName"
           error={errors.jobName?.message || errors.newCustomerName?.message}
         >
-          <CustomerSelector
-            customerId={customerId}
-            newCustomerName={newCustomerName}
-            selectedCustomer={selectedCustomer}
-            onSelectCustomer={handleSelectCustomer}
-            onCreateNew={handleCreateNew}
-            onClear={handleClear}
-          />
+          <div className="relative">
+            <User size={15} className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-zinc-400" />
+            <Input
+              id="jobName"
+              value={jobName}
+              onChange={(e) => handleNameChange(e.target.value)}
+              placeholder="Customer or job name"
+              className="pl-8"
+            />
+          </div>
         </FormField>
         <FormField label="Phone" required htmlFor="phone" error={errors.phone?.message}>
           <Input id="phone" placeholder="04xx xxx xxx" {...register('phone')} />
