@@ -21,7 +21,7 @@ import {
   useUsers,
 } from '@/hooks/useAdminUsers'
 import type { AdminUserRow } from '@/api/adminUsers'
-import { staffErrorMessage } from '@/utils/errorMessage'
+import { adminActionErrorMessage } from '@/utils/errorMessage'
 
 type DialogState = { mode: 'create' } | { mode: 'edit'; user: AdminUserRow } | null
 
@@ -74,7 +74,7 @@ export default function SettingsUsers() {
       await setActive.mutateAsync({ id: user.id, isActive: true })
       showToast(`${user.fullName ?? 'User'} reactivated`, 'success')
     } catch (err) {
-      showToast(staffErrorMessage(err, "Couldn't update this user — try again"), 'info')
+      showToast(adminActionErrorMessage(err, "Couldn't update this user — try again"), 'info')
     }
   }
 
@@ -84,7 +84,7 @@ export default function SettingsUsers() {
       await setActive.mutateAsync({ id: pendingDeactivate.id, isActive: false })
       showToast(`${pendingDeactivate.fullName ?? 'User'} deactivated`, 'success')
     } catch (err) {
-      showToast(staffErrorMessage(err, "Couldn't deactivate this user — try again"), 'info')
+      showToast(adminActionErrorMessage(err, "Couldn't deactivate this user — try again"), 'info')
     } finally {
       setPendingDeactivate(null)
     }
@@ -96,7 +96,7 @@ export default function SettingsUsers() {
       await resetPassword.mutateAsync(pendingReset.id)
       showToast(`Password reset — ${pendingReset.fullName ?? 'this user'} must set a new password at next sign-in.`, 'success')
     } catch (err) {
-      showToast(staffErrorMessage(err, "Couldn't reset this user's password — try again"), 'info')
+      showToast(adminActionErrorMessage(err, "Couldn't reset this user's password — try again"), 'info')
     } finally {
       setPendingReset(null)
     }

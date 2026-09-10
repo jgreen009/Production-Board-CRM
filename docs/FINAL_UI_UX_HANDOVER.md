@@ -352,6 +352,17 @@ updating since no function signature or business rule changed).
 
 ## 27. Manual Browser UAT still required
 
+> **Superseded notice (pre-UAT correction pass):** `docs/CURRENT_UAT_PLAN.md`
+> is now the authoritative final browser-UAT checklist for this build,
+> replacing the page-attention list in §28 below and the historical
+> Phase 3/4/5 checklists for final-acceptance purposes. It was written
+> after two functional fixes made in that pass — an Edge Function CORS
+> bug that broke User Management for every real browser user, and a
+> mockup-placement product change (artwork is no longer draggable) — so
+> use it instead of testing this document's items in isolation. This
+> section and §28 are left intact as the historical record of what this
+> pass itself covered.
+
 Every visual/interaction claim in this document — the rebrand actually
 rendering correctly, the mobile card layouts actually being usable at
 390px, the brand-accent selected states actually looking coherent, the

@@ -31,6 +31,17 @@ documentation.
 
 ## 3. UAT result
 
+> **Superseded notice (post-Final-UI-UX-refinement + pre-UAT correction
+> pass):** the 20-flow checklist in §4 below was written against the
+> product as it existed at the close of Phase 5, before the Brand Fanatix
+> rebrand, the Final UI/UX refinement, and a mockup-placement product
+> change (artwork is no longer manually draggable — the print position is
+> now authoritative for placement). Several items below (free-drag
+> testing, Center/Reset position controls) describe behavior this build
+> no longer has. **`docs/CURRENT_UAT_PLAN.md` is now the authoritative
+> final browser-UAT checklist** for this build — use it instead. This
+> section is left intact as a historical record of Phase 5's own state.
+
 **BROWSER UAT NOT PERFORMED.** No browser automation tool (Playwright,
 Puppeteer, or equivalent) was available in this session — confirmed by
 searching the available toolset before starting, not assumed. Every UAT

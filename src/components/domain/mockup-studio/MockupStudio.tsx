@@ -209,9 +209,19 @@ export function MockupStudio() {
   const update = (patch: Partial<PrintSpecFormValues>) =>
     setValue(`printSpecs.${activeIndex}`, { ...spec, ...patch })
 
+  // Pre-UAT product decision: the selected print position is authoritative
+  // for placement — artwork always renders centered in its zone, never at
+  // a manually-dragged offset. `print_specs.offset_x`/`offset_y` remain in
+  // the database and on PrintSpecFormValues for backward compatibility
+  // (existing historical rows, no destructive migration), but are no
+  // longer read here — every spec, old or new, now renders centered.
+  // Rotation was already made non-interactive in an earlier pass (no UI
+  // control sets it, artwork always loads upright); rotationDeg is kept
+  // at its stored value (0 for every spec created since) rather than
+  // force-zeroed, since nothing can newly set it away from 0 going forward.
   const transform: MockupTransform = {
-    offsetX: spec.offsetX ?? 0,
-    offsetY: spec.offsetY ?? 0,
+    offsetX: 0,
+    offsetY: 0,
     rotationDeg: spec.rotationDeg ?? 0,
     widthMm: spec.widthMm,
     heightMm: spec.heightMm,
@@ -299,7 +309,6 @@ export function MockupStudio() {
                   zone={config}
                   artworkUrl={artworkPreviewable ? artwork?.previewUrl : undefined}
                   transform={transform}
-                  onTransformCommit={(t) => update(t)}
                   onArtworkAspectRatio={setAspectRatio}
                   onError={setCanvasError}
                 />
@@ -324,7 +333,7 @@ export function MockupStudio() {
           )}
           {artwork && (
             <p className="text-center text-[11px] text-zinc-400">
-              Sized automatically to fill this print position — drag to reposition.
+              Positioned and sized automatically for this print position.
             </p>
           )}
         </div>

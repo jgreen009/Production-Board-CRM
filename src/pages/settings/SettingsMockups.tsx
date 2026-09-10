@@ -50,8 +50,6 @@ export default function SettingsMockups() {
                   colour="Zinc"
                   view={t.view}
                   position={t.view === 'Front' ? 'Full Front' : 'Full Back'}
-                  offset={{ x: 0, y: 0 }}
-                  onOffsetChange={() => {}}
                   widthMm={0}
                   heightMm={0}
                   size={110}

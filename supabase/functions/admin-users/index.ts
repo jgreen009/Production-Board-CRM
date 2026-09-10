@@ -21,11 +21,40 @@ const TEMPORARY_PASSWORD = 'saltprints'
 
 const ADMIN_ROLES = new Set(['admin', 'owner'])
 
+// Pre-UAT fix: this function previously had NO CORS handling at all — no
+// `Access-Control-Allow-*` headers on any response, and a bare
+// `if (req.method !== 'POST') return 405` that also rejected the
+// browser's CORS preflight OPTIONS request. A browser calling
+// `supabase.functions.invoke()` always sends that OPTIONS preflight
+// first; with no CORS headers on the 405 response, the browser blocked
+// the real POST entirely and supabase-js surfaced it as "Failed to send
+// a request to the Edge Function" — indistinguishable from a network
+// failure. Direct curl/HTTP testing never triggers CORS (browsers alone
+// enforce it), which is exactly why every prior live-API verification in
+// this project passed while a real browser user could not create a user
+// at all. `*` is safe here specifically because every response requires
+// a valid bearer JWT to do anything privileged — origin restriction adds
+// no real security value on top of that, and pinning it to one deploy
+// origin would just break every other environment (Netlify previews,
+// localhost dev) that legitimately needs to call this function.
+const CORS_HEADERS = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+}
+
 function json(body: unknown, status: number): Response {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...CORS_HEADERS },
   })
+}
+
+// Safe, sanitized step logging only — action name, caller id/role, which
+// step was reached, and a sanitized error category. Never a password,
+// token, or the service-role key.
+function logStep(step: string, detail?: Record<string, unknown>) {
+  console.log(JSON.stringify({ fn: 'admin-users', step, ...detail }))
 }
 
 function adminClient() {
@@ -70,6 +99,7 @@ async function handleCreate(admin: ReturnType<typeof adminClient>, callerId: str
 
   if (!fullName || !email) return json({ error: 'Name and email are required' }, 400)
 
+  logStep('create_calling_auth_admin_api', { callerId })
   const { data: created, error: createError } = await admin.auth.admin.createUser({
     email,
     password: TEMPORARY_PASSWORD,
@@ -79,10 +109,12 @@ async function handleCreate(admin: ReturnType<typeof adminClient>, callerId: str
 
   if (createError || !created.user) {
     const isDuplicate = (createError?.message ?? '').toLowerCase().includes('already')
-    return json({ error: isDuplicate ? 'An account with this email already exists' : 'Failed to create user' }, 400)
+    logStep('create_auth_admin_api_failed', { errorCategory: isDuplicate ? 'duplicate_email' : (createError?.name ?? 'unknown') })
+    return json({ error: isDuplicate ? 'An account with this email already exists.' : 'Unable to create user. Please try again.' }, 400)
   }
 
   const newId = created.user.id
+  logStep('create_auth_user_created', { newId })
 
   // handle_new_user() already inserted a bare profile row (id/full_name/
   // email) via the AFTER INSERT trigger — this sets the fields it can't
@@ -93,12 +125,14 @@ async function handleCreate(admin: ReturnType<typeof adminClient>, callerId: str
     .eq('id', newId)
 
   if (profileError) {
+    logStep('create_profile_update_failed', { newId, errorCategory: profileError.code ?? 'unknown' })
     // Never leave an orphaned Auth user with no usable profile.
     await admin.auth.admin.deleteUser(newId)
-    return json({ error: 'Failed to set up the new user — please try again' }, 500)
+    return json({ error: 'Unable to create user. Please try again.' }, 500)
   }
 
   await logActivity(admin, callerId, newId, 'user_created', `User created: ${fullName}`)
+  logStep('create_succeeded', { newId })
   return json({ id: newId, fullName, email, role, isActive: true }, 200)
 }
 
@@ -191,19 +225,28 @@ async function handleResetPassword(admin: ReturnType<typeof adminClient>, caller
 }
 
 Deno.serve(async (req: Request) => {
+  // The browser's CORS preflight — must succeed with the CORS headers
+  // present, or the browser never sends the actual POST at all.
+  if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS_HEADERS })
   if (req.method !== 'POST') return json({ error: 'Method not allowed' }, 405)
 
   try {
     const authHeader = req.headers.get('Authorization') ?? ''
     const token = authHeader.replace(/^Bearer\s+/i, '')
-    if (!token) return json({ error: 'Missing authorization' }, 401)
+    if (!token) {
+      logStep('missing_authorization')
+      return json({ error: 'Missing authorization' }, 401)
+    }
 
     const admin = adminClient()
 
     // Resolve the caller from their own JWT, server-side — never trust
     // any identity claim in the request body.
     const { data: callerAuth, error: callerAuthError } = await admin.auth.getUser(token)
-    if (callerAuthError || !callerAuth.user) return json({ error: 'Unauthorized' }, 401)
+    if (callerAuthError || !callerAuth.user) {
+      logStep('caller_jwt_invalid', { errorCategory: callerAuthError?.name ?? 'no_user' })
+      return json({ error: 'Your session has expired. Please sign in again.' }, 401)
+    }
     const callerId = callerAuth.user.id
 
     const { data: callerProfile, error: callerProfileError } = await admin
@@ -212,11 +255,21 @@ Deno.serve(async (req: Request) => {
       .eq('id', callerId)
       .single()
 
-    if (callerProfileError || !callerProfile) return json({ error: 'Unauthorized' }, 403)
-    if (!callerProfile.is_active) return json({ error: 'Account inactive' }, 403)
-    if (!ADMIN_ROLES.has(callerProfile.role)) return json({ error: 'Forbidden' }, 403)
+    if (callerProfileError || !callerProfile) {
+      logStep('caller_profile_lookup_failed', { callerId })
+      return json({ error: 'Unauthorized' }, 403)
+    }
+    if (!callerProfile.is_active) {
+      logStep('caller_inactive', { callerId })
+      return json({ error: 'Your account is inactive.' }, 403)
+    }
+    if (!ADMIN_ROLES.has(callerProfile.role)) {
+      logStep('caller_not_admin', { callerId, callerRole: callerProfile.role })
+      return json({ error: 'You do not have permission to manage users.' }, 403)
+    }
 
     const body = (await req.json()) as RequestBody
+    logStep('authorized', { callerId, callerRole: callerProfile.role, action: body.action })
 
     switch (body.action) {
       case 'create':
@@ -230,10 +283,12 @@ Deno.serve(async (req: Request) => {
       case 'resetPassword':
         return await handleResetPassword(admin, callerId, body)
       default:
+        logStep('unknown_action', { action: body.action })
         return json({ error: 'Unknown action' }, 400)
     }
   } catch (err) {
+    logStep('unhandled_exception', { errorCategory: err instanceof Error ? err.name : typeof err })
     console.error(err)
-    return json({ error: 'Unexpected error' }, 500)
+    return json({ error: 'User Management service is temporarily unavailable. Please try again.' }, 500)
   }
 })

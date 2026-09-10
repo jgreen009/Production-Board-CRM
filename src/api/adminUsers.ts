@@ -1,3 +1,4 @@
+import { FunctionsFetchError, FunctionsHttpError, FunctionsRelayError } from '@supabase/supabase-js'
 import { supabase } from '@/lib/supabase'
 import type { Profile } from '@/api/auth'
 
@@ -39,11 +40,44 @@ export async function listUsers(): Promise<AdminUserRow[]> {
   return (data ?? []).map(mapProfileRow)
 }
 
+// The admin-users function always returns a real HTTP status code on
+// failure (400/401/403/404/500 with a JSON `{ error }` body), never a 200
+// with an error field inside it — so supabase-js never populates `data`
+// on failure; it throws a `FunctionsHttpError` whose JSON body lives on
+// `error.context` (a Response) instead. The previous `data.error` check
+// here was dead code that could never fire against this function's
+// actual response shape. This also distinguishes the CORS/network
+// failure case (`FunctionsFetchError` — the one that previously surfaced
+// to staff as the raw, meaningless "Failed to send a request to the Edge
+// Function") from a real server-side rejection, so each gets its own
+// safe, specific message instead of a raw fetch error leaking through.
 async function invokeAdminUsers<T>(body: Record<string, unknown>): Promise<T> {
-  const { data, error } = await supabase.functions.invoke<T & { error?: string }>('admin-users', { body })
-  if (error) throw error
-  if (data && 'error' in data && data.error) throw new Error(data.error)
+  const { data, error } = await supabase.functions.invoke<T>('admin-users', { body })
+
+  if (error) {
+    if (error instanceof FunctionsHttpError) {
+      const serverMessage = await readServerErrorMessage(error)
+      throw new Error(serverMessage ?? 'Unable to complete this action. Please try again.')
+    }
+    if (error instanceof FunctionsFetchError) {
+      throw new Error('Unable to reach the User Management service. Check your connection and try again.')
+    }
+    if (error instanceof FunctionsRelayError) {
+      throw new Error('User Management service is temporarily unavailable. Please try again.')
+    }
+    throw new Error('Something went wrong. Please try again.')
+  }
+
   return data as T
+}
+
+async function readServerErrorMessage(error: FunctionsHttpError): Promise<string | null> {
+  try {
+    const body = await error.context.clone().json()
+    return typeof body?.error === 'string' ? body.error : null
+  } catch {
+    return null
+  }
 }
 
 export async function createUser(input: { fullName: string; email: string; role: 'admin' | 'staff' }): Promise<AdminUserRow> {

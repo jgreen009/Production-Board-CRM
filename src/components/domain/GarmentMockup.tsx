@@ -1,14 +1,7 @@
-import { useRef } from 'react'
-import type { PointerEvent as ReactPointerEvent } from 'react'
 import type { GarmentType, PrintPosition } from '@/types'
 import { getPrintZone } from '@/config/printZones'
 import { GARMENT_VIEW_BOX, getGarmentImage, getGarmentShapeStyle, getGarmentShapes, getGarmentTemplate } from '@/config/garmentTemplates'
 import { resolveGarmentColour } from '@/utils/colour'
-
-export interface MockupOffset {
-  x: number
-  y: number
-}
 
 interface GarmentMockupProps {
   garmentType: GarmentType
@@ -18,8 +11,6 @@ interface GarmentMockupProps {
   artworkUrl?: string
   widthMm: number
   heightMm: number
-  offset: MockupOffset
-  onOffsetChange: (offset: MockupOffset) => void
   size?: number
 }
 
@@ -31,6 +22,15 @@ function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value))
 }
 
+// A lightweight, read-only silhouette fallback for surfaces that must never
+// import Fabric (Order Detail before a real preview exists, Settings
+// Mockup Templates). Pre-UAT product decision: the print position is
+// authoritative for placement everywhere in the app now, so this always
+// renders centered in its zone — it used to accept a draggable offset
+// (both of its two call sites passed a no-op onOffsetChange, so nothing
+// was ever actually persisted from it; the drag affordance was already
+// non-functional, just visually misleading — removed along with the
+// dead prop rather than left wired to nothing).
 export function GarmentMockup({
   garmentType,
   colour,
@@ -39,20 +39,10 @@ export function GarmentMockup({
   artworkUrl,
   widthMm,
   heightMm,
-  offset,
-  onOffsetChange,
   size = 260,
 }: GarmentMockupProps) {
-  const containerRef = useRef<HTMLDivElement>(null)
-  const dragging = useRef<{ startX: number; startY: number; startOffset: MockupOffset } | null>(null)
-
   const template = getGarmentTemplate(garmentType)
   const zone = getPrintZone(position)
-  // GarmentMockup still works in center-point coordinates (this component's
-  // drag/clamp math predates the Phase 3 print-zone reshape and is left
-  // as-is here — replacing it is Milestone 3/4's job, not Milestone 1's
-  // architecture-only scope). Center is derived from the zone's top-left
-  // box shape so behavior is unchanged even though the config shape is new.
   const zoneCenter = { x: zone.xPct + zone.widthPct / 2, y: zone.yPct + zone.heightPct / 2 }
   const base = template.printAnchorOverride ?? zoneCenter
   const visible = template.printAnchorOverride ? true : isPositionVisible(position, view)
@@ -70,38 +60,13 @@ export function GarmentMockup({
   const artHeightPct = clamp(heightMm * 0.15, 8, maxHeightPct)
 
   const CANVAS_MARGIN_PCT = 2
-  const rawX = base.x + offset.x
-  const rawY = base.y + offset.y + (template.verticalOffsetPct ?? 0)
+  const rawX = base.x
+  const rawY = base.y + (template.verticalOffsetPct ?? 0)
   const artX = clamp(rawX, CANVAS_MARGIN_PCT + artWidthPct / 2, 100 - CANVAS_MARGIN_PCT - artWidthPct / 2)
   const artY = clamp(rawY, CANVAS_MARGIN_PCT + artHeightPct / 2, 100 - CANVAS_MARGIN_PCT - artHeightPct / 2)
 
-  const handlePointerDown = (e: ReactPointerEvent<HTMLImageElement>) => {
-    e.currentTarget.setPointerCapture(e.pointerId)
-    dragging.current = { startX: e.clientX, startY: e.clientY, startOffset: offset }
-  }
-
-  const handlePointerMove = (e: ReactPointerEvent<HTMLImageElement>) => {
-    if (!dragging.current || !containerRef.current) return
-    const rect = containerRef.current.getBoundingClientRect()
-    const dxPct = ((e.clientX - dragging.current.startX) / rect.width) * 100
-    const dyPct = ((e.clientY - dragging.current.startY) / rect.height) * 100
-    onOffsetChange({
-      x: clamp(dragging.current.startOffset.x + dxPct, -40, 40),
-      y: clamp(dragging.current.startOffset.y + dyPct, -40, 40),
-    })
-  }
-
-  const handlePointerUp = (e: ReactPointerEvent<HTMLImageElement>) => {
-    e.currentTarget.releasePointerCapture(e.pointerId)
-    dragging.current = null
-  }
-
   return (
-    <div
-      ref={containerRef}
-      className="relative mx-auto select-none"
-      style={{ width: size }}
-    >
+    <div className="relative mx-auto select-none" style={{ width: size }}>
       {garmentImage ? (
         <img
           src={garmentImage}
@@ -128,10 +93,7 @@ export function GarmentMockup({
         <img
           src={artworkUrl}
           alt="Artwork placement"
-          onPointerDown={handlePointerDown}
-          onPointerMove={handlePointerMove}
-          onPointerUp={handlePointerUp}
-          className="absolute cursor-grab touch-none rounded-sm object-contain active:cursor-grabbing"
+          className="pointer-events-none absolute rounded-sm object-contain"
           style={{
             left: `${artX}%`,
             top: `${artY}%`,
@@ -143,7 +105,7 @@ export function GarmentMockup({
       )}
       {visible && !artworkUrl && (
         <div
-          className="absolute rounded-sm border-2 border-dashed border-zinc-900/30"
+          className="pointer-events-none absolute rounded-sm border-2 border-dashed border-zinc-900/30"
           style={{
             left: `${artX}%`,
             top: `${artY}%`,

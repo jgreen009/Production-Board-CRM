@@ -1,21 +1,30 @@
-import { forwardRef, useEffect, useImperativeHandle, useRef } from 'react'
+import { useEffect, useRef } from 'react'
 import * as fabric from 'fabric'
 import type { GarmentType } from '@/types'
 import type { PrintZone } from '@/config/printZones'
 import { garmentTemplateToDataUrl } from '@/config/garmentTemplates'
-import {
-  canvasPositionToZoneOffset,
-  normalizeRotationDeg,
-  physicalSizeToPixelSize,
-  pixelWidthToPhysicalWidth,
-  zoneBoxPx,
-  zoneOffsetToCanvasPosition,
-} from '@/utils/mockupGeometry'
-import { heightMmFromWidth } from '@/utils/printSizeConversion'
+import { physicalSizeToPixelSize, zoneBoxPx, zoneOffsetToCanvasPosition } from '@/utils/mockupGeometry'
 
 // Phase 3 Batch A — the real interactive Mockup Studio canvas, replacing
 // the Milestone 1 architectural spike. Editing-only: read-only surfaces
 // (Order Detail, etc.) keep using the lightweight GarmentMockup renderer.
+//
+// Pre-UAT product decision: the selected print position is now
+// authoritative for artwork placement — staff no longer drag artwork
+// around the garment. This component is a pure renderer: it draws the
+// garment, the zone guide, and the artwork at the position/size the
+// canonical `transform` prop (and the zone it's rendered against)
+// dictate, and never writes anything back. Resize (via Fabric handles)
+// and rotation were already made non-interactive in an earlier pass
+// (auto-fit sizing, always-upright artwork); this removes the one
+// remaining interactive gesture (drag) and the now-fully-unreachable
+// imperative center/reset handle that went with it — nothing called it
+// (no `ref` was ever passed to this component from MockupStudio), and
+// keeping it would misleadingly imply a movement model that no longer
+// exists. `offsetX`/`offsetY` remain on `MockupTransform` and the
+// `print_specs` table for backward compatibility (existing historical
+// data), but this renderer center the artwork within its zone
+// deterministically — see MockupStudio.tsx.
 
 export interface MockupTransform {
   offsetX: number
@@ -23,14 +32,6 @@ export interface MockupTransform {
   rotationDeg: number
   widthMm: number
   heightMm: number
-}
-
-export interface MockupCanvasHandle {
-  centerHorizontally: () => void
-  centerVertically: () => void
-  resetPosition: () => void
-  resetRotation: () => void
-  resetSize: (widthMm: number) => void
 }
 
 interface MockupCanvasProps {
@@ -42,36 +43,39 @@ interface MockupCanvasProps {
   zone: PrintZone
   /** Signed/object URL for previewable artwork — undefined shows the zone guide with no artwork. */
   artworkUrl?: string
-  /** Canonical PrintSpec transform — the single source of truth this canvas renders from. */
+  /** Canonical PrintSpec transform — the single source of truth this canvas renders from. Never written back. */
   transform: MockupTransform
-  /** Fires once a drag/resize/rotate interaction completes, with the recomputed canonical transform. */
-  onTransformCommit: (transform: MockupTransform) => void
   /** Reports the loaded artwork's intrinsic aspect ratio (width/height), or null while none is loaded. */
   onArtworkAspectRatio?: (ratio: number | null) => void
   onError?: (message: string) => void
 }
 
-export const MockupCanvas = forwardRef<MockupCanvasHandle, MockupCanvasProps>(function MockupCanvas(
-  { width, height, garmentType, garmentColour, view, zone, artworkUrl, transform, onTransformCommit, onArtworkAspectRatio, onError },
-  ref,
-) {
+export function MockupCanvas({
+  width,
+  height,
+  garmentType,
+  garmentColour,
+  view,
+  zone,
+  artworkUrl,
+  transform,
+  onArtworkAspectRatio,
+  onError,
+}: MockupCanvasProps) {
   const canvasElRef = useRef<HTMLCanvasElement>(null)
   const fabricCanvasRef = useRef<fabric.Canvas | null>(null)
   const artworkObjectRef = useRef<fabric.FabricImage | null>(null)
   const guideRectRef = useRef<fabric.Rect | null>(null)
-  const aspectRatioRef = useRef<number | null>(null)
 
   // Latest-value refs so the init effect (which must run once) and the
   // async image-load effects always see current props without re-creating
   // the Fabric canvas or re-subscribing listeners on every prop change.
   const zoneRef = useRef(zone)
   const transformRef = useRef(transform)
-  const onTransformCommitRef = useRef(onTransformCommit)
   const onArtworkAspectRatioRef = useRef(onArtworkAspectRatio)
   const onErrorRef = useRef(onError)
   zoneRef.current = zone
   transformRef.current = transform
-  onTransformCommitRef.current = onTransformCommit
   onArtworkAspectRatioRef.current = onArtworkAspectRatio
   onErrorRef.current = onError
 
@@ -86,9 +90,8 @@ export const MockupCanvas = forwardRef<MockupCanvasHandle, MockupCanvasProps>(fu
 
   // Rebuilds the artwork object's on-canvas position/size/rotation purely
   // from the canonical transform + current zone/canvas size — never the
-  // other way around. Fabric's own .set() does not fire 'object:modified',
-  // so calling this from a prop-sync effect can never trigger a feedback
-  // loop back into onTransformCommit.
+  // other way around. The artwork object is non-interactive (see below),
+  // so this is the ONLY thing that ever moves, sizes, or rotates it.
   function syncArtworkTransform() {
     const canvas = fabricCanvasRef.current
     const obj = artworkObjectRef.current
@@ -109,19 +112,6 @@ export const MockupCanvas = forwardRef<MockupCanvasHandle, MockupCanvasProps>(fu
       scaleY: size.heightPx / naturalHeight,
     })
     obj.setCoords()
-  }
-
-  function commitFromFabricObject() {
-    const canvas = fabricCanvasRef.current
-    const obj = artworkObjectRef.current
-    if (!canvas || !obj) return
-    const zonePx = zoneBoxPx(zoneRef.current, canvas.getWidth(), canvas.getHeight())
-    const { offsetX, offsetY } = canvasPositionToZoneOffset({ left: obj.left ?? 0, top: obj.top ?? 0 }, zonePx)
-    const widthMm = pixelWidthToPhysicalWidth(obj.getScaledWidth(), zoneRef.current, zonePx)
-    const aspectRatio = aspectRatioRef.current ?? 1
-    const heightMm = heightMmFromWidth(widthMm, aspectRatio)
-    const rotationDeg = normalizeRotationDeg(obj.angle ?? 0)
-    onTransformCommitRef.current({ offsetX, offsetY, rotationDeg, widthMm, heightMm })
   }
 
   // Canvas init — runs once. Fabric init failure is caught so a broken
@@ -155,10 +145,7 @@ export const MockupCanvas = forwardRef<MockupCanvasHandle, MockupCanvasProps>(fu
     guideRectRef.current = guide
     syncGuide()
 
-    canvas.on('object:modified', commitFromFabricObject)
-
     return () => {
-      canvas.off('object:modified', commitFromFabricObject)
       canvas.dispose()
       fabricCanvasRef.current = null
       artworkObjectRef.current = null
@@ -227,7 +214,6 @@ export const MockupCanvas = forwardRef<MockupCanvasHandle, MockupCanvasProps>(fu
       canvas.remove(artworkObjectRef.current)
       artworkObjectRef.current = null
     }
-    aspectRatioRef.current = null
     onArtworkAspectRatioRef.current?.(null)
     canvas.requestRenderAll()
 
@@ -237,36 +223,24 @@ export const MockupCanvas = forwardRef<MockupCanvasHandle, MockupCanvasProps>(fu
       try {
         const img = await fabric.FabricImage.fromURL(artworkUrl, { crossOrigin: 'anonymous' })
         if (cancelled) return
+        // The print position is authoritative for placement — artwork is
+        // never draggable, resizable via handles, or rotatable by hand.
+        // `selectable: false` + `evented: false` make it fully inert to
+        // mouse/touch input (no click-to-select, no drag, no handles ever
+        // rendered); position/size/rotation only ever change by re-running
+        // syncArtworkTransform() from the canonical transform prop below.
         img.set({
           originX: 'center',
           originY: 'center',
-          cornerSize: 12,
-          touchCornerSize: 26,
-          cornerStyle: 'circle',
-          transparentCorners: false,
-          cornerColor: '#18181b',
-          borderColor: '#18181b',
-          lockScalingX: true,
-          lockScalingY: true,
-          lockRotation: true,
-        })
-        // Neither resizing nor rotation is a manual action any more —
-        // artwork is auto-sized to fill its print zone the moment it loads
-        // (see MockupStudio's fitArtworkToZone effect) and always renders
-        // upright, so every scale handle AND the rotation handle (mtr) are
-        // hidden. Dragging to reposition is the only remaining gesture.
-        img.setControlsVisibility({
-          ml: false, mr: false, mt: false, mb: false,
-          tl: false, tr: false, bl: false, br: false,
-          mtr: false,
+          selectable: false,
+          evented: false,
+          hasControls: false,
+          hasBorders: false,
         })
         canvas.add(img)
         artworkObjectRef.current = img
-        const ratio = (img.width || 1) / (img.height || 1)
-        aspectRatioRef.current = ratio
-        onArtworkAspectRatioRef.current?.(ratio)
+        onArtworkAspectRatioRef.current?.((img.width || 1) / (img.height || 1))
         syncArtworkTransform()
-        canvas.setActiveObject(img)
         canvas.requestRenderAll()
       } catch {
         if (!cancelled) onErrorRef.current?.('Could not load this artwork preview.')
@@ -281,7 +255,7 @@ export const MockupCanvas = forwardRef<MockupCanvasHandle, MockupCanvasProps>(fu
 
   // Re-sync position/size/rotation whenever the canonical transform prop
   // changes — covers switching PrintSpec (rehydrate from the newly active
-  // spec) and manual mm/rotation edits from the surrounding form controls.
+  // spec) and a physical-size change from the surrounding form.
   useEffect(() => {
     syncArtworkTransform()
     fabricCanvasRef.current?.requestRenderAll()
@@ -299,40 +273,5 @@ export const MockupCanvas = forwardRef<MockupCanvasHandle, MockupCanvasProps>(fu
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [zone])
 
-  useImperativeHandle(ref, () => ({
-    centerHorizontally: () => {
-      const canvas = fabricCanvasRef.current
-      const obj = artworkObjectRef.current
-      if (!canvas || !obj) return
-      const zonePx = zoneBoxPx(zoneRef.current, canvas.getWidth(), canvas.getHeight())
-      obj.set({ left: zonePx.x + zonePx.width / 2 })
-      obj.setCoords()
-      canvas.requestRenderAll()
-      const { offsetX, offsetY } = canvasPositionToZoneOffset({ left: obj.left ?? 0, top: obj.top ?? 0 }, zonePx)
-      onTransformCommitRef.current({ ...transformRef.current, offsetX, offsetY })
-    },
-    centerVertically: () => {
-      const canvas = fabricCanvasRef.current
-      const obj = artworkObjectRef.current
-      if (!canvas || !obj) return
-      const zonePx = zoneBoxPx(zoneRef.current, canvas.getWidth(), canvas.getHeight())
-      obj.set({ top: zonePx.y + zonePx.height / 2 })
-      obj.setCoords()
-      canvas.requestRenderAll()
-      const { offsetX, offsetY } = canvasPositionToZoneOffset({ left: obj.left ?? 0, top: obj.top ?? 0 }, zonePx)
-      onTransformCommitRef.current({ ...transformRef.current, offsetX, offsetY })
-    },
-    resetPosition: () => {
-      onTransformCommitRef.current({ ...transformRef.current, offsetX: 0, offsetY: 0 })
-    },
-    resetRotation: () => {
-      onTransformCommitRef.current({ ...transformRef.current, rotationDeg: 0 })
-    },
-    resetSize: (widthMm: number) => {
-      const aspectRatio = aspectRatioRef.current ?? 1
-      onTransformCommitRef.current({ ...transformRef.current, widthMm, heightMm: heightMmFromWidth(widthMm, aspectRatio) })
-    },
-  }))
-
   return <canvas ref={canvasElRef} width={width} height={height} role="img" aria-label="Mockup preview canvas" />
-})
+}

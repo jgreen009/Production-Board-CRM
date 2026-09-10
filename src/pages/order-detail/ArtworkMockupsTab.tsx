@@ -89,8 +89,6 @@ export function ArtworkMockupsTab({ order }: { order: Order }) {
                           artworkUrl={artwork?.previewUrl ?? (artwork ? artworkPreviewUrls[artwork.id] : undefined)}
                           widthMm={spec.widthMm}
                           heightMm={spec.heightMm}
-                          offset={{ x: spec.offsetX ?? 0, y: spec.offsetY ?? 0 }}
-                          onOffsetChange={() => {}}
                           size={110}
                         />
                         <p className="text-[10px] text-zinc-400">No saved preview yet — save the order to generate one.</p>

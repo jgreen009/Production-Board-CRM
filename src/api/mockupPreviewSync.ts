@@ -111,8 +111,13 @@ export async function syncMockupPreviewsForOrder({
         view: zone.view,
         zone,
         artworkUrl,
-        offsetX: spec.offsetX ?? 0,
-        offsetY: spec.offsetY ?? 0,
+        // Pre-UAT product decision: print position is authoritative for
+        // placement, not a stored drag offset (see MockupStudio.tsx) — the
+        // saved preview must match what staff actually saw in the editor
+        // (always centered), including when regenerating a preview for an
+        // older spec that has a historical non-zero offset on file.
+        offsetX: 0,
+        offsetY: 0,
         rotationDeg: spec.rotationDeg ?? 0,
         widthMm: spec.widthMm,
         heightMm: spec.heightMm,
