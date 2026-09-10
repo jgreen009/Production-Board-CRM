@@ -111,12 +111,15 @@ export default function SettingsUsers() {
         <ArrowLeft size={14} /> Back to Settings
       </button>
 
-      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <PageHeader title="User Management" description="Brand Fanatix staff accounts, roles, and access" />
-        <Button type="button" variant="primary" onClick={() => setDialog({ mode: 'create' })}>
-          <Plus size={14} /> Add User
-        </Button>
-      </div>
+      <PageHeader
+        title="User Management"
+        description="Brand Fanatix staff accounts, roles, and access"
+        actions={
+          <Button type="button" variant="primary" onClick={() => setDialog({ mode: 'create' })}>
+            <Plus size={14} /> Add User
+          </Button>
+        }
+      />
 
       <div className="mb-3 max-w-xs">
         <Input
@@ -134,50 +137,92 @@ export default function SettingsUsers() {
             <EmptyState icon={UserCog} title="No users found" description="Try a different search, or add a new user." />
           </div>
         ) : (
-          <CardBody className="overflow-x-auto p-0">
-            <table className="w-full text-left text-sm">
-              <thead>
-                <tr className="border-b border-zinc-100 text-xs text-zinc-400">
-                  <th className="px-4 py-2 font-medium">Name</th>
-                  <th className="px-4 py-2 font-medium">Email</th>
-                  <th className="px-4 py-2 font-medium">Role</th>
-                  <th className="px-4 py-2 font-medium">Status</th>
-                  <th className="px-4 py-2 font-medium">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filtered.map((user) => (
-                  <tr key={user.id} className="border-b border-zinc-50 last:border-0">
-                    <td className="px-4 py-2.5 font-medium text-zinc-800">{user.fullName || '—'}</td>
-                    <td className="px-4 py-2.5 text-zinc-600">{user.email || '—'}</td>
-                    <td className="px-4 py-2.5">
-                      <Badge className={user.role === 'staff' ? 'border-zinc-200 bg-zinc-50 text-zinc-600' : 'border-indigo-200 bg-indigo-50 text-indigo-700'}>
-                        {user.role === 'owner' ? 'Admin' : user.role === 'admin' ? 'Admin' : 'Staff'}
-                      </Badge>
-                    </td>
-                    <td className="px-4 py-2.5">
-                      <Badge className={user.isActive ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-zinc-200 bg-zinc-100 text-zinc-500'}>
-                        {user.isActive ? 'Active' : 'Inactive'}
-                      </Badge>
-                    </td>
-                    <td className="px-4 py-2.5">
-                      <div className="flex flex-wrap gap-1.5">
-                        <Button type="button" variant="secondary" size="sm" onClick={() => setDialog({ mode: 'edit', user })}>
-                          Edit
-                        </Button>
-                        <Button type="button" variant="secondary" size="sm" onClick={() => handleToggleActive(user)}>
-                          {user.isActive ? 'Deactivate' : 'Activate'}
-                        </Button>
-                        <Button type="button" variant="secondary" size="sm" onClick={() => setPendingReset(user)}>
-                          <KeyRound size={12} /> Reset Password
-                        </Button>
-                      </div>
-                    </td>
+          <>
+            {/* Mobile (<md): stacked cards — the table below is hard to scan at 390px, so
+                each row becomes a card with name/role/status prominent and actions in a
+                compact row. Same data, same handlers as the table; no logic duplicated. */}
+            <CardBody className="flex flex-col gap-2 p-3 md:hidden">
+              {filtered.map((user) => (
+                <div key={user.id} className="rounded-lg border border-zinc-200 p-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-medium text-zinc-800">{user.fullName || '—'}</p>
+                      <p className="truncate text-xs text-zinc-500">{user.email || '—'}</p>
+                    </div>
+                    <div className="flex shrink-0 items-center gap-1.5">
+                      <RoleBadge role={user.role} />
+                      <StatusBadge active={user.isActive} />
+                    </div>
+                  </div>
+                  <div className="mt-3 flex flex-wrap gap-1.5">
+                    <Button type="button" variant="secondary" size="sm" onClick={() => setDialog({ mode: 'edit', user })}>
+                      Edit
+                    </Button>
+                    <Button type="button" variant="secondary" size="sm" onClick={() => setPendingReset(user)}>
+                      <KeyRound size={12} /> Reset Password
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      size="sm"
+                      className={user.isActive ? 'border-danger/25 text-danger hover:bg-danger-soft' : undefined}
+                      onClick={() => handleToggleActive(user)}
+                    >
+                      {user.isActive ? 'Deactivate' : 'Activate'}
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </CardBody>
+
+            {/* Desktop (md+): standard table */}
+            <CardBody className="hidden overflow-x-auto p-0 md:block">
+              <table className="w-full text-left text-sm">
+                <thead>
+                  <tr className="border-b border-zinc-100 text-xs text-zinc-400">
+                    <th className="px-4 py-2 font-medium">Name</th>
+                    <th className="px-4 py-2 font-medium">Email</th>
+                    <th className="px-4 py-2 font-medium">Role</th>
+                    <th className="px-4 py-2 font-medium">Status</th>
+                    <th className="px-4 py-2 font-medium">Actions</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </CardBody>
+                </thead>
+                <tbody>
+                  {filtered.map((user) => (
+                    <tr key={user.id} className="border-b border-zinc-50 last:border-0">
+                      <td className="px-4 py-2.5 font-medium text-zinc-800">{user.fullName || '—'}</td>
+                      <td className="px-4 py-2.5 text-zinc-600">{user.email || '—'}</td>
+                      <td className="px-4 py-2.5">
+                        <RoleBadge role={user.role} />
+                      </td>
+                      <td className="px-4 py-2.5">
+                        <StatusBadge active={user.isActive} />
+                      </td>
+                      <td className="px-4 py-2.5">
+                        <div className="flex flex-wrap gap-1.5">
+                          <Button type="button" variant="secondary" size="sm" onClick={() => setDialog({ mode: 'edit', user })}>
+                            Edit
+                          </Button>
+                          <Button type="button" variant="secondary" size="sm" onClick={() => setPendingReset(user)}>
+                            <KeyRound size={12} /> Reset Password
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="secondary"
+                            size="sm"
+                            className={user.isActive ? 'border-danger/25 text-danger hover:bg-danger-soft' : undefined}
+                            onClick={() => handleToggleActive(user)}
+                          >
+                            {user.isActive ? 'Deactivate' : 'Activate'}
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </CardBody>
+          </>
         )}
       </Card>
 
@@ -315,7 +360,7 @@ function UserFormDialog({
             </p>
           )}
 
-          {error && <p className="text-xs text-red-600">{error}</p>}
+          {error && <p className="text-xs text-danger">{error}</p>}
 
           <div className="mt-1 flex justify-end gap-2">
             <Button type="button" variant="ghost" onClick={onClose}>Cancel</Button>
@@ -326,5 +371,22 @@ function UserFormDialog({
         </form>
       </div>
     </div>
+  )
+}
+
+function RoleBadge({ role }: { role: AdminUserRow['role'] }) {
+  const isAdmin = role === 'admin' || role === 'owner'
+  return (
+    <Badge className={isAdmin ? 'border-info/20 bg-info-soft text-info' : 'border-zinc-200 bg-zinc-100 text-zinc-600'}>
+      {isAdmin ? 'Admin' : 'Staff'}
+    </Badge>
+  )
+}
+
+function StatusBadge({ active }: { active: boolean }) {
+  return (
+    <Badge className={active ? 'border-success/20 bg-success-soft text-success' : 'border-zinc-200 bg-zinc-100 text-zinc-500'}>
+      {active ? 'Active' : 'Inactive'}
+    </Badge>
   )
 }
