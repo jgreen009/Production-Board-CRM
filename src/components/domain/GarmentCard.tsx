@@ -43,7 +43,7 @@ export function GarmentCard({ garment, index, canRemove, onChange, onRemove, col
             <button
               type="button"
               onClick={onRemove}
-              className="rounded-md p-1.5 text-zinc-400 hover:bg-red-50 hover:text-red-600"
+              className="rounded-md p-2 text-zinc-400 hover:bg-danger-soft hover:text-danger"
               aria-label="Remove garment"
             >
               <Trash2 size={14} />
@@ -90,9 +90,9 @@ export function GarmentCard({ garment, index, canRemove, onChange, onRemove, col
             type="button"
             onClick={() => onChange({ ...garment, sizing })}
             className={clsx(
-              'rounded-md border px-3 py-1 text-xs font-medium',
+              'min-h-9 rounded-md border px-3 py-1.5 text-xs font-medium',
               garment.sizing === sizing
-                ? 'border-zinc-900 bg-zinc-900 text-white'
+                ? 'border-brand-accent bg-brand-accent-soft text-brand-accent'
                 : 'border-zinc-200 bg-white text-zinc-500 hover:border-zinc-300',
             )}
           >
@@ -113,7 +113,7 @@ export function GarmentCard({ garment, index, canRemove, onChange, onRemove, col
                 onChange({ ...garment, adultQuantities: { ...garment.adultQuantities, [size]: qty } })
               }
             />
-            <p className="mt-1.5 text-xs text-amber-600">
+            <p className="mt-1.5 text-xs text-warning">
               Extra cost applies to sizes 3XL–7XL.
             </p>
           </>
