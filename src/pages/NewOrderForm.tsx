@@ -98,7 +98,22 @@ export function OrderFormEditor({ orderId: existingOrderId, initialValues, previ
   // reorder-source activity; then performs the real save the caller
   // actually asked for. reorderArtworkCopiedRef guarantees this whole
   // block runs at most once per mount, however it's first triggered.
-  const performSave = async (values: OrderFormValues, finalize: boolean, generatePreviews?: boolean): Promise<string> => {
+  // performSave itself only ever runs one at a time — see the queue
+  // wrapper below. Concurrent callers (autosave's debounce timer firing at
+  // the same moment ArtworkSection calls ensureOrderId() directly, for
+  // instance — nothing about that path is debounced or otherwise
+  // coordinated with autosave) used to both reach here simultaneously and
+  // fire two real upsert_order RPC calls for the same order at once. Both
+  // do a "delete every print_specs/order_garments/order_services row for
+  // this order, then reinsert" using the SAME client-generated ids for
+  // any row that already existed — so two overlapping calls could each
+  // delete-then-reinsert a print_specs row with the same id, and whichever
+  // INSERT lost the race hit print_specs' primary key and came back as a
+  // live 409 (confirmed via Supabase's edge logs: a run of alternating
+  // 200/409 responses to rpc/upsert_order during exactly this kind of
+  // rapid-fire interaction), surfaced to the user as "Failed to start
+  // this order — try again".
+  const runSaveNow = async (values: OrderFormValues, finalize: boolean, generatePreviews?: boolean): Promise<string> => {
     const needsReorderArtworkCopy = !!reorderFrom && !orderIdRef.current && !reorderArtworkCopiedRef.current
     if (!needsReorderArtworkCopy) {
       return upsertOrder.mutateAsync({ values, orderId: orderIdRef.current, finalize, generatePreviews })
@@ -135,6 +150,23 @@ export function OrderFormEditor({ orderId: existingOrderId, initialValues, previ
     } finally {
       setReorderCopyInFlight(false)
     }
+  }
+
+  // Serializes every call to runSaveNow, whichever entry point triggers
+  // it (autosave, ensureOrderId, Save Draft, Create Order/Save Changes) —
+  // a new call always waits for whatever's currently in flight to settle
+  // first instead of firing a second, overlapping RPC call for the same
+  // order. This is the actual fix for the print_specs-id race above; it
+  // does not change what any caller does, only guarantees they can never
+  // run concurrently with each other.
+  const saveQueueRef = useRef<Promise<unknown>>(Promise.resolve())
+  const performSave = (values: OrderFormValues, finalize: boolean, generatePreviews?: boolean): Promise<string> => {
+    const queued = saveQueueRef.current.catch(() => {}).then(() => runSaveNow(values, finalize, generatePreviews))
+    // Swallow here too so one save's rejection never poisons the queue for
+    // the next caller — each caller still gets its own real result/error
+    // from the `queued` promise it awaits below.
+    saveQueueRef.current = queued.catch(() => {})
+    return queued
   }
 
   // Background autosave — create and resume-draft only (a Draft row,

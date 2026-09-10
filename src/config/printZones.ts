@@ -34,8 +34,15 @@ export interface PrintZone {
 // threshold, not a hard clamp. Placement may exceed them — the UI warns,
 // it never silently clips (unlike the old GarmentMockup.tsx behavior).
 export const PRINT_ZONES: PrintZone[] = [
-  { position: 'Left Chest', label: 'Left Chest', view: 'Front', xPct: 34, yPct: 19, widthPct: 16, heightPct: 20, refWidthMm: 150 },
-  { position: 'Right Chest', label: 'Right Chest', view: 'Front', xPct: 50, yPct: 19, widthPct: 16, heightPct: 20, refWidthMm: 150 },
+  // Left/Right Chest recalibrated per staff feedback: the box was too tall
+  // (nearly square) for a real chest-logo print area, and it spanned all
+  // the way out to xPct 34/66 with only its inner edge touching the
+  // centerline — which reads as "way over toward the shoulder" rather
+  // than the few-inches-off-center placement chest logos actually sit at.
+  // Narrower + shorter box, shifted inward so its center sits close to
+  // the middle instead of its edge.
+  { position: 'Left Chest', label: 'Left Chest', view: 'Front', xPct: 39, yPct: 19, widthPct: 11, heightPct: 13, refWidthMm: 150 },
+  { position: 'Right Chest', label: 'Right Chest', view: 'Front', xPct: 50, yPct: 19, widthPct: 11, heightPct: 13, refWidthMm: 150 },
   { position: 'Across Chest', label: 'Across Chest', view: 'Front', xPct: 30, yPct: 20, widthPct: 40, heightPct: 18, refWidthMm: 320 },
   { position: 'Full Front', label: 'Full Front', view: 'Front', xPct: 28, yPct: 27, widthPct: 44, heightPct: 46, refWidthMm: 350 },
   { position: 'Left Sleeve', label: 'Left Sleeve', view: 'Front', xPct: 17, yPct: 28, widthPct: 14, heightPct: 14, refWidthMm: 90 },
