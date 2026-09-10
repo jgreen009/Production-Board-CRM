@@ -95,7 +95,9 @@ export function ArtworkSection({ orderId, ensureOrderId }: ArtworkSectionProps) 
       )}
 
       {files.length === 0 && uploadingNames.length === 0 ? (
-        <EmptyState icon={Image} title="No artwork uploaded yet" description="Files added here become selectable in the print specs above." />
+        <div className="mt-2">
+          <EmptyState icon={Image} title="No artwork uploaded yet" description="Files added here become selectable in the print specs above." />
+        </div>
       ) : (
         <div className="mt-2 flex flex-col gap-2">
           {files.map((file) => (

@@ -35,7 +35,7 @@ export function GarmentsSection() {
 
   return (
     <div>
-      <div className="mb-3 flex items-center justify-between">
+      <div className="mb-3 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
         <div>
           <p className="text-sm font-medium text-zinc-700">Garments</p>
           <p className="text-xs text-zinc-400">One card per garment type, matching the paper form's adult and youth size tables.</p>
@@ -44,7 +44,7 @@ export function GarmentsSection() {
           Sub Total: <span className="text-zinc-900">{subTotal}</span>
         </span>
       </div>
-      {errors.garments?.message && <p className="mb-2 text-xs text-red-600">{errors.garments.message}</p>}
+      {errors.garments?.message && <p className="mb-2 text-xs font-medium text-danger">{errors.garments.message}</p>}
 
       <div className="flex flex-col gap-3">
         {fields.map((field, index) => (
@@ -64,7 +64,7 @@ export function GarmentsSection() {
         type="button"
         variant="secondary"
         size="sm"
-        className="mt-3 self-start"
+        className="mt-3 w-full self-start sm:w-auto"
         onClick={() => append(emptyGarment())}
       >
         <Plus size={14} />
