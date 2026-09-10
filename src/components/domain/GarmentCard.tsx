@@ -53,7 +53,7 @@ export function GarmentCard({ garment, index, canRemove, onChange, onRemove, col
       </div>
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-        <FormField label="Garment Type">
+        <FormField label="Garment Type" required>
           <Select
             value={garment.type}
             onChange={(e) => onChange({ ...garment, type: e.target.value })}
@@ -63,7 +63,7 @@ export function GarmentCard({ garment, index, canRemove, onChange, onRemove, col
             ))}
           </Select>
         </FormField>
-        <FormField label="Brand">
+        <FormField label="Brand" required>
           <Select
             value={garment.brand}
             onChange={(e) => onChange({ ...garment, brand: e.target.value })}
@@ -73,7 +73,7 @@ export function GarmentCard({ garment, index, canRemove, onChange, onRemove, col
             ))}
           </Select>
         </FormField>
-        <FormField label="Colour" error={colourError}>
+        <FormField label="Colour" required error={colourError}>
           <Input
             value={garment.colour}
             onChange={(e) => onChange({ ...garment, colour: e.target.value })}

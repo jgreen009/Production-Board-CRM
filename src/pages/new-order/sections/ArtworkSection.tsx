@@ -14,18 +14,24 @@ const PREVIEWABLE_TYPES = ['PNG', 'JPG', 'WEBP', 'SVG']
 
 interface ArtworkSectionProps {
   orderId: string | null
+  ensureOrderId: () => Promise<string>
 }
 
-export function ArtworkSection({ orderId }: ArtworkSectionProps) {
+export function ArtworkSection({ orderId, ensureOrderId }: ArtworkSectionProps) {
   const { watch, setValue } = useFormContext<OrderFormValues>()
   const { showToast } = useToast()
   const files = watch('artworkFiles')
   const [uploadingNames, setUploadingNames] = useState<string[]>([])
 
   const handleFilesSelected = async (selected: File[]) => {
-    if (!orderId) {
-      showToast('Enter a name above first — artwork needs an order to attach to.', 'info')
-      return
+    let currentOrderId = orderId
+    if (!currentOrderId) {
+      try {
+        currentOrderId = await ensureOrderId()
+      } catch (err) {
+        showToast(staffErrorMessage(err, 'Failed to start this order — try again'), 'info')
+        return
+      }
     }
 
     for (const file of selected) {
@@ -37,7 +43,7 @@ export function ArtworkSection({ orderId }: ArtworkSectionProps) {
 
       setUploadingNames((prev) => [...prev, file.name])
       try {
-        const artwork = await uploadArtwork(orderId, file)
+        const artwork = await uploadArtwork(currentOrderId, file)
         const previewUrl = PREVIEWABLE_TYPES.includes(artwork.fileType) ? URL.createObjectURL(file) : undefined
         setValue('artworkFiles', [
           ...watch('artworkFiles'),
@@ -76,11 +82,7 @@ export function ArtworkSection({ orderId }: ArtworkSectionProps) {
     <div>
       <p className="mb-1.5 text-sm font-medium text-zinc-700">Artwork & Files</p>
       <p className="mb-3 text-xs text-zinc-400">Upload the customer's artwork or design files for this job.</p>
-      <ArtworkUploader
-        onFilesSelected={handleFilesSelected}
-        disabled={!orderId}
-        disabledHint="Enter a name above to start attaching artwork"
-      />
+      <ArtworkUploader onFilesSelected={handleFilesSelected} />
 
       {uploadingNames.length > 0 && (
         <div className="mt-2 flex flex-col gap-1">

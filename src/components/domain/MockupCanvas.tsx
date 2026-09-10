@@ -143,7 +143,7 @@ export const MockupCanvas = forwardRef<MockupCanvasHandle, MockupCanvasProps>(fu
       width: 0,
       height: 0,
       fill: 'transparent',
-      stroke: 'rgba(37, 99, 235, 0.45)',
+      stroke: '#000000',
       strokeDashArray: [6, 4],
       strokeWidth: 1.5,
       selectable: false,
@@ -246,11 +246,20 @@ export const MockupCanvas = forwardRef<MockupCanvasHandle, MockupCanvasProps>(fu
           transparentCorners: false,
           cornerColor: '#18181b',
           borderColor: '#18181b',
+          lockScalingX: true,
+          lockScalingY: true,
+          lockRotation: true,
         })
-        // Aspect ratio is locked by only exposing corner controls (Fabric's
-        // corner drag already scales both axes together) — side/middle
-        // handles that would allow a one-axis stretch are hidden entirely.
-        img.setControlsVisibility({ ml: false, mr: false, mt: false, mb: false })
+        // Neither resizing nor rotation is a manual action any more —
+        // artwork is auto-sized to fill its print zone the moment it loads
+        // (see MockupStudio's fitArtworkToZone effect) and always renders
+        // upright, so every scale handle AND the rotation handle (mtr) are
+        // hidden. Dragging to reposition is the only remaining gesture.
+        img.setControlsVisibility({
+          ml: false, mr: false, mt: false, mb: false,
+          tl: false, tr: false, bl: false, br: false,
+          mtr: false,
+        })
         canvas.add(img)
         artworkObjectRef.current = img
         const ratio = (img.width || 1) / (img.height || 1)

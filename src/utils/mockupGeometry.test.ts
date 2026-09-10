@@ -1,10 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import {
   canvasPositionToZoneOffset,
+  fitArtworkToZone,
   isOverflowingZonePx,
   normalizeRotationDeg,
   physicalSizeToPixelSize,
   pixelWidthToPhysicalWidth,
+  zoneBoxMm,
   zoneBoxPx,
   zoneOffsetToCanvasPosition,
 } from './mockupGeometry'
@@ -106,6 +108,46 @@ describe('physicalSizeToPixelSize / pixelWidthToPhysicalWidth round-trip', () =>
     const frontSize = physicalSizeToPixelSize(widthMm, widthMm, fullFront, fullFrontZonePx)
     // same physical width, but relative to its own (larger) zone box, it should occupy a smaller fraction
     expect(chestSize.widthPx / zonePx.width).toBeGreaterThan(frontSize.widthPx / fullFrontZonePx.width)
+  })
+})
+
+describe('zoneBoxMm', () => {
+  it('width always equals refWidthMm; height derives from the box pixel aspect ratio', () => {
+    const box = zoneBoxMm(zone)
+    expect(box.widthMm).toBe(150)
+    expect(box.heightMm).toBeCloseTo(234.375, 5)
+  })
+
+  it('is independent of any particular reference canvas size', () => {
+    expect(zoneBoxMm(zone)).toEqual(zoneBoxMm(zone))
+  })
+})
+
+describe('fitArtworkToZone (auto-fill sizing)', () => {
+  it('width-constrains a relatively wide/square artwork to the zone width', () => {
+    const fit = fitArtworkToZone(zone, 1) // square
+    expect(fit.widthMm).toBeCloseTo(150, 8)
+    expect(fit.heightMm).toBeCloseTo(150, 8)
+  })
+
+  it('height-constrains a relatively tall artwork to the zone height', () => {
+    const fit = fitArtworkToZone(zone, 0.4) // taller than the box
+    expect(fit.heightMm).toBeCloseTo(234.375, 8)
+    expect(fit.widthMm).toBeCloseTo(234.375 * 0.4, 8)
+  })
+
+  it('never produces a size that overflows the zone box in either dimension', () => {
+    const box = zoneBoxMm(zone)
+    for (const aspectRatio of [0.1, 0.5, 0.64, 1, 2, 5]) {
+      const fit = fitArtworkToZone(zone, aspectRatio)
+      expect(fit.widthMm).toBeLessThanOrEqual(box.widthMm + 1e-8)
+      expect(fit.heightMm).toBeLessThanOrEqual(box.heightMm + 1e-8)
+    }
+  })
+
+  it('preserves the artwork aspect ratio exactly', () => {
+    const fit = fitArtworkToZone(zone, 0.75)
+    expect(fit.widthMm / fit.heightMm).toBeCloseTo(0.75, 8)
   })
 })
 

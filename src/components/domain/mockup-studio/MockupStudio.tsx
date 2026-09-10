@@ -5,21 +5,16 @@ import { ImageOff } from 'lucide-react'
 import type { OrderFormValues, PrintSpecFormValues } from '@/schemas/orderFormSchema'
 import type { GarmentType, PrintPosition } from '@/types'
 import { Button } from '@/components/ui/Button'
-import { FormField, Input, Select, Textarea } from '@/components/ui/Field'
+import { FormField, Textarea } from '@/components/ui/Field'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { ErrorBoundary } from '@/components/ui/ErrorBoundary'
 import { emptyPrintSpec } from '@/pages/new-order/defaultValues'
 import { PRINT_ZONES, getPrintZone } from '@/config/printZones'
-import { PRINT_SIZES } from '@/data/printSizes'
-import { useGarmentTypesSettings, useMockupTemplates } from '@/hooks/useSettings'
-import { selectableCatalogNames } from '@/utils/catalog'
-import { isOverflowingZonePx, physicalSizeToPixelSize, zoneBoxPx } from '@/utils/mockupGeometry'
-import { heightMmFromWidth } from '@/utils/printSizeConversion'
-import type { MockupCanvasHandle, MockupTransform } from '@/components/domain/MockupCanvas'
+import { fitArtworkToZone, isOverflowingZonePx, physicalSizeToPixelSize, zoneBoxPx } from '@/utils/mockupGeometry'
+import type { MockupTransform } from '@/components/domain/MockupCanvas'
 import { PrintSpecTabs } from './PrintSpecTabs'
 import { ArtworkSelector } from './ArtworkSelector'
-import { TransformControls } from './TransformControls'
 
 // Fabric.js only loads when the Mockup Studio actually mounts — Dashboard,
 // Customers, Orders List, Production Board never pull it in (Batch A
@@ -76,25 +71,19 @@ export function MockupStudio() {
   const printSpecs = watch('printSpecs')
   const garments = watch('garments')
   const artworkFiles = watch('artworkFiles')
-  const { data: garmentTypesCatalog = [] } = useGarmentTypesSettings()
-  const { data: mockupTemplates = [] } = useMockupTemplates()
 
   const [activeId, setActiveId] = useState<string | null>(fields[0]?.id ?? null)
   const [activeView, setActiveView] = useState<'Front' | 'Back'>(() => {
     const first = printSpecs[0]
     return first ? getPrintZone(first.position as PrintPosition).view : 'Front'
   })
-  const [aspectRatio, setAspectRatio] = useState<number | null>(null)
   const [canvasError, setCanvasError] = useState<string | null>(null)
-  // "Reset Size" restores whatever widthMm was in effect when this
-  // PrintSpec/artwork was loaded into the editor — a local session
-  // baseline, not a second persisted "original size" (Batch A "Reset Size
-  // Behaviour").
-  const [baselineWidthMm, setBaselineWidthMm] = useState<number>(0)
+  // Reported by MockupCanvas once the active spec's artwork image loads —
+  // drives the auto-fill effect below. null while none is loaded/known.
+  const [aspectRatio, setAspectRatio] = useState<number | null>(null)
 
-  const canvasRef = useRef<MockupCanvasHandle>(null)
   const { ref: containerRef, width: containerWidth } = useContainerWidth()
-  const canvasWidth = Math.min(containerWidth, 420)
+  const canvasWidth = Math.min(containerWidth, 360)
   const canvasHeight = Math.round((canvasWidth / 240) * 300)
 
   const activeIndex = fields.findIndex((f) => f.id === activeId)
@@ -110,20 +99,25 @@ export function MockupStudio() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [spec?.position])
 
-  // Deliberately does NOT reset `aspectRatio` on every spec switch: two
-  // different PrintSpecs can reference the same artworkId, in which case
-  // MockupCanvas's artwork-load effect (keyed on the resolved URL) never
-  // re-fires and never re-reports a ratio — the previously-known one is
-  // still correct and must not be discarded. MockupCanvas's own effect is
-  // the sole source of truth for this value, including reporting `null`
-  // whenever the newly active spec genuinely has no (or different)
-  // artwork. Only the session-local reset-size baseline and any stale
-  // error from a previous spec are cleared here.
+  // Clears any stale canvas error from a previously active spec.
   useEffect(() => {
     setCanvasError(null)
-    setBaselineWidthMm(spec?.widthMm ?? 0)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeId])
+
+  // Manual resizing is gone — artwork auto-fills its print position the
+  // moment an aspect ratio is known, and re-fills whenever the active
+  // spec's artwork or position changes (switching position re-fits to the
+  // new zone's box). "Contain" fit: the largest size that still fits
+  // entirely inside the zone, so it never overflows on its own.
+  useEffect(() => {
+    if (!spec || aspectRatio == null) return
+    const zone = getPrintZone(spec.position as PrintPosition)
+    const fit = fitArtworkToZone(zone, aspectRatio)
+    if (Math.abs(fit.widthMm - spec.widthMm) > 0.01 || Math.abs(fit.heightMm - spec.heightMm) > 0.01) {
+      setValue(`printSpecs.${activeIndex}`, { ...spec, widthMm: fit.widthMm, heightMm: fit.heightMm })
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [aspectRatio, activeId, spec?.position, spec?.artworkId])
 
   const { frontEntries, backEntries } = useMemo(() => {
     const front: { id: string; label: string }[] = []
@@ -135,13 +129,6 @@ export function MockupStudio() {
     })
     return { frontEntries: front, backEntries: back }
   }, [fields, printSpecs])
-
-  const previewGarmentOptions = (view: 'Front' | 'Back') => {
-    const activeForView = new Set(
-      mockupTemplates.filter((t) => t.view === view && t.active).map((t) => t.garmentTypeName),
-    )
-    return garmentTypesCatalog.map((g) => ({ name: g.name, active: g.active && activeForView.has(g.name) }))
-  }
 
   const handleSelect = (id: string) => {
     const idx = fields.findIndex((f) => f.id === id)
@@ -211,11 +198,11 @@ export function MockupStudio() {
   if (!spec) return null
 
   const config = getPrintZone(spec.position as PrintPosition)
-  const previewCatalog = previewGarmentOptions(config.view)
-  const activeGarmentTypeNames = previewCatalog.filter((g) => g.active).map((g) => g.name)
-  const effectiveGarmentType = (spec.garmentType || garments[0]?.type || activeGarmentTypeNames[0]) as GarmentType
-  const effectiveColour =
-    spec.garmentColour || garments.find((g) => g.type === effectiveGarmentType)?.colour || garments[0]?.colour || ''
+  // Garments section is the single source of truth for what the mockup
+  // preview shows — no separate garment type/colour override lives here
+  // any more (previously spec.garmentType/garmentColour, now unused).
+  const effectiveGarmentType = (garments[0]?.type || 'T-shirt') as GarmentType
+  const effectiveColour = garments[0]?.colour || ''
   const artwork = artworkFiles.find((f) => f.id === spec.artworkId)
   const artworkPreviewable = artwork && ['PNG', 'JPG', 'WEBP', 'SVG'].includes(artwork.fileType)
 
@@ -250,8 +237,8 @@ export function MockupStudio() {
         canRemove={fields.length > 1}
       />
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[220px_minmax(0,1fr)_240px]">
-        {/* LEFT: location / artwork / garment */}
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[240px_minmax(0,1fr)]">
+        {/* LEFT: location / artwork */}
         <div className="flex flex-col gap-3 order-1">
           <div>
             <p className="mb-1.5 text-xs font-medium text-zinc-500">POSITION</p>
@@ -273,31 +260,6 @@ export function MockupStudio() {
               ))}
             </div>
           </div>
-
-          <FormField
-            label="Preview Garment"
-            hint={`Any catalog type with an active ${config.view.toLowerCase()} mockup template.`}
-          >
-            <Select value={effectiveGarmentType} onChange={(e) => update({ garmentType: e.target.value })}>
-              {selectableCatalogNames(previewCatalog, effectiveGarmentType).map((t) => (
-                <option key={t} value={t}>{t}</option>
-              ))}
-            </Select>
-          </FormField>
-          <FormField label="Preview Colour">
-            <Input
-              value={effectiveColour}
-              onChange={(e) => update({ garmentColour: e.target.value })}
-              placeholder="e.g. Navy"
-            />
-          </FormField>
-          <FormField label="Print Colour">
-            <Input
-              value={spec.colour}
-              onChange={(e) => update({ colour: e.target.value })}
-              placeholder="e.g. White, Gold"
-            />
-          </FormField>
 
           <div>
             <p className="mb-1.5 text-xs font-medium text-zinc-500">ARTWORK</p>
@@ -338,7 +300,6 @@ export function MockupStudio() {
             >
               <Suspense fallback={<CanvasSkeleton width={canvasWidth} height={canvasHeight} />}>
                 <MockupCanvas
-                  ref={canvasRef}
                   width={canvasWidth}
                   height={canvasHeight}
                   garmentType={effectiveGarmentType}
@@ -365,46 +326,16 @@ export function MockupStudio() {
             )}
           </div>
           {canvasError && <p className="text-xs text-red-600">{canvasError}</p>}
-
-          <div>
-            <p className="mb-1.5 text-center text-xs font-medium text-zinc-500">PRINT SIZE</p>
-            <div className="flex flex-wrap items-center justify-center gap-1.5">
-              {PRINT_SIZES.map((size) => (
-                <button
-                  key={size.label}
-                  type="button"
-                  onClick={() => update({ widthMm: size.widthMm, heightMm: size.heightMm })}
-                  className={clsx(
-                    'rounded-md border px-2.5 py-1 text-xs font-medium transition-colors',
-                    spec.widthMm === size.widthMm && spec.heightMm === size.heightMm
-                      ? 'border-zinc-900 bg-zinc-900 text-white'
-                      : 'border-zinc-200 bg-white text-zinc-600 hover:border-zinc-300',
-                  )}
-                >
-                  {size.label}
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        {/* RIGHT: transform controls */}
-        <div className="order-3">
-          <TransformControls
-            widthMm={spec.widthMm}
-            heightMm={spec.heightMm}
-            rotationDeg={spec.rotationDeg ?? 0}
-            disabled={!artwork}
-            overflowing={overflowing}
-            onWidthChange={(widthMm) =>
-              update({ widthMm, heightMm: aspectRatio ? heightMmFromWidth(widthMm, aspectRatio) : spec.heightMm })
-            }
-            onCenterHorizontally={() => canvasRef.current?.centerHorizontally()}
-            onCenterVertically={() => canvasRef.current?.centerVertically()}
-            onResetPosition={() => canvasRef.current?.resetPosition()}
-            onResetRotation={() => canvasRef.current?.resetRotation()}
-            onResetSize={() => canvasRef.current?.resetSize(baselineWidthMm || spec.widthMm)}
-          />
+          {overflowing && (
+            <p className="rounded-md border border-amber-200 bg-amber-50 px-2.5 py-2 text-xs text-amber-700">
+              Artwork extends beyond the recommended print area for this position. Staff may still save this placement.
+            </p>
+          )}
+          {artwork && (
+            <p className="text-center text-[11px] text-zinc-400">
+              Sized automatically to fill this print position — drag to reposition.
+            </p>
+          )}
         </div>
       </div>
 

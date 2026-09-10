@@ -104,6 +104,21 @@ export function OrderFormEditor({ orderId: existingOrderId, initialValues, previ
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isEditingActive])
 
+  // Lets ArtworkSection open the upload flow immediately regardless of
+  // what else has (or hasn't) been filled in yet — no field in this form
+  // blocks another. Silently creates the draft row on demand (same
+  // upsert_order RPC, same orderId state) the first time a file is
+  // actually selected, whatever the rest of the form currently holds;
+  // required-field validation only ever runs at Create Order / Save
+  // Changes, never here.
+  const ensureOrderId = async (): Promise<string> => {
+    if (orderIdRef.current) return orderIdRef.current
+    const id = await upsertOrder.mutateAsync({ values: methods.getValues(), orderId: null, finalize: false })
+    orderIdRef.current = id
+    setOrderId(id)
+    return id
+  }
+
   const handleSaveDraft = () => {
     const values = methods.getValues()
     if (!values.jobName?.trim()) {
@@ -186,7 +201,7 @@ export function OrderFormEditor({ orderId: existingOrderId, initialValues, previ
             <CustomerJobSection />
             <TurnaroundDeliverySection />
             <ServicesSection />
-            <GarmentStylesSection orderId={orderId} />
+            <GarmentStylesSection orderId={orderId} ensureOrderId={ensureOrderId} />
             <PaymentAndNotesSection />
           </div>
 

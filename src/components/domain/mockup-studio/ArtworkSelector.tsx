@@ -1,5 +1,5 @@
 import { FileIcon } from 'lucide-react'
-import { clsx } from 'clsx'
+import { Select } from '@/components/ui/Field'
 import type { ArtworkFileFormValues } from '@/schemas/orderFormSchema'
 
 const PREVIEWABLE_TYPES = ['PNG', 'JPG', 'WEBP', 'SVG']
@@ -10,61 +10,48 @@ interface ArtworkSelectorProps {
   onSelect: (id: string | undefined) => void
 }
 
-// Batch A: shows a thumbnail where previewable, and clearly marks
-// non-previewable files (PDF/AI) rather than hiding them — staff still
-// need to associate a PrintSpec with the original file even though the
-// canvas can't render it (see MockupStudio's "Preview unavailable" state).
+// A dropdown rather than a button list — one selection at a time, matching
+// every other single-choice field in the Mockup Studio (Preview Garment,
+// Print Position, etc.). Non-previewable files (PDF/AI) still show in the
+// list rather than being hidden — staff still need to associate a
+// PrintSpec with the original file even though the canvas can't render it.
 export function ArtworkSelector({ files, selectedId, onSelect }: ArtworkSelectorProps) {
   if (files.length === 0) {
     return <p className="text-xs text-zinc-400">Upload artwork above to select it here.</p>
   }
 
+  const selected = files.find((f) => f.id === selectedId)
+  const selectedPreviewable = selected && PREVIEWABLE_TYPES.includes(selected.fileType)
+
   return (
     <div className="flex flex-col gap-1.5">
-      <button
-        type="button"
-        onClick={() => onSelect(undefined)}
-        className={clsx(
-          'rounded-md border px-2.5 py-1.5 text-left text-xs font-medium transition-colors',
-          !selectedId ? 'border-zinc-900 bg-zinc-900 text-white' : 'border-zinc-200 bg-white text-zinc-500 hover:border-zinc-300',
-        )}
-      >
-        No artwork selected
-      </button>
-      {files.map((file) => {
-        const previewable = PREVIEWABLE_TYPES.includes(file.fileType)
-        const active = selectedId === file.id
-        return (
-          <button
-            key={file.id}
-            type="button"
-            onClick={() => onSelect(file.id)}
-            className={clsx(
-              'flex items-center gap-2 rounded-md border px-2 py-1.5 text-left transition-colors',
-              active ? 'border-zinc-900 bg-zinc-900 text-white' : 'border-zinc-200 bg-white hover:border-zinc-300',
+      <Select value={selectedId ?? ''} onChange={(e) => onSelect(e.target.value || undefined)}>
+        <option value="">No artwork selected</option>
+        {files.map((file) => {
+          const previewable = PREVIEWABLE_TYPES.includes(file.fileType)
+          return (
+            <option key={file.id} value={file.id}>
+              {file.fileName} ({file.fileType}{previewable ? '' : ' — no preview'})
+            </option>
+          )
+        })}
+      </Select>
+
+      {selected && (
+        <div className="flex items-center gap-2 rounded-md border border-zinc-100 bg-zinc-50 px-2 py-1.5">
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded border border-zinc-200 bg-white">
+            {selectedPreviewable && selected.previewUrl ? (
+              <img src={selected.previewUrl} alt="" className="h-full w-full object-cover" />
+            ) : (
+              <FileIcon size={14} className="text-zinc-300" />
             )}
-          >
-            <div
-              className={clsx(
-                'flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded border',
-                active ? 'border-white/30 bg-white/10' : 'border-zinc-100 bg-zinc-50',
-              )}
-            >
-              {previewable && file.previewUrl ? (
-                <img src={file.previewUrl} alt="" className="h-full w-full object-cover" />
-              ) : (
-                <FileIcon size={14} className={active ? 'text-white/70' : 'text-zinc-300'} />
-              )}
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-xs font-medium">{file.fileName}</p>
-              <p className={clsx('text-[11px]', active ? 'text-white/70' : 'text-zinc-400')}>
-                {file.fileType} {!previewable && '• Preview unavailable'}
-              </p>
-            </div>
-          </button>
-        )
-      })}
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-xs font-medium text-zinc-700">{selected.fileName}</p>
+            {!selectedPreviewable && <p className="text-[11px] text-zinc-400">Preview unavailable for this file type</p>}
+          </div>
+        </div>
+      )}
     </div>
   )
 }

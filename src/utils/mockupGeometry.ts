@@ -77,6 +77,34 @@ export function pixelWidthToPhysicalWidth(widthPx: number, zone: PrintZone, zone
   return widthPx / mmPerCanvasPixelScale(zone, zonePx)
 }
 
+// The print zone's own realistic box size in real-world mm — width comes
+// straight from refWidthMm (that's what it's calibrated against); height
+// is derived from the box's pixel aspect ratio at any reference canvas
+// size sharing the fixed 240:300 garment view-box ratio (the result is the
+// same regardless of which reference size is used).
+export function zoneBoxMm(zone: PrintZone): { widthMm: number; heightMm: number } {
+  const refPx = zoneBoxPx(zone, 240, 300)
+  return {
+    widthMm: zone.refWidthMm,
+    heightMm: zone.refWidthMm * (refPx.height / refPx.width),
+  }
+}
+
+// Auto-fill sizing: the largest an artwork of the given aspect ratio
+// (natural width / natural height) can be while still fitting entirely
+// inside its print zone's own box — a "contain" fit, touching the zone's
+// width or height limit (whichever binds first) without ever overflowing
+// it. This replaces manual width/height entry — artwork is sized to fill
+// its position automatically the moment it's selected.
+export function fitArtworkToZone(zone: PrintZone, aspectRatio: number): { widthMm: number; heightMm: number } {
+  const box = zoneBoxMm(zone)
+  const boxAspect = box.widthMm / box.heightMm
+  if (aspectRatio >= boxAspect) {
+    return { widthMm: box.widthMm, heightMm: box.widthMm / aspectRatio }
+  }
+  return { widthMm: box.heightMm * aspectRatio, heightMm: box.heightMm }
+}
+
 // Pixel-space overflow check — deliberately not percentage-based (see
 // isOverflowingZone in printSizeConversion.ts, which compares widthPct
 // against a width-basis and heightPct against a height-basis that aren't

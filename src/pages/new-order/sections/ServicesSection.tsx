@@ -33,7 +33,9 @@ export function ServicesSection() {
       description="Matches the paper form's checkbox list, in the same order."
     >
       <div>
-        <p className="mb-2 text-sm font-medium text-zinc-700">What services do you require?</p>
+        <p className="mb-2 text-sm font-medium text-zinc-700">
+          What services do you require? <span className="text-red-500">*</span>
+        </p>
         {errors.services?.message && (
           <p className="mb-2 text-xs text-red-600">{errors.services.message}</p>
         )}
@@ -50,7 +52,7 @@ export function ServicesSection() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+      <div className="grid grid-cols-2 gap-2">
         <Toggle
           label="Do you require us to supply Garments"
           checked={suppliesGarments}

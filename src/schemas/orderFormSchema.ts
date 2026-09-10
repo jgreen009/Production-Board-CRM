@@ -51,7 +51,12 @@ export const artworkFileFormSchema = z.object({
 export const printSpecFormSchema = z.object({
   id: z.string(),
   position: z.string().min(1, 'Select a print position'),
-  colour: z.string().min(1, 'Print colour is required'),
+  // No longer collected via its own field (Batch D UX simplification —
+  // garment colour, set once in the Garments section, is the single
+  // source of truth for the mockup). No .min(1) any more so an empty
+  // value (every new print spec, going forward) never blocks submission;
+  // older saved orders' non-empty values still round-trip unchanged.
+  colour: z.string(),
   widthMm: z.number().min(1, 'Select a print size'),
   heightMm: z.number().min(1, 'Select a print size'),
   garmentType: z.string().optional(),
