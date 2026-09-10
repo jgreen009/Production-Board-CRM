@@ -47,7 +47,7 @@ export function TurnaroundDeliverySection() {
       <div>
         <p className="mb-1.5 text-sm font-medium text-zinc-700">Turnaround</p>
         <p className="mb-2 text-xs text-zinc-400">Internal staff field — not shown on the paper form.</p>
-        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+        <div className="grid grid-cols-3 gap-2">
           {FORM_TURNAROUNDS.map((t) => (
             <button
               key={t.value}
@@ -71,7 +71,7 @@ export function TurnaroundDeliverySection() {
 
       <div>
         <p className="mb-1.5 text-sm font-medium text-zinc-700">Pick Up / Delivery</p>
-        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+        <div className="grid grid-cols-2 gap-2">
           {DELIVERY_OPTIONS.map((opt) => (
             <button
               key={opt.value}
@@ -100,7 +100,7 @@ export function TurnaroundDeliverySection() {
         <p className="mb-2 text-xs text-zinc-400">
           Internal-only — not on the paper form. Same Day sets this to Urgent automatically. Staff can override.
         </p>
-        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+        <div className="grid grid-cols-3 gap-2">
           {PRIORITIES.map((p) => (
             <button
               key={p.value}
