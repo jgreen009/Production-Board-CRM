@@ -60,13 +60,6 @@ export default function Dashboard() {
           icon={ClipboardList}
         />
         <StatCard
-          label="Overdue"
-          value={overdueOrders(orders).length}
-          description="Past due, not yet complete"
-          icon={Clock}
-          accent="danger"
-        />
-        <StatCard
           label="Due Today"
           value={dueTodayOrders(orders).length}
           description="Need to ship today"
@@ -74,17 +67,18 @@ export default function Dashboard() {
           accent="warning"
         />
         <StatCard
+          label="Overdue"
+          value={overdueOrders(orders).length}
+          description="Past due, not yet complete"
+          icon={Clock}
+          accent="danger"
+        />
+        <StatCard
           label="Urgent Orders"
           value={urgentOrders(orders).length}
           description="Flagged as urgent priority"
           icon={AlertTriangle}
           accent="danger"
-        />
-        <StatCard
-          label="Awaiting Artwork"
-          value={awaitingArtworkOrders(orders).length}
-          description="Not yet approved"
-          icon={PenTool}
         />
         <StatCard
           label="Ready for Production"
@@ -98,9 +92,73 @@ export default function Dashboard() {
           description="Finished in the last 7 days"
           icon={CheckCircle2}
         />
+        <StatCard
+          label="Awaiting Artwork"
+          value={awaitingArtworkOrders(orders).length}
+          description="Not yet approved"
+          icon={PenTool}
+        />
       </div>
 
-      <div className="mt-5 grid grid-cols-1 gap-4 xl:grid-cols-3">
+      <div className="mt-5 grid grid-cols-1 gap-4 lg:grid-cols-3">
+        <Card>
+          <CardHeader>
+            <h2 className="text-sm font-semibold text-zinc-800">Production Status Breakdown</h2>
+          </CardHeader>
+          <CardBody className="flex flex-col gap-2">
+            {statusBreakdown.length === 0 ? (
+              <p className="text-sm text-zinc-400">No orders yet.</p>
+            ) : (
+              statusBreakdown.map(({ status, count }) => (
+                <div key={status} className="flex items-center justify-between gap-2">
+                  <StatusBadge kind="production" value={status} />
+                  <span className="text-sm font-medium text-zinc-700">{count}</span>
+                </div>
+              ))
+            )}
+          </CardBody>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <h2 className="text-sm font-semibold text-zinc-800">Staff Workload</h2>
+          </CardHeader>
+          <CardBody className="flex flex-col gap-2">
+            {workload.length === 0 ? (
+              <p className="text-sm text-zinc-400">No active orders.</p>
+            ) : (
+              workload.map((w) => (
+                <div key={w.assignedTo ?? 'unassigned'} className="flex items-center justify-between gap-2">
+                  <span className="flex items-center gap-1.5 text-sm text-zinc-600">
+                    <Users size={14} className="text-zinc-400" />
+                    {w.assigneeName}
+                  </span>
+                  <span className="text-sm font-medium text-zinc-700">{w.count}</span>
+                </div>
+              ))
+            )}
+          </CardBody>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <h2 className="text-sm font-semibold text-zinc-800">Average Turnaround</h2>
+          </CardHeader>
+          <CardBody className="flex flex-col items-start gap-1">
+            <div className="flex items-center gap-2 text-2xl font-semibold text-zinc-800">
+              <Clock size={20} className="text-zinc-400" />
+              {turnaround === null ? '—' : `${turnaround}d`}
+            </div>
+            <p className="text-xs text-zinc-400">
+              {turnaround === null
+                ? 'No completed orders yet.'
+                : 'Days from order creation to completion, averaged across completed orders.'}
+            </p>
+          </CardBody>
+        </Card>
+      </div>
+
+      <div className="mt-4 grid grid-cols-1 gap-4 xl:grid-cols-3">
         <Card className="xl:col-span-2">
           <CardHeader className="flex items-center justify-between">
             <h2 className="text-sm font-semibold text-zinc-800">Orders Requiring Attention</h2>
@@ -143,9 +201,9 @@ export default function Dashboard() {
                           className={clsx(
                             'px-4 py-2.5 font-medium',
                             isOverdue(order.dueDate)
-                              ? 'text-red-600'
+                              ? 'text-danger'
                               : isDueToday(order.dueDate)
-                                ? 'text-amber-600'
+                                ? 'text-warning'
                                 : 'text-zinc-600',
                           )}
                         >
@@ -187,73 +245,15 @@ export default function Dashboard() {
                   className={clsx(
                     'shrink-0 text-xs font-semibold',
                     isOverdue(order.dueDate)
-                      ? 'text-red-600'
+                      ? 'text-danger'
                       : isDueToday(order.dueDate)
-                        ? 'text-amber-600'
+                        ? 'text-warning'
                         : 'text-zinc-500',
                   )}
                 >
                   {formatDateShort(order.dueDate)}
                 </span>
               </Link>
-              ))
-            )}
-          </CardBody>
-        </Card>
-      </div>
-
-      <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-3">
-        <Card>
-          <CardHeader>
-            <h2 className="text-sm font-semibold text-zinc-800">Production Status Breakdown</h2>
-          </CardHeader>
-          <CardBody className="flex flex-col gap-2">
-            {statusBreakdown.length === 0 ? (
-              <p className="text-sm text-zinc-400">No orders yet.</p>
-            ) : (
-              statusBreakdown.map(({ status, count }) => (
-                <div key={status} className="flex items-center justify-between gap-2">
-                  <StatusBadge kind="production" value={status} />
-                  <span className="text-sm font-medium text-zinc-700">{count}</span>
-                </div>
-              ))
-            )}
-          </CardBody>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <h2 className="text-sm font-semibold text-zinc-800">Average Turnaround</h2>
-          </CardHeader>
-          <CardBody className="flex flex-col items-start gap-1">
-            <div className="flex items-center gap-2 text-2xl font-semibold text-zinc-800">
-              <Clock size={20} className="text-zinc-400" />
-              {turnaround === null ? '—' : `${turnaround}d`}
-            </div>
-            <p className="text-xs text-zinc-400">
-              {turnaround === null
-                ? 'No completed orders yet.'
-                : 'Days from order creation to completion, averaged across completed orders.'}
-            </p>
-          </CardBody>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <h2 className="text-sm font-semibold text-zinc-800">Staff Workload</h2>
-          </CardHeader>
-          <CardBody className="flex flex-col gap-2">
-            {workload.length === 0 ? (
-              <p className="text-sm text-zinc-400">No active orders.</p>
-            ) : (
-              workload.map((w) => (
-                <div key={w.assignedTo ?? 'unassigned'} className="flex items-center justify-between gap-2">
-                  <span className="flex items-center gap-1.5 text-sm text-zinc-600">
-                    <Users size={14} className="text-zinc-400" />
-                    {w.assigneeName}
-                  </span>
-                  <span className="text-sm font-medium text-zinc-700">{w.count}</span>
-                </div>
               ))
             )}
           </CardBody>
