@@ -48,16 +48,14 @@ export function ArtworkMockupsTab({ order }: { order: Order }) {
       </Card>
 
       <Card>
-        <CardHeader className="flex items-center justify-between">
-          <div>
+        <CardHeader className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-2">
             <h3 className="text-sm font-semibold text-zinc-800">Mockups</h3>
-            <p className="text-xs text-zinc-400">
-              Artwork status: <StatusBadge kind="artwork" value={order.artworkStatus} />
-            </p>
+            <StatusBadge kind="artwork" value={order.artworkStatus} />
           </div>
           <Link
             to={`/orders/${order.id}/edit`}
-            className="flex items-center gap-1 text-xs font-medium text-zinc-600 hover:text-zinc-900"
+            className="flex w-fit items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900"
           >
             <Pencil size={12} /> Edit Mockup
           </Link>
@@ -74,7 +72,7 @@ export function ArtworkMockupsTab({ order }: { order: Order }) {
                 const savedPreviewUrl = spec.previewStoragePath ? mockupPreviewUrls[spec.previewStoragePath] : undefined
                 if (!garmentType) return null
                 return (
-                  <div key={spec.id} className="flex flex-col items-center gap-1.5 rounded-lg border border-zinc-100 bg-zinc-50/60 p-3">
+                  <div key={spec.id} className="flex flex-col items-center gap-1.5 rounded-lg border border-zinc-200 bg-zinc-50/60 p-3">
                     {savedPreviewUrl ? (
                       <img
                         src={savedPreviewUrl}
@@ -106,7 +104,7 @@ export function ArtworkMockupsTab({ order }: { order: Order }) {
                       {artwork && ` · ${artwork.fileName}`}
                     </p>
                     {spec.approvalNote && (
-                      <p className="w-full rounded bg-amber-50 px-2 py-1 text-center text-[11px] text-amber-700">
+                      <p className="w-full rounded bg-warning-soft px-2 py-1 text-center text-[11px] text-warning">
                         {spec.approvalNote}
                       </p>
                     )}

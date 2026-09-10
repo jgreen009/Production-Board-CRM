@@ -237,11 +237,11 @@ export function MockupStudio() {
         canRemove={fields.length > 1}
       />
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[240px_minmax(0,1fr)]">
-        {/* LEFT: location / artwork */}
-        <div className="flex flex-col gap-3 order-1">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[260px_minmax(0,1fr)]">
+        {/* LEFT (mobile: first, above the canvas): location / artwork controls */}
+        <div className="order-1 flex flex-col gap-4">
           <div>
-            <p className="mb-1.5 text-xs font-medium text-zinc-500">POSITION</p>
+            <p className="mb-1.5 text-xs font-semibold tracking-wide text-zinc-500">POSITION</p>
             <div className="flex flex-wrap gap-1.5">
               {PRINT_ZONES.map((p) => (
                 <button
@@ -249,9 +249,9 @@ export function MockupStudio() {
                   type="button"
                   onClick={() => update({ position: p.position })}
                   className={clsx(
-                    'rounded-md border px-2 py-1 text-xs font-medium transition-colors',
+                    'min-h-9 rounded-md border px-2.5 py-1.5 text-xs font-medium transition-colors',
                     spec.position === p.position
-                      ? 'border-zinc-900 bg-zinc-900 text-white'
+                      ? 'border-brand-accent bg-brand-accent-soft text-brand-accent'
                       : 'border-zinc-200 bg-white text-zinc-600 hover:border-zinc-300',
                   )}
                 >
@@ -262,34 +262,25 @@ export function MockupStudio() {
           </div>
 
           <div>
-            <p className="mb-1.5 text-xs font-medium text-zinc-500">ARTWORK</p>
+            <p className="mb-1.5 text-xs font-semibold tracking-wide text-zinc-500">ARTWORK</p>
             <ArtworkSelector
               files={artworkFiles}
               selectedId={spec.artworkId}
               onSelect={(id) => update({ artworkId: id })}
             />
           </div>
-
-          <FormField label="Approval Note" hint="Feedback for this print location, e.g. &ldquo;Move logo 20mm higher&rdquo;">
-            <Textarea
-              value={spec.approvalNote ?? ''}
-              onChange={(e) => update({ approvalNote: e.target.value || undefined })}
-              rows={2}
-              placeholder="Optional note for this print location"
-            />
-          </FormField>
         </div>
 
-        {/* CENTER: canvas */}
-        <div ref={containerRef} className="order-2 flex flex-col items-center gap-2">
-          <div className="relative rounded-lg border border-zinc-100 bg-zinc-50/60 p-3">
+        {/* CENTER (mobile: after controls, before approval note): canvas, kept visually dominant */}
+        <div ref={containerRef} className="order-2 flex flex-col items-center gap-2 lg:row-span-2">
+          <div className="relative flex w-full items-center justify-center rounded-lg border border-zinc-200 bg-zinc-50 p-4">
             <ErrorBoundary
               fallback={(retry) => (
                 <div
                   style={{ width: canvasWidth, height: canvasHeight }}
-                  className="flex flex-col items-center justify-center gap-2 rounded-lg border border-red-100 bg-red-50/60 p-4 text-center"
+                  className="flex flex-col items-center justify-center gap-2 rounded-lg border border-danger/20 bg-danger-soft p-4 text-center"
                 >
-                  <p className="text-xs text-red-600">
+                  <p className="text-xs text-danger">
                     The mockup editor couldn&rsquo;t load. Check your connection and try again.
                   </p>
                   <Button type="button" variant="secondary" size="sm" onClick={retry}>
@@ -315,19 +306,19 @@ export function MockupStudio() {
               </Suspense>
             </ErrorBoundary>
             {!artwork && (
-              <p className="pointer-events-none absolute inset-x-3 bottom-3 rounded-md bg-white/90 px-2 py-1.5 text-center text-xs text-zinc-500">
+              <p className="pointer-events-none absolute inset-x-4 bottom-4 rounded-md bg-white/90 px-2 py-1.5 text-center text-xs text-zinc-500 shadow-sm">
                 Upload or select artwork to preview it on the garment.
               </p>
             )}
             {artwork && !artworkPreviewable && (
-              <p className="pointer-events-none absolute inset-x-3 bottom-3 rounded-md bg-white/90 px-2 py-1.5 text-center text-xs text-zinc-500">
+              <p className="pointer-events-none absolute inset-x-4 bottom-4 rounded-md bg-white/90 px-2 py-1.5 text-center text-xs text-zinc-500 shadow-sm">
                 Preview unavailable for this artwork type — the file stays attached to this print.
               </p>
             )}
           </div>
-          {canvasError && <p className="text-xs text-red-600">{canvasError}</p>}
+          {canvasError && <p className="text-xs text-danger">{canvasError}</p>}
           {overflowing && (
-            <p className="rounded-md border border-amber-200 bg-amber-50 px-2.5 py-2 text-xs text-amber-700">
+            <p className="rounded-md border border-warning/30 bg-warning-soft px-2.5 py-2 text-xs text-warning">
               Artwork extends beyond the recommended print area for this position. Staff may still save this placement.
             </p>
           )}
@@ -336,6 +327,18 @@ export function MockupStudio() {
               Sized automatically to fill this print position — drag to reposition.
             </p>
           )}
+        </div>
+
+        {/* LEFT column continued (mobile: last, after the canvas): approval note */}
+        <div className="order-3">
+          <FormField label="Approval Note" hint="Feedback for this print location, e.g. &ldquo;Move logo 20mm higher&rdquo;">
+            <Textarea
+              value={spec.approvalNote ?? ''}
+              onChange={(e) => update({ approvalNote: e.target.value || undefined })}
+              rows={2}
+              placeholder="Optional note for this print location"
+            />
+          </FormField>
         </div>
       </div>
 

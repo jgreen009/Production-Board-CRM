@@ -17,45 +17,54 @@ export function OrderFormTab({ order }: { order: Order }) {
         <CardHeader>
           <h3 className="text-sm font-semibold text-zinc-800">Header</h3>
         </CardHeader>
-        <CardBody className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm sm:grid-cols-4">
+        <CardBody className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm sm:grid-cols-3 lg:grid-cols-6">
           <ReadField label="Date" value={formatDate(order.createdAt)} />
+          <ReadField label="Date Due" value={formatDate(order.dueDate)} />
           <ReadField label="Pick Up / Delivery" value={order.deliveryMethod} />
           <ReadField label="Name / Job" value={order.jobName} />
           <ReadField label="Phone" value={order.phone} />
           <ReadField label="Email" value={order.email} />
-          <ReadField label="Date Due" value={formatDate(order.dueDate)} />
         </CardBody>
       </Card>
 
-      <Card>
-        <CardHeader>
-          <h3 className="text-sm font-semibold text-zinc-800">Services Required</h3>
-        </CardHeader>
-        <CardBody className="grid grid-cols-2 gap-2 text-sm sm:grid-cols-4">
-          {order.services.map((s) => (
-            <span key={s.name} className="rounded border border-zinc-200 bg-zinc-50 px-2 py-1 text-xs text-zinc-700">
-              ✓ {s.name}
-            </span>
-          ))}
-        </CardBody>
-      </Card>
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <h3 className="text-sm font-semibold text-zinc-800">Services Required</h3>
+          </CardHeader>
+          <CardBody className="flex flex-wrap gap-1.5">
+            {order.services.length ? (
+              order.services.map((s) => (
+                <span
+                  key={s.name}
+                  className="rounded-full border border-zinc-200 bg-zinc-50 px-2.5 py-1 text-xs font-medium text-zinc-700"
+                >
+                  ✓ {s.name}
+                </span>
+              ))
+            ) : (
+              <p className="text-sm text-zinc-400">No services recorded.</p>
+            )}
+          </CardBody>
+        </Card>
 
-      <Card>
-        <CardHeader>
-          <h3 className="text-sm font-semibold text-zinc-800">Requirements</h3>
-        </CardHeader>
-        <CardBody className="grid grid-cols-2 gap-2 text-sm sm:grid-cols-4">
-          <ReadField label="Supply Garments" value={order.suppliesGarments ? 'Yes' : 'No'} />
-          <ReadField label="Graphic Design Services" value={order.graphicDesignServices ? 'Yes' : 'No'} />
-          <ReadField label="Specialised Application" value={order.specialisedApplication ? 'Yes' : 'No'} />
-          <ReadField label="Rush Fee" value={order.rushFee ? 'Yes' : 'No'} />
-          {order.specialisedApplication && order.specialisedApplicationDetails && (
-            <div className="col-span-2 sm:col-span-4">
-              <ReadField label="Application Details" value={order.specialisedApplicationDetails} />
-            </div>
-          )}
-        </CardBody>
-      </Card>
+        <Card>
+          <CardHeader>
+            <h3 className="text-sm font-semibold text-zinc-800">Requirements</h3>
+          </CardHeader>
+          <CardBody className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
+            <ReadField label="Supply Garments" value={order.suppliesGarments ? 'Yes' : 'No'} />
+            <ReadField label="Graphic Design Services" value={order.graphicDesignServices ? 'Yes' : 'No'} />
+            <ReadField label="Specialised Application" value={order.specialisedApplication ? 'Yes' : 'No'} />
+            <ReadField label="Rush Fee" value={order.rushFee ? 'Yes' : 'No'} />
+            {order.specialisedApplication && order.specialisedApplicationDetails && (
+              <div className="col-span-2">
+                <ReadField label="Application Details" value={order.specialisedApplicationDetails} />
+              </div>
+            )}
+          </CardBody>
+        </Card>
+      </div>
 
       {adultGarments.length > 0 && (
         <Card>
@@ -63,7 +72,7 @@ export function OrderFormTab({ order }: { order: Order }) {
             <h3 className="text-sm font-semibold text-zinc-800">Garment Table — Adult</h3>
           </CardHeader>
           <CardBody className="overflow-x-auto p-0">
-            <table className="w-full text-left text-xs">
+            <table className="w-full min-w-[560px] text-left text-xs">
               <thead>
                 <tr className="border-b border-zinc-100 text-zinc-400">
                   <th className="px-3 py-2 font-medium">Garment</th>
@@ -99,7 +108,7 @@ export function OrderFormTab({ order }: { order: Order }) {
             <h3 className="text-sm font-semibold text-zinc-800">Garment Table — Youth</h3>
           </CardHeader>
           <CardBody className="overflow-x-auto p-0">
-            <table className="w-full text-left text-xs">
+            <table className="w-full min-w-[560px] text-left text-xs">
               <thead>
                 <tr className="border-b border-zinc-100 text-zinc-400">
                   <th className="px-3 py-2 font-medium">Garment</th>
@@ -129,9 +138,9 @@ export function OrderFormTab({ order }: { order: Order }) {
         </Card>
       )}
 
-      <Card>
-        <CardBody className="flex items-center justify-between">
-          <span className="text-sm font-medium text-zinc-600">Sub Total</span>
+      <Card className="border-l-4 border-l-zinc-300">
+        <CardBody className="flex items-center justify-between py-3">
+          <span className="text-sm font-medium text-zinc-500">Sub Total</span>
           <span className="text-lg font-semibold text-zinc-900">{subTotal}</span>
         </CardBody>
       </Card>
@@ -142,7 +151,7 @@ export function OrderFormTab({ order }: { order: Order }) {
           <p className="text-xs text-zinc-400">What's being printed, without needing to open the mockup editor.</p>
         </CardHeader>
         <CardBody className="overflow-x-auto p-0">
-          <table className="w-full text-left text-sm">
+          <table className="w-full min-w-[720px] text-left text-sm">
             <thead>
               <tr className="border-b border-zinc-100 text-xs text-zinc-400">
                 <th className="px-3 py-2 font-medium">Preview</th>
@@ -192,21 +201,25 @@ export function OrderFormTab({ order }: { order: Order }) {
         </CardBody>
       </Card>
 
-      <p className="rounded-md bg-zinc-50 px-3 py-2 text-xs leading-relaxed text-zinc-400">
+      <p className="rounded-md border border-zinc-100 bg-zinc-50 px-3 py-2.5 text-xs leading-relaxed text-zinc-400">
         100% deposit required before manufacturing commences. Quotes, invoices, and screens are valid for
         3 weeks. 25 units is the minimum order for screen printing (special pricing available under
         minimum). Standard turnaround time is 5–10 working days.
       </p>
 
-      <div className="flex items-center gap-2.5 rounded-md border border-dashed border-zinc-300 bg-zinc-50 px-3 py-2 text-sm">
+      <div
+        className={`flex items-center gap-2.5 rounded-md border px-3 py-2.5 text-sm ${
+          order.staffCompleted ? 'border-success/30 bg-success-soft' : 'border-dashed border-zinc-300 bg-zinc-50'
+        }`}
+      >
         <span
-          className={`flex h-4 w-4 items-center justify-center rounded border ${
-            order.staffCompleted ? 'border-emerald-600 bg-emerald-600 text-white' : 'border-zinc-300 bg-white'
+          className={`flex h-5 w-5 shrink-0 items-center justify-center rounded border ${
+            order.staffCompleted ? 'border-success bg-success text-white' : 'border-zinc-300 bg-white'
           }`}
         >
           {order.staffCompleted && '✓'}
         </span>
-        <span className="font-medium text-zinc-600">
+        <span className="font-medium text-zinc-700">
           Section for staff — {order.staffCompleted ? 'Completed' : 'Not completed'}
         </span>
       </div>

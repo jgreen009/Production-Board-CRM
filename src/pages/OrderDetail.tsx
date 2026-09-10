@@ -97,22 +97,24 @@ export default function OrderDetail() {
         </div>
       </div>
 
-      <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+      <div className="mb-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
         <StatCard label="Quantity" value={order.quantity} />
         <StatCard label="Due Date" value={formatDate(order.dueDate)} />
         <StatCard label="Payment" value={order.paymentStatus} />
         <StatCard label="Priority" value={order.priority} />
       </div>
 
-      <Tabs tabs={TABS} active={tab} onChange={setTab} className="mb-4" />
+      <Tabs tabs={TABS} active={tab} onChange={setTab} className="mb-4 -mx-1 overflow-x-auto px-1" />
 
-      {tab === 'overview' && <OverviewTab order={order} />}
-      {tab === 'order-form' && <OrderFormTab order={order} />}
-      {tab === 'garments' && <GarmentsTab order={order} />}
-      {tab === 'artwork' && <ArtworkMockupsTab order={order} />}
-      {tab === 'production' && <ProductionTab order={order} isRealOrder={isRealId} />}
-      {tab === 'files' && <FilesTab order={order} />}
-      {tab === 'activity' && <ActivityTab order={order} isRealOrder={isRealId} />}
+      <div className="min-w-0">
+        {tab === 'overview' && <OverviewTab order={order} />}
+        {tab === 'order-form' && <OrderFormTab order={order} />}
+        {tab === 'garments' && <GarmentsTab order={order} />}
+        {tab === 'artwork' && <ArtworkMockupsTab order={order} />}
+        {tab === 'production' && <ProductionTab order={order} isRealOrder={isRealId} />}
+        {tab === 'files' && <FilesTab order={order} />}
+        {tab === 'activity' && <ActivityTab order={order} isRealOrder={isRealId} />}
+      </div>
     </div>
   )
 }
