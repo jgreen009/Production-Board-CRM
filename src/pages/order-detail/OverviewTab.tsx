@@ -5,54 +5,29 @@ import { StatusBadge } from '@/components/domain/StatusBadge'
 import { MockupThumbnail } from '@/components/domain/MockupThumbnail'
 import { Card, CardBody, CardHeader } from '@/components/ui/Card'
 import { formatDate } from '@/utils/date'
-import { getAttentionWarnings, getProductionBlockers, isReadyForProduction } from '@/utils/productionReadiness'
+import { getProductionBlockers, isReadyForProduction } from '@/utils/productionReadiness'
 
 export function OverviewTab({ order }: { order: Order }) {
   const ready = isReadyForProduction(order)
   const blockers = getProductionBlockers(order)
-  const warnings = getAttentionWarnings(order)
 
   return (
     <div className="flex flex-col gap-4">
-      {/* Readiness banner — the single "can this go into production" signal */}
-      <Card
-        className={
-          ready
-            ? 'border-l-4 border-l-success bg-success-soft/40'
-            : warnings.some((w) => w.severity === 'critical')
-              ? 'border-l-4 border-l-danger bg-danger-soft/40'
-              : 'border-l-4 border-l-warning bg-warning-soft/40'
-        }
-      >
-        <CardBody className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-2">
-            {ready ? (
-              <span className="flex items-center gap-1.5 text-sm font-semibold text-success">
-                <CheckCircle2 size={15} /> Ready for Production
-              </span>
-            ) : (
-              <span className="text-sm font-semibold text-zinc-800">
-                Not ready for production — {blockers.join(', ') || 'check status'}
-              </span>
-            )}
-          </div>
-          {warnings.length > 0 && (
-            <div className="flex flex-wrap gap-x-3 gap-y-1">
-              {warnings.map((w) => (
-                <span
-                  key={w.message}
-                  className={
-                    w.severity === 'critical'
-                      ? 'text-xs font-medium text-danger'
-                      : w.severity === 'warning'
-                        ? 'text-xs font-medium text-warning'
-                        : 'text-xs text-zinc-500'
-                  }
-                >
-                  ⚠ {w.message}
-                </span>
-              ))}
-            </div>
+      {/* Readiness banner — the single "can this go into production" signal.
+          The artwork-approval/due-date attention warnings that used to also
+          render here were removed from Order Detail specifically per staff
+          feedback; Dashboard and Production Board still surface them via
+          getAttentionWarnings() unchanged. */}
+      <Card className={ready ? 'border-l-4 border-l-success bg-success-soft/40' : 'border-l-4 border-l-warning bg-warning-soft/40'}>
+        <CardBody className="flex items-center gap-2">
+          {ready ? (
+            <span className="flex items-center gap-1.5 text-sm font-semibold text-success">
+              <CheckCircle2 size={15} /> Ready for Production
+            </span>
+          ) : (
+            <span className="text-sm font-semibold text-zinc-800">
+              Not ready for production — {blockers.join(', ') || 'check status'}
+            </span>
           )}
         </CardBody>
       </Card>

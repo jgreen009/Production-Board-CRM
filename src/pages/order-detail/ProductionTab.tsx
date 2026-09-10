@@ -16,7 +16,7 @@ import {
 import { useActiveStaff } from '@/hooks/useStaff'
 import { useToast } from '@/components/ui/toast-context'
 import { staffErrorMessage } from '@/utils/errorMessage'
-import { getAttentionWarnings, getProductionBlockers, isReadyForProduction } from '@/utils/productionReadiness'
+import { getProductionBlockers, isReadyForProduction } from '@/utils/productionReadiness'
 
 interface ProductionTabProps {
   order: Order
@@ -37,7 +37,6 @@ export function ProductionTab({ order, isRealOrder }: ProductionTabProps) {
 
   const ready = isReadyForProduction(order)
   const blockers = getProductionBlockers(order)
-  const warnings = getAttentionWarnings(order)
 
   return (
     <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
@@ -130,24 +129,6 @@ export function ProductionTab({ order, isRealOrder }: ProductionTabProps) {
               <XCircle size={14} className="mt-0.5 shrink-0 text-zinc-400" />
               No — {blockers.join(', ') || 'check status'}
             </p>
-          )}
-          {warnings.length > 0 && (
-            <div className="mt-1.5 flex flex-col gap-0.5">
-              {warnings.map((w) => (
-                <p
-                  key={w.message}
-                  className={
-                    w.severity === 'critical'
-                      ? 'text-[11px] font-medium text-danger'
-                      : w.severity === 'warning'
-                        ? 'text-[11px] font-medium text-warning'
-                        : 'text-[11px] text-zinc-500'
-                  }
-                >
-                  ⚠ {w.message}
-                </p>
-              ))}
-            </div>
           )}
         </Card>
       </div>
