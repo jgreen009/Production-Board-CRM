@@ -10,6 +10,8 @@ import { useProfile } from '@/hooks/useProfile'
 import { useToast } from '@/components/ui/toast-context'
 import { daysUntil } from '@/utils/date'
 import { staffErrorMessage } from '@/utils/errorMessage'
+import { isReadyForProduction } from '@/utils/productionReadiness'
+import { compareQueueRank } from '@/utils/productionQueue'
 
 export type BoardView =
   | 'all'
@@ -21,6 +23,8 @@ export type BoardView =
   | 'completed'
   | 'my-orders'
   | 'unassigned'
+  | 'ready-for-production'
+  | 'awaiting-approval'
 
 export const BOARD_VIEWS: { key: BoardView; label: string }[] = [
   { key: 'all', label: 'All Orders' },
@@ -29,6 +33,8 @@ export const BOARD_VIEWS: { key: BoardView; label: string }[] = [
   { key: 'due-today', label: 'Due Today' },
   { key: 'upcoming', label: 'Upcoming' },
   { key: 'urgent', label: 'Urgent' },
+  { key: 'ready-for-production', label: 'Ready for Production' },
+  { key: 'awaiting-approval', label: 'Awaiting Approval' },
   { key: 'artwork-attention', label: 'Artwork Attention' },
   { key: 'garment-followup', label: 'Garment Follow-Up' },
   { key: 'completed', label: 'Completed' },
@@ -45,7 +51,7 @@ const ARTWORK_ATTENTION: ArtworkStatus[] = [
 
 const GARMENT_FOLLOWUP: GarmentStatus[] = ['Need Ordering', 'Follow Up', 'Part Received']
 
-export type SortKey = 'dueDate' | 'priority' | 'quantity' | 'createdAt'
+export type SortKey = 'dueDate' | 'priority' | 'quantity' | 'createdAt' | 'queue'
 
 const PRIORITY_RANK: Record<Priority, number> = { Urgent: 0, High: 1, Normal: 2 }
 
@@ -110,6 +116,12 @@ export function useProductionBoard() {
       case 'unassigned':
         result = result.filter((o) => !o.assignedTo)
         break
+      case 'ready-for-production':
+        result = result.filter((o) => isReadyForProduction(o))
+        break
+      case 'awaiting-approval':
+        result = result.filter((o) => o.artworkStatus === 'Awaiting Approval')
+        break
       case 'artwork-attention':
         result = result.filter((o) => ARTWORK_ATTENTION.includes(o.artworkStatus))
         break
@@ -153,6 +165,9 @@ export function useProductionBoard() {
           break
         case 'createdAt':
           diff = new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+          break
+        case 'queue':
+          diff = compareQueueRank(a, b)
           break
       }
       return sortDir === 'asc' ? diff : -diff

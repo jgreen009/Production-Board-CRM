@@ -27,6 +27,7 @@ interface ProductionToolbarProps {
 }
 
 const SORT_OPTIONS: { key: SortKey; label: string }[] = [
+  { key: 'queue', label: 'Queue Priority' },
   { key: 'dueDate', label: 'Due Date' },
   { key: 'priority', label: 'Priority' },
   { key: 'quantity', label: 'Quantity' },
