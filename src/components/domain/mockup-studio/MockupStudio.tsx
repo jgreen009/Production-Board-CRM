@@ -11,7 +11,9 @@ import { EmptyState } from '@/components/ui/EmptyState'
 import { ErrorBoundary } from '@/components/ui/ErrorBoundary'
 import { emptyPrintSpec } from '@/pages/new-order/defaultValues'
 import { PRINT_ZONES, getPrintZone } from '@/config/printZones'
+import { PRINT_SIZE_PRESETS, matchPrintSizePreset } from '@/config/printSizePresets'
 import { fitArtworkToZone, isOverflowingZonePx, physicalSizeToPixelSize, zoneBoxPx } from '@/utils/mockupGeometry'
+import { heightMmFromWidth } from '@/utils/printSizeConversion'
 import type { MockupTransform } from '@/components/domain/MockupCanvas'
 import { PrintSpecTabs } from './PrintSpecTabs'
 import { ArtworkSelector } from './ArtworkSelector'
@@ -209,6 +211,17 @@ export function MockupStudio() {
   const update = (patch: Partial<PrintSpecFormValues>) =>
     setValue(`printSpecs.${activeIndex}`, { ...spec, ...patch })
 
+  // Paper-size-style presets, on top of the automatic zone-fit — picking
+  // one sets the physical width directly (height follows the artwork's
+  // own aspect ratio, same math the automatic fit already uses); it does
+  // NOT clamp to the zone, matching this app's "warn on overflow, never
+  // silently clip or resize" rule (see the overflow banner below) rather
+  // than the old free-drag/free-resize model.
+  const handleSizePreset = (widthMm: number) => {
+    update({ widthMm, heightMm: heightMmFromWidth(widthMm, aspectRatio ?? 1) })
+  }
+  const activePreset = matchPrintSizePreset(spec.widthMm)
+
   // Pre-UAT product decision: the selected print position is authoritative
   // for placement — artwork always renders centered in its zone, never at
   // a manually-dragged offset. `print_specs.offset_x`/`offset_y` remain in
@@ -278,6 +291,27 @@ export function MockupStudio() {
               selectedId={spec.artworkId}
               onSelect={(id) => update({ artworkId: id })}
             />
+          </div>
+
+          <div>
+            <p className="mb-1.5 text-xs font-semibold tracking-wide text-zinc-500">PRINT SIZE</p>
+            <div className="flex flex-wrap gap-1.5">
+              {PRINT_SIZE_PRESETS.map((preset) => (
+                <button
+                  key={preset.key}
+                  type="button"
+                  onClick={() => handleSizePreset(preset.widthMm)}
+                  className={clsx(
+                    'min-h-9 rounded-md border px-2.5 py-1.5 text-xs font-medium transition-colors',
+                    activePreset === preset.key
+                      ? 'border-brand-accent bg-brand-accent-soft text-brand-accent'
+                      : 'border-zinc-200 bg-white text-zinc-600 hover:border-zinc-300',
+                  )}
+                >
+                  {preset.label}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
 

@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
+  deleteOrder,
   getOrder,
   getOrderFormValues,
   listActivityForOrder,
@@ -264,6 +265,23 @@ export function useUpdateOrderAssignment() {
       queryClient.invalidateQueries({ queryKey: ['orders', orderId] })
       queryClient.invalidateQueries({ queryKey: ['orders', orderId, 'activity'] })
       queryClient.invalidateQueries({ queryKey: ['dashboard'] })
+    },
+  })
+}
+
+// Admin/owner only — see migration 20260910160000 and api/orders.ts's
+// deleteOrder for the real, server-enforced boundary. This hook is just
+// the cache-invalidation wiring; hiding the button for non-admins in the
+// UI is a courtesy, not the security boundary.
+export function useDeleteOrder() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (orderId: string) => deleteOrder(orderId),
+    onSuccess: (_data, orderId) => {
+      queryClient.invalidateQueries({ queryKey: ['orders'] })
+      queryClient.removeQueries({ queryKey: ['orders', orderId] })
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] })
+      queryClient.invalidateQueries({ queryKey: ['customers'] })
     },
   })
 }

@@ -306,3 +306,38 @@ export async function updateOrderAssignment(
   })
   if (activityError) throw activityError
 }
+
+// Admin/owner only (enforced server-side by RLS — see migration
+// 20260910160000 — this is not just a hidden button). Permanently deletes
+// the order and, via ON DELETE CASCADE on every child table's order_id FK,
+// its garments/quantities, services, print specs, artwork rows, and
+// activity log in one statement. Storage isn't covered by that cascade,
+// so every artwork file and generated mockup preview is removed from
+// Storage FIRST — best-effort (a failed Storage removal is logged and
+// skipped, never allowed to block the actual delete the admin asked for;
+// an orphaned Storage object with nothing pointing at it is a harmless,
+// already-accepted class of issue elsewhere in this app, unlike leaving
+// the order itself stuck undeleted).
+export async function deleteOrder(orderId: string): Promise<void> {
+  const { data: artworkRows } = await supabase.from('artwork').select('storage_path').eq('order_id', orderId)
+  const { data: previewRows } = await supabase
+    .from('print_specs')
+    .select('preview_storage_path')
+    .eq('order_id', orderId)
+    .not('preview_storage_path', 'is', null)
+
+  const artworkPaths = (artworkRows ?? []).map((r) => r.storage_path).filter((p): p is string => !!p)
+  const previewPaths = (previewRows ?? []).map((r) => r.preview_storage_path).filter((p): p is string => !!p)
+
+  if (artworkPaths.length > 0) {
+    const { error } = await supabase.storage.from('artwork-originals').remove(artworkPaths)
+    if (error) console.error('Failed to remove artwork from storage', error)
+  }
+  if (previewPaths.length > 0) {
+    const { error } = await supabase.storage.from('mockup-previews').remove(previewPaths)
+    if (error) console.error('Failed to remove previews from storage', error)
+  }
+
+  const { error } = await supabase.from('orders').delete().eq('id', orderId)
+  if (error) throw error
+}

@@ -1,14 +1,17 @@
 import { useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { ArrowLeft, MoreHorizontal, Pencil, RefreshCw } from 'lucide-react'
+import { ArrowLeft, Pencil, RefreshCw, Trash2 } from 'lucide-react'
 import { mockOrders } from '@/data/mockOrders'
-import { useOrder } from '@/hooks/useOrders'
+import { useDeleteOrder, useOrder } from '@/hooks/useOrders'
+import { useProfile } from '@/hooks/useProfile'
 import { isRealOrderId } from '@/utils/id'
 import { StatCard } from '@/components/domain/StatCard'
 import { StatusBadge } from '@/components/domain/StatusBadge'
 import { Tabs } from '@/components/ui/Tabs'
 import { Button } from '@/components/ui/Button'
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { useToast } from '@/components/ui/toast-context'
+import { orderSaveErrorMessage } from '@/utils/errorMessage'
 import { formatDate } from '@/utils/date'
 import { OverviewTab } from '@/pages/order-detail/OverviewTab'
 import { OrderFormTab } from '@/pages/order-detail/OrderFormTab'
@@ -34,6 +37,10 @@ export default function OrderDetail() {
   const navigate = useNavigate()
   const { showToast } = useToast()
   const [tab, setTab] = useState('overview')
+  const [confirmingDelete, setConfirmingDelete] = useState(false)
+  const { data: profile } = useProfile()
+  const deleteOrder = useDeleteOrder()
+  const isAdmin = profile?.role === 'admin' || profile?.role === 'owner'
 
   // Transitional: real orders (Milestone 6+) get real UUIDs; the demo
   // orders in mockOrders.ts use plain string ids like "order-1" and still
@@ -48,6 +55,18 @@ export default function OrderDetail() {
 
   if (isRealId && isLoading) return null
   if (!order) return <NotFound />
+
+  const handleDelete = async () => {
+    try {
+      await deleteOrder.mutateAsync(order.id)
+      showToast(`${order.orderNumber} deleted`, 'success')
+      navigate('/orders')
+    } catch (err) {
+      showToast(orderSaveErrorMessage(err, 'Failed to delete order'), 'info')
+    } finally {
+      setConfirmingDelete(false)
+    }
+  }
 
   return (
     <div>
@@ -87,15 +106,29 @@ export default function OrderDetail() {
           >
             <RefreshCw size={14} /> Reorder
           </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => showToast('More actions arrive with backend integration.', 'info')}
-          >
-            <MoreHorizontal size={16} />
-          </Button>
+          {isAdmin && (
+            <Button
+              variant="danger"
+              size="sm"
+              onClick={() =>
+                isRealId ? setConfirmingDelete(true) : showToast('Demo order — deletion not available.', 'info')
+              }
+            >
+              <Trash2 size={14} /> Delete Order
+            </Button>
+          )}
         </div>
       </div>
+
+      <ConfirmDialog
+        open={confirmingDelete}
+        title={`Delete ${order.orderNumber}?`}
+        description="This permanently deletes the order and everything attached to it — garments, artwork, mockups, and activity history. This cannot be undone."
+        confirmLabel={deleteOrder.isPending ? 'Deleting...' : 'Delete Order'}
+        danger
+        onConfirm={handleDelete}
+        onCancel={() => setConfirmingDelete(false)}
+      />
 
       <div className="mb-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
         <StatCard label="Quantity" value={order.quantity} />
