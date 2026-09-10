@@ -48,6 +48,7 @@ describe('mapDatabaseOrderToDomain', () => {
     staff_completed: false,
     order_state: 'Active',
     assigned_to: null,
+    completed_at: null,
     customers: { name: 'Dave Kelston', company: 'Kelston Rugby Club' },
     assignee: null,
     order_garments: [
@@ -162,6 +163,7 @@ describe('mapDatabaseOrderToFormValues', () => {
     staff_completed: false,
     order_state: 'Active',
     assigned_to: null,
+    completed_at: null,
     customers: { name: 'Dave Kelston', company: 'Kelston Rugby Club' },
     assignee: null,
     order_garments: [

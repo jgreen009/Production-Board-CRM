@@ -6,6 +6,8 @@ import {
   PenTool,
   PackageCheck,
   CheckCircle2,
+  Clock,
+  Users,
 } from 'lucide-react'
 import { PageHeader } from '@/components/domain/PageHeader'
 import { StatCard } from '@/components/domain/StatCard'
@@ -18,10 +20,14 @@ import { useOrders, useRecentActivity } from '@/hooks/useOrders'
 import { formatDateShort, dueDateLabel, isOverdue, isDueToday } from '@/utils/date'
 import {
   activeOrders,
+  averageTurnaroundDays,
   awaitingArtworkOrders,
   completedThisWeekOrders,
   dueTodayOrders,
+  ordersByAssignee,
+  ordersByProductionStatus,
   ordersRequiringAttention,
+  overdueOrders,
   readyForProductionOrders,
   upcomingDeadlines,
   urgentOrders,
@@ -38,17 +44,27 @@ export default function Dashboard() {
   const attention = ordersRequiringAttention(orders).slice(0, 6)
   const deadlines = upcomingDeadlines(orders, 6)
   const orderNumbers = Object.fromEntries(activity.map((a) => [a.orderId, a.orderNumber]))
+  const statusBreakdown = ordersByProductionStatus(orders)
+  const turnaround = averageTurnaroundDays(orders)
+  const workload = ordersByAssignee(orders)
 
   return (
     <div>
       <PageHeader title={`${greeting}, team`} description="Production overview across all active orders" />
 
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-7">
         <StatCard
           label="Active Orders"
           value={activeOrders(orders).length}
           description="Currently in the pipeline"
           icon={ClipboardList}
+        />
+        <StatCard
+          label="Overdue"
+          value={overdueOrders(orders).length}
+          description="Past due, not yet complete"
+          icon={Clock}
+          accent="danger"
         />
         <StatCard
           label="Due Today"
@@ -180,6 +196,64 @@ export default function Dashboard() {
                   {formatDateShort(order.dueDate)}
                 </span>
               </Link>
+              ))
+            )}
+          </CardBody>
+        </Card>
+      </div>
+
+      <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-3">
+        <Card>
+          <CardHeader>
+            <h2 className="text-sm font-semibold text-zinc-800">Production Status Breakdown</h2>
+          </CardHeader>
+          <CardBody className="flex flex-col gap-2">
+            {statusBreakdown.length === 0 ? (
+              <p className="text-sm text-zinc-400">No orders yet.</p>
+            ) : (
+              statusBreakdown.map(({ status, count }) => (
+                <div key={status} className="flex items-center justify-between gap-2">
+                  <StatusBadge kind="production" value={status} />
+                  <span className="text-sm font-medium text-zinc-700">{count}</span>
+                </div>
+              ))
+            )}
+          </CardBody>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <h2 className="text-sm font-semibold text-zinc-800">Average Turnaround</h2>
+          </CardHeader>
+          <CardBody className="flex flex-col items-start gap-1">
+            <div className="flex items-center gap-2 text-2xl font-semibold text-zinc-800">
+              <Clock size={20} className="text-zinc-400" />
+              {turnaround === null ? '—' : `${turnaround}d`}
+            </div>
+            <p className="text-xs text-zinc-400">
+              {turnaround === null
+                ? 'No completed orders yet.'
+                : 'Days from order creation to completion, averaged across completed orders.'}
+            </p>
+          </CardBody>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <h2 className="text-sm font-semibold text-zinc-800">Staff Workload</h2>
+          </CardHeader>
+          <CardBody className="flex flex-col gap-2">
+            {workload.length === 0 ? (
+              <p className="text-sm text-zinc-400">No active orders.</p>
+            ) : (
+              workload.map((w) => (
+                <div key={w.assignedTo ?? 'unassigned'} className="flex items-center justify-between gap-2">
+                  <span className="flex items-center gap-1.5 text-sm text-zinc-600">
+                    <Users size={14} className="text-zinc-400" />
+                    {w.assigneeName}
+                  </span>
+                  <span className="text-sm font-medium text-zinc-700">{w.count}</span>
+                </div>
               ))
             )}
           </CardBody>

@@ -47,6 +47,7 @@ export interface OrderRow {
   staff_completed: boolean
   order_state: 'Draft' | 'Active'
   assigned_to: string | null
+  completed_at: string | null
   customers: { name: string; company: string | null } | null
   assignee: { full_name: string | null; is_active: boolean } | null
   order_garments: OrderGarmentRow[]
@@ -94,6 +95,7 @@ export function mapDatabaseOrderToDomain(row: OrderRow): Order {
     assignedTo: row.assigned_to ?? undefined,
     assignedToName: row.assignee?.full_name ?? null,
     assignedToActive: row.assignee?.is_active,
+    completedAt: row.completed_at ?? undefined,
   }
 }
 

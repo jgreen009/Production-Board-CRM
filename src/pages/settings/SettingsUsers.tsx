@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ArrowLeft, KeyRound, Plus, ShieldAlert, UserCog } from 'lucide-react'
@@ -237,6 +237,14 @@ function UserFormDialog({
 
   const isSelf = isEdit && existing?.id === currentUserId
 
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose()
+    }
+    document.addEventListener('keydown', onKeyDown)
+    return () => document.removeEventListener('keydown', onKeyDown)
+  }, [onClose])
+
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
     if (!fullName.trim() || (!isEdit && !email.trim())) {
@@ -268,7 +276,12 @@ function UserFormDialog({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-zinc-900/40" onClick={onClose} />
-      <div role="dialog" aria-modal="true" className="relative w-full max-w-sm rounded-lg bg-white p-5 shadow-xl">
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label={isEdit ? 'Edit User' : 'Add User'}
+        className="relative w-full max-w-sm rounded-lg bg-white p-5 shadow-xl"
+      >
         <h3 className="mb-4 text-base font-semibold text-zinc-900">{isEdit ? 'Edit User' : 'Add User'}</h3>
         <form onSubmit={handleSubmit} className="flex flex-col gap-3">
           <FormField label="Full Name" htmlFor="user-full-name" required>

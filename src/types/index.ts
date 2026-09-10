@@ -251,4 +251,8 @@ export interface Order {
   assignedTo?: string
   assignedToName?: string | null
   assignedToActive?: boolean
+  // Trigger-maintained in the DB (set when productionStatus transitions to
+  // Completed, cleared if it moves off Completed again) — never written by
+  // the client. undefined for any order that has never been completed.
+  completedAt?: string
 }
