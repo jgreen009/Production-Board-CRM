@@ -34,12 +34,12 @@ export function ServicesSection() {
     >
       <div>
         <p className="mb-2 text-sm font-medium text-zinc-700">
-          What services do you require? <span className="text-red-500">*</span>
+          What services do you require? <span className="text-danger">*</span>
         </p>
         {errors.services?.message && (
-          <p className="mb-2 text-xs text-red-600">{errors.services.message}</p>
+          <p className="mb-2 text-xs font-medium text-danger">{errors.services.message}</p>
         )}
-        <div className="grid grid-cols-2 gap-2 lg:grid-cols-3">
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
           {visibleServices.map((service) => (
             <Checkbox
               key={service.id}
@@ -52,7 +52,7 @@ export function ServicesSection() {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-2">
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
         <Toggle
           label="Do you require us to supply Garments"
           checked={suppliesGarments}
