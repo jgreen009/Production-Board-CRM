@@ -34,14 +34,18 @@ export default function Login() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-app-bg px-4">
-      <div className="w-full max-w-sm rounded-lg border border-zinc-200 bg-white p-6 shadow-sm">
-        <div className="mb-6 flex flex-col items-center gap-2">
-          <span className="flex h-10 w-10 items-center justify-center rounded-md bg-zinc-900 text-white">
-            <Printer size={18} />
+    <div className="flex min-h-screen items-center justify-center bg-app-bg px-4 py-8">
+      <div className="w-full max-w-sm rounded-xl border border-zinc-200 bg-white p-6 shadow-sm sm:p-8">
+        <div className="mb-7 flex flex-col items-center gap-3">
+          <span className="flex h-11 w-11 items-center justify-center rounded-lg bg-brand-accent text-white">
+            <Printer size={20} />
           </span>
-          <h1 className="text-lg font-semibold text-zinc-900">SALT PRINTS</h1>
-          <p className="text-sm text-zinc-500">Sign in to the production dashboard</p>
+          <div className="text-center">
+            <h1 className="text-lg font-semibold tracking-tight text-zinc-900">BRAND FANATIX</h1>
+            <p className="mt-0.5 text-xs font-medium uppercase tracking-wide text-zinc-400">
+              Production Management
+            </p>
+          </div>
         </div>
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
@@ -66,15 +70,19 @@ export default function Login() {
             />
           </FormField>
 
-          {error && <p className="text-sm text-red-600">{error}</p>}
+          {error && (
+            <p className="rounded-md bg-danger-soft px-3 py-2 text-sm text-danger" role="alert">
+              {error}
+            </p>
+          )}
 
-          <Button type="submit" variant="primary" disabled={submitting} className="justify-center">
-            {submitting ? 'Signing in...' : 'Sign in'}
+          <Button type="submit" variant="primary" disabled={submitting} className="mt-1 justify-center">
+            {submitting ? 'Signing in...' : 'Sign In'}
           </Button>
         </form>
 
-        <p className="mt-5 text-center text-xs text-zinc-400">
-          Accounts are created by an admin — there's no public sign-up.
+        <p className="mt-6 text-center text-xs text-zinc-400">
+          Accounts are created by an admin — there&rsquo;s no public sign-up.
         </p>
       </div>
     </div>

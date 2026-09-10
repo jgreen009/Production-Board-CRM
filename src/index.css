@@ -11,8 +11,28 @@
   --color-ink-muted: #52525b;
   --color-ink-faint: #a1a1aa;
 
-  --color-brand: #111827;
-  --color-brand-accent: #2563eb;
+  /* Brand Fanatix identity: near-black ink for structure/primary actions
+     (confident, not decorative), one strong warm accent used deliberately
+     — active nav, focus rings, links, key highlights — never as a default
+     background colour for ordinary UI chrome. A restrained secondary
+     accent (indigo) exists for informational/"selected" states that
+     shouldn't compete with the primary accent. */
+  --color-brand: #18181b;
+  --color-brand-accent: #f2540b;
+  --color-brand-accent-hover: #d8460a;
+  --color-brand-accent-soft: #fef1e9;
+  --color-secondary-accent: #4f46e5;
+
+  /* Semantic tokens — centralized so components stop hardcoding raw
+     Tailwind colour classes per instance. */
+  --color-danger: #dc2626;
+  --color-danger-soft: #fef2f2;
+  --color-warning: #d97706;
+  --color-warning-soft: #fffbeb;
+  --color-success: #059669;
+  --color-success-soft: #ecfdf5;
+  --color-info: #2563eb;
+  --color-info-soft: #eff6ff;
 }
 
 html,

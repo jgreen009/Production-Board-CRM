@@ -14,8 +14,8 @@ interface StatCardProps {
 
 const accentClasses: Record<NonNullable<StatCardProps['accent']>, string> = {
   default: 'text-zinc-900',
-  warning: 'text-amber-600',
-  danger: 'text-red-600',
+  warning: 'text-warning',
+  danger: 'text-danger',
 }
 
 export function StatCard({
@@ -30,15 +30,19 @@ export function StatCard({
     <Card className="p-4">
       <div className="flex items-start justify-between">
         <span className="text-sm font-medium text-zinc-500">{label}</span>
-        {Icon && <Icon size={16} className="text-zinc-300" />}
+        {Icon && (
+          <span className="flex h-7 w-7 items-center justify-center rounded-md bg-zinc-50 text-zinc-400">
+            <Icon size={15} />
+          </span>
+        )}
       </div>
-      <div className={clsx('mt-2 text-2xl font-semibold', accentClasses[accent])}>{value}</div>
+      <div className={clsx('mt-2 text-2xl font-semibold tabular-nums', accentClasses[accent])}>{value}</div>
       {description && <p className="mt-1 text-xs text-zinc-400">{description}</p>}
       {trend && (
         <div
           className={clsx(
             'mt-2 inline-flex items-center gap-1 text-xs font-medium',
-            trend.positive === false ? 'text-red-600' : 'text-emerald-600',
+            trend.positive === false ? 'text-danger' : 'text-success',
           )}
         >
           {trend.direction === 'up' ? <ArrowUp size={12} /> : <ArrowDown size={12} />}

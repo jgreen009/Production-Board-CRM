@@ -38,7 +38,7 @@ export function ArtworkFileCard({ file, onRemove }: ArtworkFileCardProps) {
         <button
           type="button"
           onClick={onRemove}
-          className="rounded-md p-1.5 text-zinc-400 hover:bg-red-50 hover:text-red-600"
+          className="rounded-md p-2 text-zinc-400 hover:bg-danger-soft hover:text-danger"
           aria-label="Remove file"
         >
           <X size={14} />

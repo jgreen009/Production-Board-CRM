@@ -241,7 +241,7 @@ export function OrderFormEditor({ orderId: existingOrderId, initialValues, previ
     ? "Update this order's production specification."
     : mode === 'resume-draft'
       ? 'Pick up where you left off — this draft autosaves in the background again as you go.'
-      : 'Digital production specification for a new SALT PRINTS job.'
+      : 'Digital production specification for a new Brand Fanatix job.'
 
   return (
     <FormProvider {...methods}>

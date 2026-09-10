@@ -30,7 +30,7 @@ export default function SettingsIndex() {
 
   return (
     <div>
-      <PageHeader title="Settings" description="Configure SALT PRINTS catalogs and defaults" />
+      <PageHeader title="Settings" description="Configure Brand Fanatix catalogs and defaults" />
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {visibleCards.map((card) => (
           <Card

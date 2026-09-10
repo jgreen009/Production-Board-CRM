@@ -7,19 +7,26 @@ import type {
 } from 'react'
 import { clsx } from 'clsx'
 
+// Shared focus/border/disabled treatment for every field type. Height is
+// deliberately NOT part of this shared base — Input/Select need a fixed
+// h-10 (40px, matching Button's md size so an input+button row lines up),
+// while Textarea needs to grow with `rows` instead, so each sets its own
+// height below rather than fighting a shared fixed value.
 const fieldBase =
-  'w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 placeholder:text-zinc-400 transition-colors ' +
-  'focus:outline-none focus:ring-2 focus:ring-zinc-900/10 focus:border-zinc-400 disabled:bg-zinc-50 disabled:text-zinc-400'
+  'w-full rounded-md border border-zinc-300 bg-white px-3 text-sm text-zinc-900 placeholder:text-zinc-400 transition-colors ' +
+  'focus:outline-none focus:ring-2 focus:ring-brand-accent/20 focus:border-brand-accent disabled:bg-zinc-50 disabled:text-zinc-400'
 
 interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
   error?: string
 }
 
+const errorClasses = 'border-danger focus:ring-danger/15 focus:border-danger'
+
 export const Input = forwardRef<HTMLInputElement, InputProps>(
   ({ className, error, ...props }, ref) => (
     <input
       ref={ref}
-      className={clsx(fieldBase, error && 'border-red-400 focus:ring-red-100', className)}
+      className={clsx(fieldBase, 'h-10 py-2.5', error && errorClasses, className)}
       {...props}
     />
   ),
@@ -34,7 +41,7 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
   ({ className, error, children, ...props }, ref) => (
     <select
       ref={ref}
-      className={clsx(fieldBase, 'pr-8', error && 'border-red-400 focus:ring-red-100', className)}
+      className={clsx(fieldBase, 'h-10 py-2.5 pr-8', error && errorClasses, className)}
       {...props}
     >
       {children}
@@ -51,7 +58,7 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
   ({ className, error, ...props }, ref) => (
     <textarea
       ref={ref}
-      className={clsx(fieldBase, 'resize-y', error && 'border-red-400 focus:ring-red-100', className)}
+      className={clsx(fieldBase, 'min-h-20 py-2 resize-y', error && errorClasses, className)}
       {...props}
     />
   ),
@@ -82,12 +89,12 @@ export function FormField({
       {label && (
         <label htmlFor={htmlFor} className="text-sm font-medium text-zinc-700">
           {label}
-          {required && <span className="text-red-500"> *</span>}
+          {required && <span className="text-danger"> *</span>}
         </label>
       )}
       {children}
       {hint && !error && <p className="text-xs text-zinc-400">{hint}</p>}
-      {error && <p className="text-xs text-red-600">{error}</p>}
+      {error && <p className="text-xs font-medium text-danger">{error}</p>}
     </div>
   )
 }
@@ -110,7 +117,7 @@ export const Checkbox = forwardRef<HTMLInputElement, CheckboxProps>(
         ref={ref}
         id={id}
         type="checkbox"
-        className="mt-0.5 h-4 w-4 rounded border-zinc-300 text-zinc-900 focus:ring-zinc-900/20"
+        className="mt-0.5 h-4 w-4 rounded border-zinc-300 text-brand-accent focus:ring-brand-accent/20"
         {...props}
       />
       <span className="flex flex-col">
@@ -145,7 +152,7 @@ export function Toggle({ label, description, checked, onChange, disabled }: Togg
         onClick={() => onChange(!checked)}
         className={clsx(
           'relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors disabled:opacity-50',
-          checked ? 'bg-zinc-900' : 'bg-zinc-200',
+          checked ? 'bg-brand-accent' : 'bg-zinc-200',
         )}
       >
         <span

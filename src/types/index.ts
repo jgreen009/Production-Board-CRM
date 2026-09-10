@@ -1,4 +1,4 @@
-// Domain types for SALT PRINTS production management app.
+// Domain types for the Brand Fanatix production management app.
 // Frontend-only phase: no backend/DB shapes, just what the UI needs.
 
 export type PaymentStatus =

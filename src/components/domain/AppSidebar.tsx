@@ -54,11 +54,11 @@ export function AppSidebar({ mobileOpen, onCloseMobile }: AppSidebarProps) {
       >
         <div className="flex items-center justify-between px-4 py-4">
           <div className="flex items-center gap-2">
-            <span className="flex h-8 w-8 items-center justify-center rounded-md bg-zinc-900 text-white">
+            <span className="flex h-8 w-8 items-center justify-center rounded-md bg-brand-accent text-white">
               <Printer size={16} />
             </span>
             <span className="text-sm font-semibold tracking-wide text-zinc-900">
-              SALT PRINTS
+              BRAND FANATIX
             </span>
           </div>
           <button
@@ -80,9 +80,9 @@ export function AppSidebar({ mobileOpen, onCloseMobile }: AppSidebarProps) {
                   onClick={onCloseMobile}
                   className={({ isActive }) =>
                     clsx(
-                      'flex items-center gap-2.5 rounded-md px-3 py-2 text-sm font-medium transition-colors',
+                      'flex items-center gap-2.5 rounded-md px-3 py-2.5 text-sm font-medium transition-colors',
                       isActive
-                        ? 'bg-zinc-900 text-white'
+                        ? 'bg-brand-accent-soft text-brand-accent'
                         : 'text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900',
                     )
                   }
@@ -102,13 +102,16 @@ export function AppSidebar({ mobileOpen, onCloseMobile }: AppSidebarProps) {
           </button>
           <div className="mt-1 flex items-center gap-2.5 rounded-md px-3 py-2">
             <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-zinc-200 text-xs font-semibold text-zinc-700">
-              {initials(profile?.fullName, 'SP')}
+              {initials(profile?.fullName, 'BF')}
             </span>
             <div className="flex min-w-0 flex-1 flex-col leading-tight">
               <span className="truncate text-sm font-medium text-zinc-800">
                 {profile?.fullName || 'Staff Account'}
               </span>
-              <span className="text-xs capitalize text-zinc-400">{profile?.role ?? 'SALT PRINTS'}</span>
+              {/* Was falling back to the business name here instead of a
+                  role label — a pre-existing copy/paste bug, fixed as part
+                  of this pass since it's purely a display-text issue. */}
+              <span className="text-xs capitalize text-zinc-400">{profile?.role ?? 'Staff'}</span>
             </div>
             <button
               onClick={() => signOut()}

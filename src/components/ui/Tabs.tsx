@@ -31,7 +31,7 @@ export function Tabs({ tabs, active, onChange, className }: TabsProps) {
           className={clsx(
             'whitespace-nowrap border-b-2 px-3 py-2.5 text-sm font-medium transition-colors',
             active === tab.key
-              ? 'border-zinc-900 text-zinc-900'
+              ? 'border-brand-accent text-zinc-900'
               : 'border-transparent text-zinc-500 hover:text-zinc-800',
           )}
         >

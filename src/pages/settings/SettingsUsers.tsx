@@ -112,7 +112,7 @@ export default function SettingsUsers() {
       </button>
 
       <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <PageHeader title="User Management" description="SALT PRINTS staff accounts, roles, and access" />
+        <PageHeader title="User Management" description="Brand Fanatix staff accounts, roles, and access" />
         <Button type="button" variant="primary" onClick={() => setDialog({ mode: 'create' })}>
           <Plus size={14} /> Add User
         </Button>
