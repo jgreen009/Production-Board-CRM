@@ -3,8 +3,10 @@ import { StatusBadge } from '@/components/domain/StatusBadge'
 import { StatusSelect } from '@/components/domain/StatusSelect'
 import { MockupThumbnail } from '@/components/domain/MockupThumbnail'
 import { AttentionBadge } from '@/components/domain/production/AttentionBadge'
+import { Tooltip } from '@/components/ui/Tooltip'
 import { PRODUCTION_STATUSES } from '@/data/mockStatuses'
 import { dueDateLabel, isDueToday, isDueSoon, isOverdue } from '@/utils/date'
+import { getProductionQueueRank, queueTierLabel } from '@/utils/productionQueue'
 import { clsx } from 'clsx'
 
 interface ProductionTableProps {
@@ -13,6 +15,32 @@ interface ProductionTableProps {
   onRowClick: (order: Order) => void
   onProductionStatusChange: (orderId: string, status: ProductionStatus) => void
   onPreviewClick: (order: Order) => void
+}
+
+// Presentation-only mapping from the pure queue-rank util to a small
+// scan-friendly dot colour — doesn't change ranking/sorting logic, just
+// gives each row a glanceable urgency cue independent of the Due column.
+const QUEUE_DOT_COLOUR: Record<ReturnType<typeof getProductionQueueRank>, string> = {
+  overdue: 'bg-danger',
+  'same-day': 'bg-brand-accent',
+  'urgent-or-due-today': 'bg-warning',
+  'due-tomorrow': 'bg-info',
+  upcoming: 'bg-zinc-300',
+}
+
+// Shared between the desktop table and the mobile card fallback in
+// ProductionBoard.tsx so the queue-priority cue looks/behaves identically
+// on both surfaces.
+export function QueueDot({ order, className }: { order: Order; className?: string }) {
+  const tier = getProductionQueueRank(order)
+  return (
+    <Tooltip content={`Queue: ${queueTierLabel(tier)}`}>
+      <span
+        className={clsx('block h-2 w-2 shrink-0 rounded-full', QUEUE_DOT_COLOUR[tier], className)}
+        aria-label={`Queue priority: ${queueTierLabel(tier)}`}
+      />
+    </Tooltip>
+  )
 }
 
 export function ProductionTable({
@@ -27,6 +55,7 @@ export function ProductionTable({
       <table className="w-full text-left text-sm">
         <thead>
           <tr className="border-b border-zinc-100 bg-zinc-50/60 text-xs text-zinc-500">
+            <th className="w-6 px-2 py-2.5" aria-hidden="true" />
             <th className="px-3 py-2.5 font-medium">Order</th>
             <th className="px-3 py-2.5 font-medium">Customer</th>
             <th className="px-3 py-2.5 font-medium">Qty</th>
@@ -42,72 +71,75 @@ export function ProductionTable({
         </thead>
         <tbody>
           {orders.map((order) => (
-            <tr
-              key={order.id}
-              onClick={() => onRowClick(order)}
-              className="cursor-pointer border-b border-zinc-50 last:border-0 hover:bg-zinc-50"
-            >
-              <td className="px-3 py-2.5">
-                <div className="flex items-center gap-1.5">
-                  <p className="font-medium text-zinc-800">{order.orderNumber}</p>
-                  <AttentionBadge order={order} />
-                </div>
-                <p className="text-xs text-zinc-400">{order.jobName}</p>
-                <p className="text-[11px] text-zinc-400">
-                  {order.assignedTo
-                    ? `${order.assignedToName || 'Unnamed staff'}${order.assignedToActive === false ? ' (inactive)' : ''}`
-                    : 'Unassigned'}
-                </p>
-              </td>
-              <td className="px-3 py-2.5 text-zinc-600">{order.customer}</td>
-              <td className="px-3 py-2.5 text-zinc-600">{order.quantity}</td>
-              <td
-                className={clsx(
-                  'px-3 py-2.5 font-medium',
-                  isOverdue(order.dueDate)
-                    ? 'text-red-600'
-                    : isDueToday(order.dueDate)
-                      ? 'text-amber-600'
-                      : isDueSoon(order.dueDate)
-                        ? 'text-zinc-700'
-                        : 'text-zinc-500',
-                )}
+              <tr
+                key={order.id}
+                onClick={() => onRowClick(order)}
+                className="cursor-pointer border-b border-zinc-50 last:border-0 hover:bg-zinc-50"
               >
-                {dueDateLabel(order.dueDate)}
-              </td>
-              <td className="px-3 py-2.5">
-                <StatusBadge kind="payment" value={order.paymentStatus} />
-              </td>
-              <td className="px-3 py-2.5">
-                <StatusBadge kind="artwork" value={order.artworkStatus} />
-              </td>
-              <td className="px-3 py-2.5">
-                <StatusBadge kind="garment" value={order.garmentStatus} />
-              </td>
-              <td className="px-3 py-2.5" onClick={(e) => e.stopPropagation()}>
-                <StatusSelect
-                  value={order.productionStatus}
-                  options={PRODUCTION_STATUSES}
-                  onChange={(v) => onProductionStatusChange(order.id, v)}
-                />
-              </td>
-              <td className="px-3 py-2.5">
-                <StatusBadge kind="priority" value={order.priority} />
-              </td>
-              {showDelivery && (
-                <td className="px-3 py-2.5 text-zinc-600">{order.deliveryMethod}</td>
-              )}
-              <td className="px-3 py-2.5" onClick={(e) => e.stopPropagation()}>
-                <button
-                  type="button"
-                  onClick={() => onPreviewClick(order)}
-                  aria-label="Preview mockup"
-                  className="rounded-md focus:outline-none focus:ring-2 focus:ring-zinc-900/10"
+                <td className="px-2 py-2.5">
+                  <QueueDot order={order} />
+                </td>
+                <td className="px-3 py-2.5 align-top">
+                  <div className="flex items-center gap-1.5">
+                    <p className="font-medium leading-tight text-zinc-800">{order.orderNumber}</p>
+                    <AttentionBadge order={order} />
+                  </div>
+                  <p className="truncate text-xs leading-tight text-zinc-500">{order.jobName}</p>
+                  <p className="mt-0.5 text-[11px] leading-tight text-zinc-400">
+                    {order.assignedTo
+                      ? `${order.assignedToName || 'Unnamed staff'}${order.assignedToActive === false ? ' (inactive)' : ''}`
+                      : 'Unassigned'}
+                  </p>
+                </td>
+                <td className="px-3 py-2.5 align-top text-zinc-600">{order.customer}</td>
+                <td className="px-3 py-2.5 align-top tabular-nums text-zinc-600">{order.quantity}</td>
+                <td
+                  className={clsx(
+                    'px-3 py-2.5 align-top font-medium whitespace-nowrap',
+                    isOverdue(order.dueDate)
+                      ? 'text-danger'
+                      : isDueToday(order.dueDate)
+                        ? 'text-warning'
+                        : isDueSoon(order.dueDate)
+                          ? 'text-zinc-700'
+                          : 'text-zinc-500',
+                  )}
                 >
-                  <MockupThumbnail mockups={order.printSpecs} />
-                </button>
-              </td>
-            </tr>
+                  {dueDateLabel(order.dueDate)}
+                </td>
+                <td className="px-3 py-2.5 align-top">
+                  <StatusBadge kind="payment" value={order.paymentStatus} />
+                </td>
+                <td className="px-3 py-2.5 align-top">
+                  <StatusBadge kind="artwork" value={order.artworkStatus} />
+                </td>
+                <td className="px-3 py-2.5 align-top">
+                  <StatusBadge kind="garment" value={order.garmentStatus} />
+                </td>
+                <td className="px-3 py-2.5 align-top" onClick={(e) => e.stopPropagation()}>
+                  <StatusSelect
+                    value={order.productionStatus}
+                    options={PRODUCTION_STATUSES}
+                    onChange={(v) => onProductionStatusChange(order.id, v)}
+                  />
+                </td>
+                <td className="px-3 py-2.5 align-top">
+                  <StatusBadge kind="priority" value={order.priority} />
+                </td>
+                {showDelivery && (
+                  <td className="px-3 py-2.5 align-top text-zinc-600">{order.deliveryMethod}</td>
+                )}
+                <td className="px-3 py-2.5 align-top" onClick={(e) => e.stopPropagation()}>
+                  <button
+                    type="button"
+                    onClick={() => onPreviewClick(order)}
+                    aria-label="Preview mockup"
+                    className="rounded-md focus:outline-none focus:ring-2 focus:ring-zinc-900/10"
+                  >
+                    <MockupThumbnail mockups={order.printSpecs} />
+                  </button>
+                </td>
+              </tr>
           ))}
         </tbody>
       </table>
