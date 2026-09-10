@@ -39,7 +39,7 @@ export function ServicesSection() {
         {errors.services?.message && (
           <p className="mb-2 text-xs font-medium text-danger">{errors.services.message}</p>
         )}
-        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
           {visibleServices.map((service) => (
             <Checkbox
               key={service.id}

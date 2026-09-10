@@ -47,7 +47,7 @@ export function TurnaroundDeliverySection() {
       <div>
         <p className="mb-1.5 text-sm font-medium text-zinc-700">Turnaround</p>
         <p className="mb-2 text-xs text-zinc-400">Internal staff field — not shown on the paper form.</p>
-        <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
           {FORM_TURNAROUNDS.map((t) => (
             <button
               key={t.value}
@@ -71,14 +71,14 @@ export function TurnaroundDeliverySection() {
 
       <div>
         <p className="mb-1.5 text-sm font-medium text-zinc-700">Pick Up / Delivery</p>
-        <div className="flex flex-col gap-2 sm:flex-row">
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
           {DELIVERY_OPTIONS.map((opt) => (
             <button
               key={opt.value}
               type="button"
               onClick={() => setValue('deliveryMethod', opt.value)}
               className={clsx(
-                'min-h-11 flex-1 rounded-md border px-3 py-2 text-sm font-medium transition-colors',
+                'min-h-11 rounded-md border px-3 py-2 text-sm font-medium transition-colors',
                 deliveryMethod === opt.value
                   ? 'border-brand-accent bg-brand-accent-soft text-zinc-900'
                   : 'border-zinc-200 bg-white text-zinc-700 hover:border-zinc-300',
@@ -100,14 +100,14 @@ export function TurnaroundDeliverySection() {
         <p className="mb-2 text-xs text-zinc-400">
           Internal-only — not on the paper form. Same Day sets this to Urgent automatically. Staff can override.
         </p>
-        <div className="flex flex-col gap-2 sm:flex-row">
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
           {PRIORITIES.map((p) => (
             <button
               key={p.value}
               type="button"
               onClick={() => setValue('priority', p.value as Priority)}
               className={clsx(
-                'min-h-11 flex-1 rounded-md border px-3 py-2 text-sm font-medium transition-colors',
+                'min-h-11 rounded-md border px-3 py-2 text-sm font-medium transition-colors',
                 priority === p.value ? p.className : 'border-zinc-200 bg-white text-zinc-500 hover:border-zinc-300',
               )}
             >
