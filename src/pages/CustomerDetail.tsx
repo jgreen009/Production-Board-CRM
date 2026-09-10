@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { Mail, Phone, ArrowLeft } from 'lucide-react'
+import { Mail, Phone, ArrowLeft, RefreshCw } from 'lucide-react'
 import type { Customer } from '@/types'
 import { PageHeader } from '@/components/domain/PageHeader'
 import { StatCard } from '@/components/domain/StatCard'
@@ -13,6 +13,7 @@ import { useCustomer, useUpdateCustomerNotes } from '@/hooks/useCustomers'
 import { useOrders } from '@/hooks/useOrders'
 import { ordersForCustomer, openOrdersCount, completedOrdersCount } from '@/utils/customers'
 import { formatDateShort } from '@/utils/date'
+import { garmentTotal } from '@/utils/quantity'
 import { useToast } from '@/components/ui/toast-context'
 import NotFound from '@/pages/NotFound'
 
@@ -74,25 +75,55 @@ export default function CustomerDetail() {
                       <th className="px-4 py-2 font-medium">Job</th>
                       <th className="px-4 py-2 font-medium">Created</th>
                       <th className="px-4 py-2 font-medium">Due</th>
+                      <th className="px-4 py-2 font-medium">Qty</th>
+                      <th className="px-4 py-2 font-medium">Garments</th>
+                      <th className="px-4 py-2 font-medium">Artwork</th>
                       <th className="px-4 py-2 font-medium">Production</th>
+                      <th className="px-4 py-2 font-medium">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {recentOrders.map((order) => (
-                      <tr
-                        key={order.id}
-                        onClick={() => navigate(`/orders/${order.id}`)}
-                        className="cursor-pointer border-b border-zinc-50 last:border-0 hover:bg-zinc-50"
-                      >
-                        <td className="px-4 py-2.5 font-medium text-zinc-800">{order.orderNumber}</td>
-                        <td className="px-4 py-2.5 text-zinc-600">{order.jobName}</td>
-                        <td className="px-4 py-2.5 text-zinc-500">{formatDateShort(order.createdAt)}</td>
-                        <td className="px-4 py-2.5 text-zinc-500">{formatDateShort(order.dueDate)}</td>
-                        <td className="px-4 py-2.5">
-                          <StatusBadge kind="production" value={order.productionStatus} />
-                        </td>
-                      </tr>
-                    ))}
+                    {recentOrders.map((order) => {
+                      const garmentSummary = order.garments.map((g) => `${g.type} × ${garmentTotal(g)}`).join(', ')
+                      const artworkSummary =
+                        order.artwork.length === 0
+                          ? '—'
+                          : order.artwork.length === 1
+                            ? order.artwork[0].fileName
+                            : `${order.artwork.length} artwork files`
+                      return (
+                        <tr
+                          key={order.id}
+                          onClick={() => navigate(`/orders/${order.id}`)}
+                          className="cursor-pointer border-b border-zinc-50 last:border-0 hover:bg-zinc-50"
+                        >
+                          <td className="px-4 py-2.5 font-medium text-zinc-800">{order.orderNumber}</td>
+                          <td className="px-4 py-2.5 text-zinc-600">{order.jobName}</td>
+                          <td className="px-4 py-2.5 text-zinc-500">{formatDateShort(order.createdAt)}</td>
+                          <td className="px-4 py-2.5 text-zinc-500">{formatDateShort(order.dueDate)}</td>
+                          <td className="px-4 py-2.5 text-zinc-500">{order.quantity}</td>
+                          <td className="px-4 py-2.5 max-w-[200px] truncate text-zinc-500" title={garmentSummary}>
+                            {garmentSummary || '—'}
+                          </td>
+                          <td className="px-4 py-2.5 max-w-[160px] truncate text-zinc-500" title={artworkSummary}>
+                            {artworkSummary}
+                          </td>
+                          <td className="px-4 py-2.5">
+                            <StatusBadge kind="production" value={order.productionStatus} />
+                          </td>
+                          <td className="px-4 py-2.5" onClick={(e) => e.stopPropagation()}>
+                            <Button
+                              type="button"
+                              variant="secondary"
+                              size="sm"
+                              onClick={() => navigate(`/orders/new?reorderFrom=${order.id}`)}
+                            >
+                              <RefreshCw size={12} /> Reorder
+                            </Button>
+                          </td>
+                        </tr>
+                      )
+                    })}
                   </tbody>
                 </table>
               </div>

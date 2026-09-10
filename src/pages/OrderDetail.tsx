@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { ArrowLeft, MoreHorizontal, Pencil } from 'lucide-react'
+import { ArrowLeft, MoreHorizontal, Pencil, RefreshCw } from 'lucide-react'
 import { mockOrders } from '@/data/mockOrders'
 import { useOrder } from '@/hooks/useOrders'
 import { isRealOrderId } from '@/utils/id'
@@ -77,6 +77,15 @@ export default function OrderDetail() {
             }
           >
             <Pencil size={14} /> Edit Order
+          </Button>
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() =>
+              isRealId ? navigate(`/orders/new?reorderFrom=${order.id}`) : showToast('Demo order — reorder not available.', 'info')
+            }
+          >
+            <RefreshCw size={14} /> Reorder
           </Button>
           <Button
             variant="ghost"

@@ -79,3 +79,94 @@ export async function getArtworkSignedUrl(storagePath: string): Promise<string> 
   if (error) throw error
   return data.signedUrl
 }
+
+// Phase 4 Milestone 5 (Reorder) — artwork is exclusively order-owned (the
+// Storage path itself embeds order_id, confirmed during Phase 4 planning),
+// so a reordered job can never reference the original artwork row or
+// Storage object. This copies both: a live smoke test (staff-authenticated
+// client, real Supabase project) confirmed `supabase.storage.from(bucket)
+// .copy()` works under the EXISTING artwork-originals policies — no new
+// Storage policy or trusted server-side mechanism was needed for this.
+//
+// Insert-row-after-copy (same deliberate ordering as uploadArtwork): if
+// the DB insert fails after a successful Storage copy, the copied object
+// is removed so no orphaned Storage object is left behind pointing at
+// nothing. The original artwork row and Storage object are never written
+// to at any point in this function.
+export async function copyArtworkForReorder(sourceArtworkId: string, newOrderId: string): Promise<Artwork & { storagePath: string }> {
+  const { data: source, error: fetchError } = await supabase
+    .from('artwork')
+    .select('file_name, file_type, mime_type, file_size_bytes, storage_path')
+    .eq('id', sourceArtworkId)
+    .single()
+  if (fetchError) throw fetchError
+
+  const newArtworkId = crypto.randomUUID()
+  const newStoragePath = `orders/${newOrderId}/artwork/${newArtworkId}/${source.file_name}`
+
+  const { error: copyError } = await supabase.storage.from(BUCKET).copy(source.storage_path, newStoragePath)
+  if (copyError) throw copyError
+
+  const { data: userData } = await supabase.auth.getUser()
+  const { data: row, error: insertError } = await supabase
+    .from('artwork')
+    .insert({
+      id: newArtworkId,
+      order_id: newOrderId,
+      file_name: source.file_name,
+      file_type: source.file_type,
+      mime_type: source.mime_type,
+      file_size_bytes: source.file_size_bytes,
+      storage_path: newStoragePath,
+      uploaded_by: userData.user?.id,
+    })
+    .select('id, file_name, file_type, file_size_bytes, storage_path, created_at')
+    .single()
+
+  if (insertError) {
+    await supabase.storage.from(BUCKET).remove([newStoragePath]).catch(() => {})
+    throw insertError
+  }
+
+  return { ...mapArtworkRowToDomain(row as ArtworkRow), storagePath: newStoragePath }
+}
+
+// Copies only the artwork files actually REFERENCED by the copied
+// PrintSpecs — a source order's other, unused uploads are deliberately
+// left behind, not blindly duplicated (Phase 4 plan's "only copy required
+// artwork" decision). Two PrintSpecs sharing the same source artwork are
+// deduplicated to exactly one new artwork row, both remapped to it — the
+// mapping is by artwork UUID only, never by filename (two files can share
+// a name). Returns the new artworkFiles list (for display) and the
+// PrintSpecs with artworkId rewritten to the new ids; a PrintSpec whose
+// source artwork couldn't be resolved (or had none) simply ends up with
+// artworkId undefined rather than a dangling reference.
+export async function copyReferencedArtworkForReorder(
+  newOrderId: string,
+  artworkFiles: { id: string }[],
+  printSpecs: { artworkId?: string }[],
+): Promise<{
+  artworkFiles: { id: string; fileName: string; fileType: string; sizeKb: number; storagePath: string; previewUrl: undefined }[]
+  artworkIdMap: Map<string, string>
+}> {
+  const knownIds = new Set(artworkFiles.map((f) => f.id))
+  const referencedIds = [...new Set(printSpecs.map((s) => s.artworkId).filter((id): id is string => !!id && knownIds.has(id)))]
+
+  const artworkIdMap = new Map<string, string>()
+  const newArtworkFiles: { id: string; fileName: string; fileType: string; sizeKb: number; storagePath: string; previewUrl: undefined }[] = []
+
+  for (const oldId of referencedIds) {
+    const copied = await copyArtworkForReorder(oldId, newOrderId)
+    artworkIdMap.set(oldId, copied.id)
+    newArtworkFiles.push({
+      id: copied.id,
+      fileName: copied.fileName,
+      fileType: copied.fileType,
+      sizeKb: copied.sizeKb,
+      storagePath: copied.storagePath,
+      previewUrl: undefined,
+    })
+  }
+
+  return { artworkFiles: newArtworkFiles, artworkIdMap }
+}

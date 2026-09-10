@@ -247,6 +247,25 @@ async function updateOrderStatus(
   if (activityError) throw activityError
 }
 
+// Phase 4 Milestone 5 (Reorder) — one distinct activity entry on the NEW
+// order, alongside (not instead of) the generic "Order created" entry
+// upsert_order's own first-insert branch already logs automatically.
+// Suppressing that generic entry would mean editing the upsert_order RPC
+// for a purely cosmetic reason, which the batch's own "no schema/RPC
+// changes unless truly necessary" instruction weighs against — two
+// entries (one generic, one specifically naming the reorder source) is
+// the documented, deliberate choice here, not an oversight.
+export async function logReorderActivity(orderId: string, sourceOrderNumber: string): Promise<void> {
+  const { data: userData } = await supabase.auth.getUser()
+  const { error } = await supabase.from('order_activity').insert({
+    order_id: orderId,
+    user_id: userData.user?.id,
+    activity_type: 'created',
+    message: `Order created from reorder of ${sourceOrderNumber}`,
+  })
+  if (error) throw error
+}
+
 export function updateProductionStatus(orderId: string, status: ProductionStatus) {
   return updateOrderStatus(orderId, 'production_status', status, 'production', 'Production status')
 }
