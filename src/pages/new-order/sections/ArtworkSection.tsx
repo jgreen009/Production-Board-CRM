@@ -57,7 +57,7 @@ export function ArtworkSection({ orderId, ensureOrderId }: ArtworkSectionProps) 
           },
         ])
       } catch (err) {
-        showToast(`${file.name}: ${err instanceof Error ? err.message : 'Upload failed'}`, 'info')
+        showToast(staffErrorMessage(err, `${file.name}: Upload failed — try again`), 'info')
       } finally {
         setUploadingNames((prev) => prev.filter((name) => name !== file.name))
       }

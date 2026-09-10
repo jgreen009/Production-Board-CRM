@@ -3,6 +3,7 @@ import type { Customer } from '@/types'
 import { useCreateCustomer } from '@/hooks/useCustomers'
 import { Button } from '@/components/ui/Button'
 import { FormField, Input } from '@/components/ui/Field'
+import { staffErrorMessage } from '@/utils/errorMessage'
 
 interface AddCustomerDialogProps {
   open: boolean
@@ -58,7 +59,7 @@ export function AddCustomerDialog({ open, onClose, onCreated }: AddCustomerDialo
           <FormField label="Phone" htmlFor="new-customer-phone">
             <Input id="new-customer-phone" value={phone} onChange={(e) => setPhone(e.target.value)} />
           </FormField>
-          {error && <p className="text-sm text-red-600">{error instanceof Error ? error.message : 'Failed to create customer'}</p>}
+          {error && <p className="text-sm text-red-600">{staffErrorMessage(error, 'Failed to create customer — try again')}</p>}
         </div>
 
         <div className="mt-5 flex justify-end gap-2">
