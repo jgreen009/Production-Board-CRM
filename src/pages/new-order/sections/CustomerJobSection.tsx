@@ -62,7 +62,6 @@ export function CustomerJobSection() {
         <FormField
           label="Name"
           required
-          className="sm:col-span-2"
           error={errors.jobName?.message || errors.newCustomerName?.message}
         >
           <CustomerSelector
@@ -80,7 +79,7 @@ export function CustomerJobSection() {
         <FormField label="Email" required htmlFor="email" error={errors.email?.message}>
           <Input id="email" type="email" placeholder="name@company.com.au" {...register('email')} />
         </FormField>
-        <FormField label="Due Date" required htmlFor="dueDate" error={errors.dueDate?.message} className="sm:col-span-2">
+        <FormField label="Due Date" required htmlFor="dueDate" error={errors.dueDate?.message}>
           <Input id="dueDate" type="date" {...register('dueDate')} />
         </FormField>
       </div>

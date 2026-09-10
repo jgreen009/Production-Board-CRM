@@ -100,7 +100,7 @@ export function TurnaroundDeliverySection() {
         <p className="mb-2 text-xs text-zinc-400">
           Internal-only — not on the paper form. Same Day sets this to Urgent automatically. Staff can override.
         </p>
-        <div className="flex gap-2">
+        <div className="flex flex-col gap-2 sm:flex-row">
           {PRIORITIES.map((p) => (
             <button
               key={p.value}
