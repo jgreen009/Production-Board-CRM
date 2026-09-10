@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Menu, Search, Bell, Plus, X } from 'lucide-react'
+import { Menu, Search, Plus, X } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { GlobalSearch } from '@/components/domain/GlobalSearch'
 
@@ -41,14 +41,6 @@ export function AppHeader({ onOpenMobileNav }: AppHeaderProps) {
           {mobileSearchOpen ? <X size={18} /> : <Search size={18} />}
         </button>
 
-        <button
-          className="relative rounded-md p-2.5 text-zinc-500 hover:bg-zinc-100"
-          aria-label="Notifications"
-        >
-          <Bell size={18} />
-          <span className="absolute right-2 top-2 h-1.5 w-1.5 rounded-full bg-danger" />
-        </button>
-
         <Button
           variant="primary"
           size="sm"
@@ -58,10 +50,6 @@ export function AppHeader({ onOpenMobileNav }: AppHeaderProps) {
           <Plus size={15} />
           New Order
         </Button>
-
-        <span className="ml-1 hidden h-8 w-8 shrink-0 items-center justify-center rounded-full bg-zinc-200 text-xs font-semibold text-zinc-700 sm:flex">
-          BF
-        </span>
       </div>
 
       {mobileSearchOpen && (
