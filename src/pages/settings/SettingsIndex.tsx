@@ -1,14 +1,16 @@
 import { useNavigate } from 'react-router-dom'
-import { Shirt, Wrench, Tags, Layers, Building2 } from 'lucide-react'
+import { Shirt, Wrench, Tags, Layers, Building2, Users } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { PageHeader } from '@/components/domain/PageHeader'
 import { Card, CardBody } from '@/components/ui/Card'
+import { useProfile } from '@/hooks/useProfile'
 
 interface SettingsCard {
   title: string
   description: string
   icon: LucideIcon
   path: string
+  adminOnly?: boolean
 }
 
 const CARDS: SettingsCard[] = [
@@ -17,16 +19,20 @@ const CARDS: SettingsCard[] = [
   { title: 'Statuses', description: 'Review the payment, artwork, garment, and production status sets.', icon: Tags, path: '/settings/statuses' },
   { title: 'Mockup Templates', description: 'Manage garment mockup templates used in the order form.', icon: Layers, path: '/settings/mockups' },
   { title: 'Business Settings', description: 'Business details, terms, and turnaround defaults.', icon: Building2, path: '/settings/business' },
+  { title: 'User Management', description: 'Staff accounts, roles, and access.', icon: Users, path: '/settings/users', adminOnly: true },
 ]
 
 export default function SettingsIndex() {
   const navigate = useNavigate()
+  const { data: profile } = useProfile()
+  const isAdmin = profile?.role === 'admin' || profile?.role === 'owner'
+  const visibleCards = CARDS.filter((card) => !card.adminOnly || isAdmin)
 
   return (
     <div>
       <PageHeader title="Settings" description="Configure SALT PRINTS catalogs and defaults" />
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {CARDS.map((card) => (
+        {visibleCards.map((card) => (
           <Card
             key={card.title}
             className="cursor-pointer p-4 hover:border-zinc-300"

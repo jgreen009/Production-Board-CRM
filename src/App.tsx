@@ -17,6 +17,8 @@ import SettingsServices from '@/pages/settings/SettingsServices'
 import SettingsStatuses from '@/pages/settings/SettingsStatuses'
 import SettingsMockups from '@/pages/settings/SettingsMockups'
 import SettingsBusiness from '@/pages/settings/SettingsBusiness'
+import SettingsUsers from '@/pages/settings/SettingsUsers'
+import ChangePassword from '@/pages/ChangePassword'
 import NotFound from '@/pages/NotFound'
 
 export default function App() {
@@ -25,6 +27,7 @@ export default function App() {
       <Routes>
         <Route path="/login" element={<Login />} />
         <Route element={<RequireAuth />}>
+          <Route path="/change-password" element={<ChangePassword />} />
           <Route element={<AppShell />}>
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
             <Route path="/dashboard" element={<Dashboard />} />
@@ -41,6 +44,7 @@ export default function App() {
             <Route path="/settings/statuses" element={<SettingsStatuses />} />
             <Route path="/settings/mockups" element={<SettingsMockups />} />
             <Route path="/settings/business" element={<SettingsBusiness />} />
+            <Route path="/settings/users" element={<SettingsUsers />} />
             <Route path="*" element={<NotFound />} />
           </Route>
         </Route>
