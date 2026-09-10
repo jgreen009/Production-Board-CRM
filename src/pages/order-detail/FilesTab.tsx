@@ -13,29 +13,29 @@ export function FilesTab({ order }: { order: Order }) {
   return (
     <Card>
       <CardBody className="overflow-x-auto p-0">
-        <table className="w-full text-left text-sm">
+        <table className="w-full min-w-[520px] text-left text-sm">
           <thead>
             <tr className="border-b border-zinc-100 text-xs text-zinc-400">
               <th className="px-4 py-2 font-medium">File</th>
               <th className="px-4 py-2 font-medium">Type</th>
               <th className="px-4 py-2 font-medium">Uploaded</th>
               <th className="px-4 py-2 font-medium">Size</th>
-              <th className="px-4 py-2 font-medium">Actions</th>
+              <th className="px-4 py-2 font-medium text-right">Actions</th>
             </tr>
           </thead>
           <tbody>
             {order.artwork.map((file) => (
-              <tr key={file.id} className="border-b border-zinc-50 last:border-0">
+              <tr key={file.id} className="border-b border-zinc-50 last:border-0 hover:bg-zinc-50/60">
                 <td className="px-4 py-2.5 font-medium text-zinc-700">{file.fileName}</td>
                 <td className="px-4 py-2.5 text-zinc-600">{file.fileType}</td>
                 <td className="px-4 py-2.5 text-zinc-500">{formatDateShort(file.uploadedAt)}</td>
                 <td className="px-4 py-2.5 text-zinc-500">{file.sizeKb} KB</td>
                 <td className="px-4 py-2.5">
-                  <div className="flex gap-1">
-                    <button className="rounded-md p-1.5 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700" aria-label="View">
+                  <div className="flex justify-end gap-1">
+                    <button className="rounded-md p-2 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700" aria-label="View">
                       <Eye size={14} />
                     </button>
-                    <button className="rounded-md p-1.5 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700" aria-label="Download">
+                    <button className="rounded-md p-2 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700" aria-label="Download">
                       <Download size={14} />
                     </button>
                   </div>

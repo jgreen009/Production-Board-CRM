@@ -41,7 +41,7 @@ export function ProductionTab({ order, isRealOrder }: ProductionTabProps) {
 
   return (
     <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <StatusBlock
           label="Payment"
           hint={hint}
@@ -119,10 +119,10 @@ export function ProductionTab({ order, isRealOrder }: ProductionTabProps) {
           }
         />
 
-        <Card className={`col-span-2 p-3 ${ready ? 'border-emerald-200 bg-emerald-50/50' : 'border-zinc-200'}`}>
+        <Card className={`sm:col-span-2 p-3 ${ready ? 'border-success/30 bg-success-soft' : 'border-zinc-200'}`}>
           <p className="mb-1.5 text-xs font-medium text-zinc-400">Ready for Production</p>
           {ready ? (
-            <p className="flex items-center gap-1.5 text-sm font-medium text-emerald-700">
+            <p className="flex items-center gap-1.5 text-sm font-medium text-success">
               <CheckCircle2 size={14} /> Yes
             </p>
           ) : (
@@ -138,9 +138,9 @@ export function ProductionTab({ order, isRealOrder }: ProductionTabProps) {
                   key={w.message}
                   className={
                     w.severity === 'critical'
-                      ? 'text-[11px] font-medium text-red-600'
+                      ? 'text-[11px] font-medium text-danger'
                       : w.severity === 'warning'
-                        ? 'text-[11px] font-medium text-amber-600'
+                        ? 'text-[11px] font-medium text-warning'
                         : 'text-[11px] text-zinc-500'
                   }
                 >
