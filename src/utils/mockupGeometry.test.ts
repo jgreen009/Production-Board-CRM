@@ -18,7 +18,7 @@ import {
 } from './mockupGeometry'
 import type { PrintZone } from '@/config/printZones'
 import type { GarmentPrintZone } from '@/config/garmentGeometry'
-import { fitGarmentIntoViewport } from '@/utils/garmentFit'
+import { computeAssetCorrectedScale, fitGarmentIntoViewport } from '@/utils/garmentFit'
 import { resolvePrintZone } from '@/config/garmentGeometry'
 
 const zone: PrintZone = {
@@ -348,6 +348,31 @@ describe('canonical zone geometry (Batch A)', () => {
       const fit = fitGarmentIntoViewport(1226, 1283, 400, 500)
       const placement = resolveArtworkPlacement(canonicalZone, fit, widthMm, heightMm)
       expect(placement.width / placement.height).toBeCloseTo(aspectRatio, 6)
+    })
+
+    // Post-Batch-C neck clearance patch: the (already-corrected) T-shirt
+    // Left Chest zone's anchor/placement math is completely independent of
+    // which garment asset resolution is actually loaded — resolveArtworkPlacement
+    // (canonical geometry) and computeAssetCorrectedScale (Fabric's own
+    // natural-size-relative scaling) are two separate concerns that
+    // combine to the SAME on-screen garment position either way.
+    it('the corrected zone anchor maps to the same on-screen point whether the loaded asset is full-resolution or the optimized webp', () => {
+      const targetWidth = 400
+      const targetHeight = 500
+      const fit = fitGarmentIntoViewport(1226, 1283, targetWidth, targetHeight)
+      const artworkPlacement = resolveArtworkPlacement(canonicalZone, fit, 90, 90)
+
+      // Garment background rendered from the original-resolution asset
+      const originalGarmentScale = computeAssetCorrectedScale(fit, 1226, 1283, 1226, 1283)
+      // Garment background rendered from the optimized ~900px webp (same aspect ratio)
+      const optimizedGarmentScale = computeAssetCorrectedScale(fit, 1226, 1283, 860, 900)
+
+      // The garment itself renders at the same on-screen size either way...
+      expect(1226 * originalGarmentScale.scaleX).toBeCloseTo(860 * optimizedGarmentScale.scaleX, 6)
+      // ...and the artwork's anchor position (from canonical geometry
+      // alone, never touching asset pixel dimensions) is unaffected by
+      // either choice.
+      expect(artworkPlacement.centerX).toBeCloseTo(fit.x + canonicalZone.anchorX * fit.scale, 8)
     })
   })
 })

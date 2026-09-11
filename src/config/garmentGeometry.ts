@@ -141,9 +141,16 @@ const TSHIRT_FRONT: GarmentViewGeometry = {
   viewBox: CANONICAL_VIEWPORT,
   garmentBounds: TORSO_GARMENT_BOUNDS,
   printZones: {
-    'Left Chest': zone(368, 257, 147, 154, 130),
-    'Right Chest': zone(711, 257, 147, 154, 130),
-    'Across Chest': zone(307, 231, 613, 180, 300),
+    // Post-Batch-C neck-clearance patch (human visual QA): Left/Right
+    // Chest and Across Chest sat too close to the crew neckline. Shifted
+    // down only (y += 35/37 canonical units, ~2.7-2.9% of viewBox height)
+    // — x, width, height, and refWidthMm all unchanged, so physical size
+    // and horizontal position are untouched; only vertical breathing room
+    // below the collar increased. See the neck-clearance patch handover
+    // for the full before/after table.
+    'Left Chest': zone(368, 292, 147, 154, 130),
+    'Right Chest': zone(711, 292, 147, 154, 130),
+    'Across Chest': zone(307, 268, 613, 180, 300),
     'Full Front': zone(294, 282, 637, 770, 320),
     'Left Sleeve': zone(49, 231, 172, 205, 80),
     'Right Sleeve': zone(1005, 231, 172, 205, 80),
@@ -154,7 +161,10 @@ const TSHIRT_BACK: GarmentViewGeometry = {
   viewBox: CANONICAL_VIEWPORT,
   garmentBounds: TORSO_GARMENT_BOUNDS,
   printZones: {
-    'Top Back': zone(368, 180, 490, 180, 280),
+    // Post-Batch-C neck-clearance patch: Top Back sat too close to the
+    // rear neckline — shifted down (y += 35, ~2.7% of viewBox height),
+    // height unchanged so it doesn't creep toward Full Back's territory.
+    'Top Back': zone(368, 215, 490, 180, 280),
     'Full Back': zone(294, 282, 637, 770, 320),
     'Bottom Back': zone(343, 706, 539, 385, 280),
   },
@@ -166,9 +176,12 @@ const HOODY_FRONT: GarmentViewGeometry = {
   printZones: {
     // Chest band sits lower than a T-shirt's — the hood/collar and
     // drawstrings occupy more vertical space at the top of the garment.
-    'Left Chest': zone(368, 334, 147, 154, 130),
-    'Right Chest': zone(711, 334, 147, 154, 130),
-    'Across Chest': zone(307, 308, 613, 180, 300),
+    // Post-Batch-C neck-clearance patch: nudged down a further +24/+22
+    // canonical units (smaller than T-shirt's correction since Hoody
+    // already had extra clearance built in for the hood/drawstrings).
+    'Left Chest': zone(368, 358, 147, 154, 130),
+    'Right Chest': zone(711, 358, 147, 154, 130),
+    'Across Chest': zone(307, 330, 613, 180, 300),
     // Bounded above the kangaroo pocket (~62% down) rather than reusing
     // the T-shirt's full-hem-to-collar box.
     'Full Front': zone(294, 308, 637, 462, 320),
@@ -187,10 +200,14 @@ const HOODY_BACK: GarmentViewGeometry = {
     // plain collar. Top Back is pushed well below that flap's tip (was
     // y=205/16% in Batch A, an inferred guess — now y=380/29.6%, read
     // directly off the photo) rather than a small generic nudge.
-    'Top Back': zone(368, 380, 490, 150, 280),
+    // Post-Batch-C neck-clearance patch: a further +20 canonical units for
+    // extra margin below the hood flap (smaller correction than T-shirt's
+    // — the hood-flap clearance already did most of the work in Batch B).
+    'Top Back': zone(368, 400, 490, 150, 280),
     // Full Back's top edge is similarly dropped below the hood flap so a
     // large back print doesn't appear to start underneath the hood
     // illustration; bottom edge unchanged (hem is unaffected by the hood).
+    // Not touched by this patch — human QA flagged Top Back, not Full Back.
     'Full Back': zone(294, 340, 637, 712, 320),
     'Bottom Back': zone(343, 706, 539, 385, 280),
   },
@@ -200,11 +217,17 @@ const POLO_FRONT: GarmentViewGeometry = {
   viewBox: CANONICAL_VIEWPORT,
   garmentBounds: TORSO_GARMENT_BOUNDS,
   printZones: {
-    'Left Chest': zone(368, 257, 147, 154, 130),
-    'Right Chest': zone(711, 257, 147, 154, 130),
-    // Slightly lower/shorter than the T-shirt's Across Chest to clear the
-    // Polo's larger structured collar.
-    'Across Chest': zone(307, 257, 613, 180, 300),
+    // Post-Batch-C neck-clearance patch: Left/Right Chest pushed down the
+    // most of any priority garment (+41 canonical units) — the collar AND
+    // placket together create a materially larger restricted region than
+    // a plain crew neckline, per human QA's own note that Polo needs more
+    // clearance than T-shirt/Crew neck.
+    'Left Chest': zone(368, 298, 147, 154, 130),
+    'Right Chest': zone(711, 298, 147, 154, 130),
+    // Already lower/shorter than the T-shirt's Across Chest to clear the
+    // Polo's larger structured collar — smaller further correction here
+    // (+21) since some clearance was already built in.
+    'Across Chest': zone(307, 278, 613, 180, 300),
     'Full Front': zone(294, 282, 637, 770, 320),
     'Left Sleeve': zone(49, 231, 172, 205, 80),
     'Right Sleeve': zone(1005, 231, 172, 205, 80),
@@ -223,7 +246,10 @@ const POLO_BACK: GarmentViewGeometry = {
   // calibration, not an alias that would silently drift if T-shirt's
   // values are ever recalibrated for a T-shirt-specific reason.
   printZones: {
-    'Top Back': zone(368, 180, 490, 180, 280),
+    // Post-Batch-C neck-clearance patch: +38 canonical units, comparable
+    // to Left/Right Chest's correction above — the structured collar
+    // extends around to the back panel too, not just the front placket.
+    'Top Back': zone(368, 218, 490, 180, 280),
     'Full Back': zone(294, 282, 637, 770, 320),
     'Bottom Back': zone(343, 706, 539, 385, 280),
   },
@@ -233,9 +259,12 @@ const CREW_NECK_FRONT: GarmentViewGeometry = {
   viewBox: CANONICAL_VIEWPORT,
   garmentBounds: TORSO_GARMENT_BOUNDS,
   printZones: {
-    'Left Chest': zone(368, 257, 147, 154, 130),
-    'Right Chest': zone(711, 257, 147, 154, 130),
-    'Across Chest': zone(307, 231, 613, 180, 300),
+    // Post-Batch-C neck-clearance patch: +31/+27 canonical units — the
+    // crew collar plus the dropped-shoulder line (see the sleeve note
+    // below) meant this needed a bit more room than a standard T-shirt.
+    'Left Chest': zone(368, 288, 147, 154, 130),
+    'Right Chest': zone(711, 288, 147, 154, 130),
+    'Across Chest': zone(307, 258, 613, 180, 300),
     'Full Front': zone(294, 282, 637, 770, 320),
     // Long sleeve — print sits on the upper arm, slightly lower band than
     // a short T-shirt sleeve's cuff-adjacent spot.
@@ -254,7 +283,9 @@ const CREW_NECK_BACK: GarmentViewGeometry = {
   // warranted; reproduced explicitly (not aliased) for the same
   // independent-drift-safety reason.
   printZones: {
-    'Top Back': zone(368, 180, 490, 180, 280),
+    // Post-Batch-C neck-clearance patch: +32 canonical units below the
+    // rear crew collar.
+    'Top Back': zone(368, 212, 490, 180, 280),
     'Full Back': zone(294, 282, 637, 770, 320),
     'Bottom Back': zone(343, 706, 539, 385, 280),
   },

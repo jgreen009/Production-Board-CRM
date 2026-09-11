@@ -6,6 +6,12 @@ A short, human-executable checklist for confirming mockup placement looks right 
 
 As of Batch C, this checklist has **not been run** — no browser tooling has been available to any session that worked on Mockup System V2 so far. Every placement value has been calibrated by direct visual inspection of the source garment photos and verified with pure geometry math (unit tests), but never confirmed in an actual rendered `<canvas>`/`<img>`. Run this before treating placement as production-confirmed.
 
+## Human QA finding (post-Batch-C)
+
+First round of real human visual QA reported: **"Overall tracking/alignment greatly improved. Upper-body Left Chest, Right Chest, Across Chest and Top Back positions required additional neckline/collar clearance."** — deterministic positioning, artwork-follows-position, and general garment geometry were all confirmed working; only vertical breathing room below the neck/collar on these four positions needed adjustment.
+
+A geometry patch (`src/config/garmentGeometry.ts`) applied a small, garment-specific downward shift to Left Chest, Right Chest, Across Chest, and Top Back for T-shirt, Hoody, Polo, and Crew neck — see `docs/MOCKUP_V2_NECK_CLEARANCE_PATCH.md` for the exact before/after values. **These four positions are marked RETEST REQUIRED below, not PASS** — only a human visual re-check can confirm the patch actually fixed the issue.
+
 ## What to check on every row
 
 - Anatomically correct location for the position name
@@ -20,49 +26,52 @@ As of Batch C, this checklist has **not been run** — no browser tooling has be
 
 | Position | Result | Notes |
 |---|---|---|
-| Left Chest (Front) | | |
-| Right Chest (Front) | | |
-| Across Chest (Front) | | |
-| Full Front (Front) | | |
-| Left Sleeve (Front) | | |
-| Right Sleeve (Front) | | |
-| Top Back (Back) | | |
-| Full Back (Back) | | |
-| Bottom Back (Back) | | |
+| Left Chest (Front) | RETEST REQUIRED | Neck-clearance patch applied — y 257→292 |
+| Right Chest (Front) | RETEST REQUIRED | Neck-clearance patch applied — y 257→292 |
+| Across Chest (Front) | RETEST REQUIRED | Neck-clearance patch applied — y 231→268 |
+| Full Front (Front) | | Not touched by the neck-clearance patch |
+| Left Sleeve (Front) | | Not touched by the neck-clearance patch |
+| Right Sleeve (Front) | | Not touched by the neck-clearance patch |
+| Top Back (Back) | RETEST REQUIRED | Neck-clearance patch applied — y 180→215 |
+| Full Back (Back) | | Not touched by the neck-clearance patch |
+| Bottom Back (Back) | | Not touched by the neck-clearance patch |
 
 ## Hoody
 
 | Position | Result | Notes |
 |---|---|---|
-| Left Chest (Front) | | Check it clears the drawstrings/hood |
-| Right Chest (Front) | | |
-| Full Front (Front) | | Check it stays clear of the kangaroo pocket |
-| Left Sleeve (Front) | | |
-| Right Sleeve (Front) | | |
-| Top Back (Back) | | Check it clears the hood's draped flap |
-| Full Back (Back) | | Check it clears the hood's draped flap |
+| Left Chest (Front) | RETEST REQUIRED | Check it clears the drawstrings/hood — neck-clearance patch applied, y 334→358 |
+| Right Chest (Front) | RETEST REQUIRED | Neck-clearance patch applied, y 334→358 |
+| Across Chest (Front) | RETEST REQUIRED | Neck-clearance patch applied, y 308→330 |
+| Full Front (Front) | | Check it stays clear of the kangaroo pocket — not touched by the neck-clearance patch |
+| Left Sleeve (Front) | | Not touched by the neck-clearance patch |
+| Right Sleeve (Front) | | Not touched by the neck-clearance patch |
+| Top Back (Back) | RETEST REQUIRED | Check it clears the hood's draped flap — neck-clearance patch applied, y 380→400 |
+| Full Back (Back) | | Check it clears the hood's draped flap — not touched by the neck-clearance patch |
 
 ## Polo
 
 | Position | Result | Notes |
 |---|---|---|
-| Left Chest (Front) | | Check it clears the button placket |
-| Right Chest (Front) | | |
-| Full Front (Front) | | |
-| Top Back (Back) | | |
-| Full Back (Back) | | |
+| Left Chest (Front) | RETEST REQUIRED | Check it clears the button placket — neck-clearance patch applied, y 257→298 (largest correction of any garment) |
+| Right Chest (Front) | RETEST REQUIRED | Neck-clearance patch applied, y 257→298 |
+| Across Chest (Front) | RETEST REQUIRED | Neck-clearance patch applied, y 257→278 |
+| Full Front (Front) | | Not touched by the neck-clearance patch |
+| Top Back (Back) | RETEST REQUIRED | Check it clears the rear collar — neck-clearance patch applied, y 180→218 |
+| Full Back (Back) | | Not touched by the neck-clearance patch |
 
 ## Crew Neck
 
 | Position | Result | Notes |
 |---|---|---|
-| Left Chest (Front) | | |
-| Right Chest (Front) | | |
-| Full Front (Front) | | |
-| Left Sleeve (Front) | | Long-sleeve placement, not the T-shirt's short-sleeve spot |
-| Right Sleeve (Front) | | |
-| Top Back (Back) | | |
-| Full Back (Back) | | |
+| Left Chest (Front) | RETEST REQUIRED | Neck-clearance patch applied, y 257→288 |
+| Right Chest (Front) | RETEST REQUIRED | Neck-clearance patch applied, y 257→288 |
+| Across Chest (Front) | RETEST REQUIRED | Neck-clearance patch applied, y 231→258 |
+| Full Front (Front) | | Not touched by the neck-clearance patch |
+| Left Sleeve (Front) | | Long-sleeve placement, not the T-shirt's short-sleeve spot — not touched by the neck-clearance patch |
+| Right Sleeve (Front) | | Not touched by the neck-clearance patch |
+| Top Back (Back) | RETEST REQUIRED | Neck-clearance patch applied, y 180→212 |
+| Full Back (Back) | | Not touched by the neck-clearance patch |
 
 ## Cross-surface consistency
 

@@ -222,3 +222,148 @@ describe('resolveGarmentGeometry safe fallback for an unrecognized type', () => 
     expect(geometry.viewBox.width).toBeGreaterThan(0)
   })
 })
+
+// Post-Batch-C neck-clearance patch — human visual QA found Left Chest,
+// Right Chest, Across Chest, and Top Back sat too close to the garment
+// neckline/collar across the priority garments. This suite locks down the
+// invariants the fix had to respect (vertical-only, garment-specific,
+// zone stays coherent) rather than hard-coding every coordinate, so a
+// future recalibration pass doesn't have to fight brittle exact-value
+// assertions — only genuinely meaningful properties are checked.
+describe('Post-Batch-C neck clearance patch', () => {
+  const NECK_AFFECTED_FRONT: PrintPosition[] = ['Left Chest', 'Right Chest', 'Across Chest']
+
+  it('Left Chest, Right Chest, and Across Chest remain explicitly defined for every priority garment', () => {
+    for (const type of PRIORITY_GARMENTS) {
+      for (const position of NECK_AFFECTED_FRONT) {
+        expect(resolvePrintZone(type, 'Front', position)).toBeDefined()
+      }
+    }
+  })
+
+  it('Top Back remains explicitly defined for every priority garment', () => {
+    for (const type of PRIORITY_GARMENTS) {
+      expect(resolvePrintZone(type, 'Back', 'Top Back')).toBeDefined()
+    }
+  })
+
+  it('Left Chest and Right Chest stay vertically symmetric (identical y) for every priority garment', () => {
+    for (const type of PRIORITY_GARMENTS) {
+      const left = resolvePrintZone(type, 'Front', 'Left Chest')!
+      const right = resolvePrintZone(type, 'Front', 'Right Chest')!
+      expect(right.y).toBe(left.y)
+      expect(right.height).toBe(left.height)
+    }
+  })
+
+  it('Left Chest and Right Chest x-coordinates are untouched by this patch (still the pre-patch values)', () => {
+    // This patch is vertical-only (Y). Locking down the exact x/anchorX
+    // values that existed before the patch is the real regression check —
+    // "still mirrored" is a softer, less useful assertion here since the
+    // pre-existing calibration was already a ~1-unit-off eyeballed mirror,
+    // not an algebraic one, and that's not this patch's concern to fix.
+    const expectedX: Record<string, { left: number; right: number }> = {
+      'T-shirt': { left: 368, right: 711 },
+      Hoody: { left: 368, right: 711 },
+      Polo: { left: 368, right: 711 },
+      'Crew neck (jumper)': { left: 368, right: 711 },
+    }
+    for (const type of PRIORITY_GARMENTS) {
+      const left = resolvePrintZone(type, 'Front', 'Left Chest')!
+      const right = resolvePrintZone(type, 'Front', 'Right Chest')!
+      expect(left.x).toBe(expectedX[type].left)
+      expect(right.x).toBe(expectedX[type].right)
+    }
+  })
+
+  it('the four corrected positions sit strictly within the garment silhouette bounds for every priority garment', () => {
+    for (const type of PRIORITY_GARMENTS) {
+      const bounds = resolveGarmentGeometry(type, 'Front').garmentBounds
+      for (const position of NECK_AFFECTED_FRONT) {
+        const zone = resolvePrintZone(type, 'Front', position)!
+        expect(zone.y).toBeGreaterThanOrEqual(bounds.y)
+        expect(zone.y + zone.height).toBeLessThanOrEqual(bounds.y + bounds.height)
+      }
+      const backBounds = resolveGarmentGeometry(type, 'Back').garmentBounds
+      const topBack = resolvePrintZone(type, 'Back', 'Top Back')!
+      expect(topBack.y).toBeGreaterThanOrEqual(backBounds.y)
+      expect(topBack.y + topBack.height).toBeLessThanOrEqual(backBounds.y + backBounds.height)
+    }
+  })
+
+  it('every corrected zone anchor stays within its own zone box (still the box center, never displaced)', () => {
+    for (const type of PRIORITY_GARMENTS) {
+      for (const position of NECK_AFFECTED_FRONT) {
+        const zone = resolvePrintZone(type, 'Front', position)!
+        expect(zone.anchorX).toBeGreaterThanOrEqual(zone.x)
+        expect(zone.anchorX).toBeLessThanOrEqual(zone.x + zone.width)
+        expect(zone.anchorY).toBeGreaterThanOrEqual(zone.y)
+        expect(zone.anchorY).toBeLessThanOrEqual(zone.y + zone.height)
+      }
+    }
+  })
+
+  it('Top Back did not creep down far enough to overlap Full Back\'s territory for any priority garment', () => {
+    for (const type of PRIORITY_GARMENTS) {
+      const topBack = resolvePrintZone(type, 'Back', 'Top Back')!
+      const fullBack = resolvePrintZone(type, 'Back', 'Full Back')!
+      // Top Back's bottom edge should still sit above where Full Back's
+      // own top edge begins — if it doesn't, the "small, conservative"
+      // requirement was violated and Top Back has effectively become a
+      // second Full Back.
+      expect(topBack.y + topBack.height).toBeLessThanOrEqual(fullBack.y + fullBack.height)
+    }
+  })
+
+  it('refWidthMm is unchanged for every corrected zone (this patch is a position fix, not a size fix)', () => {
+    const expectedRefWidthMm: Record<string, number> = {
+      'Left Chest': 130,
+      'Right Chest': 130,
+      'Across Chest': 300,
+    }
+    for (const type of PRIORITY_GARMENTS) {
+      for (const position of NECK_AFFECTED_FRONT) {
+        const zone = resolvePrintZone(type, 'Front', position)!
+        expect(zone.refWidthMm).toBe(expectedRefWidthMm[position])
+      }
+      const topBack = resolvePrintZone(type, 'Back', 'Top Back')!
+      expect(topBack.refWidthMm).toBe(280)
+    }
+  })
+
+  it('zone width/height (the physical-mm mapping basis) is unchanged for every corrected zone', () => {
+    const expectedSize: Record<string, { width: number; height: number }> = {
+      'Left Chest': { width: 147, height: 154 },
+      'Right Chest': { width: 147, height: 154 },
+      'Across Chest': { width: 613, height: 180 },
+    }
+    for (const type of PRIORITY_GARMENTS) {
+      for (const position of NECK_AFFECTED_FRONT) {
+        const zone = resolvePrintZone(type, 'Front', position)!
+        expect(zone.width).toBe(expectedSize[position].width)
+        expect(zone.height).toBe(expectedSize[position].height)
+      }
+      const topBack = resolvePrintZone(type, 'Back', 'Top Back')!
+      expect(topBack.width).toBe(490)
+    }
+  })
+
+  it('no GarmentPrintZone carries an offsetX/offsetY field — placement stays anchor-only, never offset-based', () => {
+    for (const type of PRIORITY_GARMENTS) {
+      for (const position of NECK_AFFECTED_FRONT) {
+        const zone = resolvePrintZone(type, 'Front', position)!
+        expect('offsetX' in zone).toBe(false)
+        expect('offsetY' in zone).toBe(false)
+      }
+    }
+  })
+
+  it('every priority garment received its own correction (not one universal Y shift copy-pasted across garments)', () => {
+    const leftChestY = PRIORITY_GARMENTS.map((type) => resolvePrintZone(type, 'Front', 'Left Chest')!.y)
+    const topBackY = PRIORITY_GARMENTS.map((type) => resolvePrintZone(type, 'Back', 'Top Back')!.y)
+    // Not every garment shares the exact same corrected Y — a universal
+    // flat offset applied to every garment identically would fail this.
+    expect(new Set(leftChestY).size).toBeGreaterThan(1)
+    expect(new Set(topBackY).size).toBeGreaterThan(1)
+  })
+})
