@@ -50,6 +50,16 @@ export function selectPrimaryPrintSpec(specs: PrintSpec[]): PrintSpec | undefine
   return specs.find((s) => !!s.previewStoragePath) ?? specs[0]
 }
 
+// Batch B — Orders page "+N more" indicator (Part 2 "Multiple Print
+// Indicator"): how many PrintSpecs exist beyond whichever one
+// selectPrimaryPrintSpec is showing as the single preview. Deliberately
+// derived from the same list `selectPrimaryPrintSpec` was given (never a
+// separate count source), so the two can never disagree about how many
+// prints an order has.
+export function countAdditionalPrintSpecs(specs: PrintSpec[]): number {
+  return Math.max(0, specs.length - 1)
+}
+
 // Form -> RPC payload shape for one printSpecs[] entry. Field names already
 // match the jsonb keys upsert_order reads (see supabase/migrations/
 // ..._order_core.sql) — this only exists so the mapping is named,

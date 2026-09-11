@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   ALL_PRINT_POSITIONS,
+  getCalibrationConfidence,
   getGarmentCalibrationTier,
   getPositionView,
   isPrintPositionSupported,
@@ -132,6 +133,62 @@ describe('unsupported tier (Part 16: anatomically-invalid position vocabulary)',
     const geometry = resolveGarmentGeometry('Hats', 'Front')
     expect(geometry.viewBox.width).toBeGreaterThan(0)
     expect(geometry.viewBox.height).toBeGreaterThan(0)
+  })
+})
+
+describe('Batch B: priority garment back-zone calibration is explicit, not blindly inherited', () => {
+  it('T-shirt, Hoody, Polo, and Crew neck each define their own Top/Full/Bottom Back zones', () => {
+    for (const type of PRIORITY_GARMENTS) {
+      for (const position of ['Top Back', 'Full Back', 'Bottom Back'] as PrintPosition[]) {
+        expect(resolvePrintZone(type, 'Back', position)).toBeDefined()
+      }
+    }
+  })
+
+  it("Polo's back zones are structurally independent objects from T-shirt's (verified, not aliased)", () => {
+    const tshirtBack = resolveGarmentGeometry('T-shirt', 'Back')
+    const poloBack = resolveGarmentGeometry('Polo', 'Back')
+    expect(poloBack.printZones).not.toBe(tshirtBack.printZones)
+    expect(poloBack.printZones['Full Back']).not.toBe(tshirtBack.printZones['Full Back'])
+  })
+
+  it("Crew neck's back zones are structurally independent objects from T-shirt's (verified, not aliased)", () => {
+    const tshirtBack = resolveGarmentGeometry('T-shirt', 'Back')
+    const crewNeckBack = resolveGarmentGeometry('Crew neck (jumper)', 'Back')
+    expect(crewNeckBack.printZones).not.toBe(tshirtBack.printZones)
+    expect(crewNeckBack.printZones['Full Back']).not.toBe(tshirtBack.printZones['Full Back'])
+  })
+
+  it("Hoody's Top Back and Full Back sit below the hood's draped flap (verified against hoody-back.png), lower than T-shirt's", () => {
+    const tshirtTopBack = resolvePrintZone('T-shirt', 'Back', 'Top Back')!
+    const hoodyTopBack = resolvePrintZone('Hoody', 'Back', 'Top Back')!
+    const tshirtFullBack = resolvePrintZone('T-shirt', 'Back', 'Full Back')!
+    const hoodyFullBack = resolvePrintZone('Hoody', 'Back', 'Full Back')!
+    expect(hoodyTopBack.y).toBeGreaterThan(tshirtTopBack.y)
+    expect(hoodyFullBack.y).toBeGreaterThan(tshirtFullBack.y)
+  })
+
+  it('every priority garment/view is recorded as "verified" calibration confidence', () => {
+    for (const type of PRIORITY_GARMENTS) {
+      expect(getCalibrationConfidence(type, 'Front')).toBe('verified')
+      expect(getCalibrationConfidence(type, 'Back')).toBe('verified')
+    }
+  })
+
+  it('a garment with no recorded calibration confidence reports "unverified"', () => {
+    expect(getCalibrationConfidence('Shorts', 'Front')).toBe('unverified')
+  })
+})
+
+describe('Batch B: read-only live fallback eligibility (MockupThumbnail/GarmentMockup consumers)', () => {
+  it('a calibrated garment/position combination is eligible for the live V2 fallback', () => {
+    expect(isPrintPositionSupported('T-shirt', 'Left Chest')).toBe(true)
+    expect(isPrintPositionSupported('Hoody', 'Full Back')).toBe(true)
+  })
+
+  it('an unsupported garment/position combination is safely rejected, never faked', () => {
+    expect(isPrintPositionSupported('Bennie', 'Left Chest')).toBe(false)
+    expect(isPrintPositionSupported('Shorts', 'Full Back')).toBe(false)
   })
 })
 

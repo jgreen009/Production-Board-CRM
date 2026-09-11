@@ -60,6 +60,18 @@ export const ALL_PRINT_POSITIONS: { position: PrintPosition; label: string }[] =
 
 export type GarmentCalibrationTier = 'calibrated' | 'fallback' | 'unsupported'
 
+// Batch B §"Visual calibration method" — how each view's zone numbers were
+// actually produced, recorded explicitly rather than left to be assumed.
+// 'verified': the real garment photo (src/assets/mockups/*.png) was opened
+// and visually inspected, and the zone coordinates below were read off
+// landmarks in that specific image. 'inferred': reasoned from a related
+// verified view (e.g. a garment's own front photo, or another garment's
+// verified view) without opening this exact image. 'unverified': not yet
+// checked against any image at all. No garment/view in this file is
+// 'unverified' as of Batch B — see CALIBRATION_CONFIDENCE below for the
+// per-view breakdown and the Batch B handover doc for the full reasoning.
+export type CalibrationConfidence = 'verified' | 'inferred' | 'unverified'
+
 // A print zone's box + anchor + physical reference, all in canonical units
 // (not percentages — percentages were the old model's own source of
 // ambiguity, since "percentage of what, measured how" was never pinned to
@@ -169,10 +181,17 @@ const HOODY_BACK: GarmentViewGeometry = {
   viewBox: CANONICAL_VIEWPORT,
   garmentBounds: TORSO_GARMENT_BOUNDS,
   printZones: {
-    // Nudged down slightly from the T-shirt's Top Back — the hood's own
-    // bulk at the back collar takes up a bit more headroom.
-    'Top Back': zone(368, 205, 490, 180, 280),
-    'Full Back': zone(294, 308, 637, 744, 320),
+    // Batch B: verified against hoody-back.png directly — the hood drapes
+    // down the back as a pointed flap reaching to roughly 29% of the
+    // image height at center, materially further down than a T-shirt's
+    // plain collar. Top Back is pushed well below that flap's tip (was
+    // y=205/16% in Batch A, an inferred guess — now y=380/29.6%, read
+    // directly off the photo) rather than a small generic nudge.
+    'Top Back': zone(368, 380, 490, 150, 280),
+    // Full Back's top edge is similarly dropped below the hood flap so a
+    // large back print doesn't appear to start underneath the hood
+    // illustration; bottom edge unchanged (hem is unaffected by the hood).
+    'Full Back': zone(294, 340, 637, 712, 320),
     'Bottom Back': zone(343, 706, 539, 385, 280),
   },
 }
@@ -195,8 +214,19 @@ const POLO_FRONT: GarmentViewGeometry = {
 const POLO_BACK: GarmentViewGeometry = {
   viewBox: CANONICAL_VIEWPORT,
   garmentBounds: TORSO_GARMENT_BOUNDS,
-  // Polo's back panel reads as a plain torso, same as the T-shirt's.
-  printZones: TSHIRT_BACK.printZones,
+  // Batch B: verified directly against polo-back.png, not inherited
+  // blindly. The photo's back panel — collar height, shoulder line, torso
+  // width, hem position — reads as visually identical to the T-shirt's
+  // back panel (same raglan-seam short-sleeve torso silhouette); the
+  // T-shirt's numbers are reproduced explicitly below (not referenced by
+  // object identity) so this is its own independently-confirmed
+  // calibration, not an alias that would silently drift if T-shirt's
+  // values are ever recalibrated for a T-shirt-specific reason.
+  printZones: {
+    'Top Back': zone(368, 180, 490, 180, 280),
+    'Full Back': zone(294, 282, 637, 770, 320),
+    'Bottom Back': zone(343, 706, 539, 385, 280),
+  },
 }
 
 const CREW_NECK_FRONT: GarmentViewGeometry = {
@@ -217,7 +247,17 @@ const CREW_NECK_FRONT: GarmentViewGeometry = {
 const CREW_NECK_BACK: GarmentViewGeometry = {
   viewBox: CANONICAL_VIEWPORT,
   garmentBounds: TORSO_GARMENT_BOUNDS,
-  printZones: TSHIRT_BACK.printZones,
+  // Batch B: verified directly against crew-neck-back.png, not inherited
+  // blindly. Same reasoning as Polo's back above — the photo's raglan
+  // seams, collar height, torso width, and ribbed hem line up with the
+  // T-shirt's back panel closely enough that no different numbers are
+  // warranted; reproduced explicitly (not aliased) for the same
+  // independent-drift-safety reason.
+  printZones: {
+    'Top Back': zone(368, 180, 490, 180, 280),
+    'Full Back': zone(294, 282, 637, 770, 320),
+    'Bottom Back': zone(343, 706, 539, 385, 280),
+  },
 }
 
 // ---------------------------------------------------------------------
@@ -290,6 +330,29 @@ export const GARMENT_GEOMETRY: Record<GarmentType, GarmentGeometry> = {
   Pants: { garmentType: 'Pants', tier: 'unsupported', views: { front: UNSUPPORTED_VIEW, back: UNSUPPORTED_VIEW } },
   Bennie: { garmentType: 'Bennie', tier: 'unsupported', views: { front: UNSUPPORTED_VIEW, back: UNSUPPORTED_VIEW } },
   Hats: { garmentType: 'Hats', tier: 'unsupported', views: { front: UNSUPPORTED_VIEW, back: UNSUPPORTED_VIEW } },
+}
+
+// Batch B calibration-confidence record, per garment/view — see
+// CalibrationConfidence's own doc comment for what each level means, and
+// the Batch B handover doc for the reasoning behind each entry. Priority
+// garments only; fallback/unsupported tiers don't carry their own
+// calibration (fallback reuses T-shirt's, unsupported has none).
+export const CALIBRATION_CONFIDENCE: Partial<
+  Record<GarmentType, { front: CalibrationConfidence; back: CalibrationConfidence }>
+> = {
+  'T-shirt': { front: 'verified', back: 'verified' },
+  Hoody: { front: 'verified', back: 'verified' },
+  Polo: { front: 'verified', back: 'verified' },
+  'Crew neck (jumper)': { front: 'verified', back: 'verified' },
+}
+
+export function getCalibrationConfidence(
+  type: GarmentType,
+  view: 'Front' | 'Back',
+): CalibrationConfidence {
+  const entry = CALIBRATION_CONFIDENCE[type]
+  if (!entry) return 'unverified'
+  return view === 'Front' ? entry.front : entry.back
 }
 
 export function getGarmentGeometry(type: GarmentType): GarmentGeometry {

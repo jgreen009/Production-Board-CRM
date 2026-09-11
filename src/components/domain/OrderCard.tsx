@@ -9,14 +9,17 @@ interface OrderCardProps {
   order: Order
   onClick?: (order: Order) => void
   extra?: ReactNode
+  /** A prominent, full-width mockup preview rendered above everything else (Batch B — Orders mobile). Omit to keep the card's prior layout exactly as-is. */
+  mockup?: ReactNode
 }
 
-export function OrderCard({ order, onClick, extra }: OrderCardProps) {
+export function OrderCard({ order, onClick, extra, mockup }: OrderCardProps) {
   return (
     <Card
       className={clsx('p-3', onClick && 'cursor-pointer hover:border-zinc-300')}
       onClick={() => onClick?.(order)}
     >
+      {mockup && <div className="mb-2.5">{mockup}</div>}
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
           <p className="truncate text-sm font-semibold text-zinc-800">{order.jobName}</p>

@@ -136,7 +136,7 @@ export function ProductionTable({
                     aria-label="Preview mockup"
                     className="rounded-md focus:outline-none focus:ring-2 focus:ring-zinc-900/10"
                   >
-                    <MockupThumbnail mockups={order.printSpecs} />
+                    <MockupThumbnail mockups={order.printSpecs} garments={order.garments} />
                   </button>
                 </td>
               </tr>

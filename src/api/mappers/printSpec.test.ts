@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { mapPrintSpecFormToPayload, mapPrintSpecRowToDomain, selectPrimaryPrintSpec, sortPrintSpecRows } from './printSpec'
+import {
+  countAdditionalPrintSpecs,
+  mapPrintSpecFormToPayload,
+  mapPrintSpecRowToDomain,
+  selectPrimaryPrintSpec,
+  sortPrintSpecRows,
+} from './printSpec'
 import type { PrintSpecRow } from './printSpec'
 import type { PrintSpecFormValues } from '@/schemas/orderFormSchema'
 import type { PrintSpec } from '@/types'
@@ -159,6 +165,23 @@ describe('selectPrimaryPrintSpec', () => {
 
   it('returns undefined for an empty list ("Awaiting Artwork" state)', () => {
     expect(selectPrimaryPrintSpec([])).toBeUndefined()
+  })
+})
+
+describe('countAdditionalPrintSpecs', () => {
+  const base: PrintSpec = { id: '1', position: 'Left Chest', colour: 'White', widthMm: 100, heightMm: 80, rotationDeg: 0 }
+
+  it('counts specs beyond the primary one for the "+N more" indicator', () => {
+    const specs: PrintSpec[] = [{ ...base, id: '1' }, { ...base, id: '2' }, { ...base, id: '3' }, { ...base, id: '4' }]
+    expect(countAdditionalPrintSpecs(specs)).toBe(3)
+  })
+
+  it('is zero for a single-print order', () => {
+    expect(countAdditionalPrintSpecs([base])).toBe(0)
+  })
+
+  it('is zero (not negative) for an empty list', () => {
+    expect(countAdditionalPrintSpecs([])).toBe(0)
   })
 })
 

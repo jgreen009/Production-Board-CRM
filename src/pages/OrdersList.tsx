@@ -9,6 +9,8 @@ import { EmptyState } from '@/components/ui/EmptyState'
 import { OrderCard } from '@/components/domain/OrderCard'
 import { StatusBadge } from '@/components/domain/StatusBadge'
 import { TableSkeleton } from '@/components/ui/LoadingSkeleton'
+import { MockupThumbnail } from '@/components/domain/MockupThumbnail'
+import { MockupPreviewDrawer } from '@/components/domain/production/MockupPreviewDrawer'
 import { useOrders } from '@/hooks/useOrders'
 import { formatDateShort, dueDateLabel, isOverdue, isDueToday } from '@/utils/date'
 import { clsx } from 'clsx'
@@ -48,6 +50,7 @@ export default function OrdersList() {
   const [search, setSearch] = useState('')
   const [sortKey, setSortKey] = useState<SortKey>('due')
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc')
+  const [previewOrder, setPreviewOrder] = useState<Order | null>(null)
   const { data: allOrders = [], isLoading } = useOrders()
 
   const orders = useMemo(() => {
@@ -140,6 +143,7 @@ export default function OrdersList() {
             <table className="w-full text-left text-sm">
               <thead>
                 <tr className="border-b border-zinc-100 bg-zinc-50/60 text-xs text-zinc-500">
+                  <th className="w-14 px-2 py-2.5" aria-hidden="true" />
                   <th className="px-3 py-2.5 font-medium">Order #</th>
                   <th className="px-3 py-2.5 font-medium">Job / Customer</th>
                   <th className="hidden px-3 py-2.5 font-medium lg:table-cell">Qty</th>
@@ -157,6 +161,16 @@ export default function OrdersList() {
                     onClick={() => handleRowClick(order.id)}
                     className="cursor-pointer border-b border-zinc-50 last:border-0 hover:bg-zinc-50"
                   >
+                    <td className="px-2 py-2.5" onClick={(e) => e.stopPropagation()}>
+                      <button
+                        type="button"
+                        onClick={() => setPreviewOrder(order)}
+                        aria-label={`View mockups for ${order.orderNumber}`}
+                        className="rounded-md focus:outline-none focus:ring-2 focus:ring-zinc-900/10"
+                      >
+                        <MockupThumbnail mockups={order.printSpecs} garments={order.garments} showAdditionalCount />
+                      </button>
+                    </td>
                     <td className="px-3 py-2.5 font-medium text-zinc-800">
                       <Link
                         to={`/orders/${order.id}`}
@@ -205,6 +219,19 @@ export default function OrdersList() {
                 key={order.id}
                 order={order}
                 onClick={(o) => handleRowClick(o.id)}
+                mockup={
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      setPreviewOrder(order)
+                    }}
+                    aria-label={`View mockups for ${order.orderNumber}`}
+                    className="flex w-full items-center justify-center rounded-md focus:outline-none focus:ring-2 focus:ring-zinc-900/10"
+                  >
+                    <MockupThumbnail mockups={order.printSpecs} garments={order.garments} size={96} showAdditionalCount />
+                  </button>
+                }
                 extra={
                   <Badge className="border-zinc-200 bg-zinc-50 text-zinc-500">
                     {order.assignedTo ? order.assignedToName || 'Unnamed staff' : 'Unassigned'}
@@ -215,6 +242,8 @@ export default function OrdersList() {
           </div>
         </>
       )}
+
+      <MockupPreviewDrawer order={previewOrder} onClose={() => setPreviewOrder(null)} />
     </div>
   )
 }
