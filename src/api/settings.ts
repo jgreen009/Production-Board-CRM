@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabase'
+import { normalizeSupplierUrl } from '@/utils/url'
 
 export interface CatalogItem {
   id: string
@@ -50,10 +51,76 @@ async function updateCatalogItem(table: CatalogTable, id: string, patch: { name?
   if (error) throw error
 }
 
-export const listGarmentTypes = () => listCatalog('garment_types')
+// Mockup System V2 Batch C — garment_types is the one catalog entity
+// supplier-link metadata attaches to (see the Batch C handover's audit for
+// why: it already has full Settings CRUD, unlike garment_brands, and it's
+// the entity garment rendering/geometry keys off). A dedicated shape
+// rather than extending the shared CatalogItem, since garment_brands/
+// services never carry these columns.
+export interface GarmentTypeItem extends CatalogItem {
+  supplierName: string
+  supplierProductCode: string
+  supplierUrl: string
+}
+
+export interface GarmentTypeRow extends CatalogRow {
+  supplier_name: string | null
+  supplier_product_code: string | null
+  supplier_url: string | null
+}
+
+// Exported (unlike mapCatalogRow) so Batch C's DB->domain mapping is
+// directly unit-testable without mocking supabase.
+export function mapGarmentTypeRow(row: GarmentTypeRow): GarmentTypeItem {
+  return {
+    ...mapCatalogRow(row),
+    supplierName: row.supplier_name ?? '',
+    supplierProductCode: row.supplier_product_code ?? '',
+    supplierUrl: row.supplier_url ?? '',
+  }
+}
+
+export async function listGarmentTypes(): Promise<GarmentTypeItem[]> {
+  const { data, error } = await supabase
+    .from('garment_types')
+    .select('id, name, active, sort_order, supplier_name, supplier_product_code, supplier_url')
+    .order('sort_order')
+  if (error) throw error
+  return (data as GarmentTypeRow[]).map(mapGarmentTypeRow)
+}
+
 export const createGarmentType = (name: string) => createCatalogItem('garment_types', name)
-export const updateGarmentType = (id: string, patch: { name?: string; active?: boolean }) =>
-  updateCatalogItem('garment_types', id, patch)
+
+export interface UpdateGarmentTypeInput {
+  name?: string
+  active?: boolean
+  supplierName?: string
+  supplierProductCode?: string
+  /** Rejected (stored as null) if not a safe http/https URL — see utils/url.ts. Supplier data is optional; an unsafe/malformed value never blocks saving the rest of the garment type. */
+  supplierUrl?: string
+}
+
+// Pure domain->save-payload mapping, exported for direct unit testing
+// (Part 13 #2/#3) — an omitted field is never included in the patch at
+// all (so a partial save can't accidentally null out fields the caller
+// didn't touch), and an empty/unsafe value is normalized to `null` rather
+// than rejected outright, since supplier data is optional (Part "Settings
+// Validation": never block saving the rest of the garment type).
+export function buildGarmentTypeUpdatePatch(patch: UpdateGarmentTypeInput): Record<string, unknown> {
+  const dbPatch: Record<string, unknown> = {}
+  if (patch.name !== undefined) dbPatch.name = patch.name
+  if (patch.active !== undefined) dbPatch.active = patch.active
+  if (patch.supplierName !== undefined) dbPatch.supplier_name = patch.supplierName.trim() || null
+  if (patch.supplierProductCode !== undefined) dbPatch.supplier_product_code = patch.supplierProductCode.trim() || null
+  if (patch.supplierUrl !== undefined) dbPatch.supplier_url = normalizeSupplierUrl(patch.supplierUrl)
+  return dbPatch
+}
+
+export async function updateGarmentType(id: string, patch: UpdateGarmentTypeInput): Promise<void> {
+  const dbPatch = buildGarmentTypeUpdatePatch(patch)
+  const { error } = await supabase.from('garment_types').update(dbPatch).eq('id', id)
+  if (error) throw error
+}
 
 export const listGarmentBrands = () => listCatalog('garment_brands')
 export const createGarmentBrand = (name: string) => createCatalogItem('garment_brands', name)

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   ALL_PRINT_POSITIONS,
+  CANONICAL_VIEWPORT,
   getCalibrationConfidence,
   getGarmentCalibrationTier,
   getPositionView,
@@ -11,6 +12,29 @@ import {
 import type { GarmentType, PrintPosition } from '@/types'
 
 const PRIORITY_GARMENTS: GarmentType[] = ['T-shirt', 'Hoody', 'Polo', 'Crew neck (jumper)']
+
+// Mockup System V2 Batch C: asset optimization (900px webp re-encodings)
+// must never change canonical geometry — the declared viewBox stays the
+// real photos' original 1226x1283 regardless of what resolution the
+// actual imported asset file happens to be (garmentFit.ts's
+// computeAssetCorrectedScale is what reconciles the two at render time,
+// not this config). This pins that down as a regression test: an
+// unrelated future change to the geometry file that starts deriving the
+// viewBox from an asset's own dimensions would break this.
+describe('Batch C: canonical geometry is unaffected by asset optimization', () => {
+  it('the canonical viewport stays the original photo resolution, not the optimized asset resolution', () => {
+    expect(CANONICAL_VIEWPORT).toEqual({ width: 1226, height: 1283 })
+  })
+
+  it('every priority garment zone still resolves against that same canonical viewport', () => {
+    for (const type of PRIORITY_GARMENTS) {
+      const front = resolveGarmentGeometry(type, 'Front')
+      const back = resolveGarmentGeometry(type, 'Back')
+      expect(front.viewBox).toEqual(CANONICAL_VIEWPORT)
+      expect(back.viewBox).toEqual(CANONICAL_VIEWPORT)
+    }
+  })
+})
 
 describe('getPositionView (Part 14: position determines view, not garment)', () => {
   it('maps every chest/front/sleeve position to Front', () => {

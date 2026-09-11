@@ -1,28 +1,36 @@
 import type { GarmentType } from '@/types'
 import { resolveGarmentColour } from '@/utils/colour'
 
-import tshirtFront from '@/assets/mockups/tshirt-front.png'
-import tshirtBack from '@/assets/mockups/tshirt-back.png'
-import poloFront from '@/assets/mockups/polo-front.png'
-import poloBack from '@/assets/mockups/polo-back.png'
-import shirtFront from '@/assets/mockups/shirt-front.png'
-import shirtBack from '@/assets/mockups/shirt-back.png'
-import hiVizVestFront from '@/assets/mockups/hi-viz-vest-front.png'
-import hiVizVestBack from '@/assets/mockups/hi-viz-vest-back.png'
-import singletFront from '@/assets/mockups/singlet-front.png'
-import singletBack from '@/assets/mockups/singlet-back.png'
-import crewNeckFront from '@/assets/mockups/crew-neck-front.png'
-import crewNeckBack from '@/assets/mockups/crew-neck-back.png'
-import hoodyFront from '@/assets/mockups/hoody-front.png'
-import hoodyBack from '@/assets/mockups/hoody-back.png'
-import shortsFront from '@/assets/mockups/shorts-front.png'
-import shortsBack from '@/assets/mockups/shorts-back.png'
-import pantsFront from '@/assets/mockups/pants-front.png'
-import pantsBack from '@/assets/mockups/pants-back.png'
-import bennieFront from '@/assets/mockups/bennie-front.png'
-import bennieBack from '@/assets/mockups/bennie-back.png'
-import hatsFront from '@/assets/mockups/hats-front.png'
-import hatsBack from '@/assets/mockups/hats-back.png'
+// Mockup System V2 Batch C: switched from the original *.png source
+// photos (1226x1283, ~25MB combined) to *.webp re-encodings (900px
+// long-edge, ~0.9MB combined — see scripts/optimize-mockup-assets.mjs).
+// The originals stay in src/assets/mockups/ as source/history but are no
+// longer imported anywhere, so Vite never emits them into dist. Aspect
+// ratio is preserved exactly; the renderers correct for the resolution
+// change explicitly (garmentFit.ts's computeAssetCorrectedScale) rather
+// than this file needing to know or care about it.
+import tshirtFront from '@/assets/mockups/tshirt-front.webp'
+import tshirtBack from '@/assets/mockups/tshirt-back.webp'
+import poloFront from '@/assets/mockups/polo-front.webp'
+import poloBack from '@/assets/mockups/polo-back.webp'
+import shirtFront from '@/assets/mockups/shirt-front.webp'
+import shirtBack from '@/assets/mockups/shirt-back.webp'
+import hiVizVestFront from '@/assets/mockups/hi-viz-vest-front.webp'
+import hiVizVestBack from '@/assets/mockups/hi-viz-vest-back.webp'
+import singletFront from '@/assets/mockups/singlet-front.webp'
+import singletBack from '@/assets/mockups/singlet-back.webp'
+import crewNeckFront from '@/assets/mockups/crew-neck-front.webp'
+import crewNeckBack from '@/assets/mockups/crew-neck-back.webp'
+import hoodyFront from '@/assets/mockups/hoody-front.webp'
+import hoodyBack from '@/assets/mockups/hoody-back.webp'
+import shortsFront from '@/assets/mockups/shorts-front.webp'
+import shortsBack from '@/assets/mockups/shorts-back.webp'
+import pantsFront from '@/assets/mockups/pants-front.webp'
+import pantsBack from '@/assets/mockups/pants-back.webp'
+import bennieFront from '@/assets/mockups/bennie-front.webp'
+import bennieBack from '@/assets/mockups/bennie-back.webp'
+import hatsFront from '@/assets/mockups/hats-front.webp'
+import hatsBack from '@/assets/mockups/hats-back.webp'
 
 // Phase 3 Milestone 2 (amended) — the ONE source of truth for garment
 // rendering, replacing the old src/data/garmentImages.ts (marked paper-form

@@ -6,6 +6,7 @@ import { FormField, Input, Select } from '@/components/ui/Field'
 import { garmentTotal } from '@/utils/quantity'
 import { useGarmentTypesSettings, useGarmentBrandsSettings } from '@/hooks/useSettings'
 import { selectableCatalogNames } from '@/utils/catalog'
+import { SupplierLink } from '@/components/domain/SupplierLink'
 import { clsx } from 'clsx'
 
 interface GarmentCardProps {
@@ -22,6 +23,7 @@ export function GarmentCard({ garment, index, canRemove, onChange, onRemove, col
   const { data: garmentBrands = [] } = useGarmentBrandsSettings()
   const typeOptions = selectableCatalogNames(garmentTypes, garment.type)
   const brandOptions = selectableCatalogNames(garmentBrands, garment.brand)
+  const selectedType = garmentTypes.find((t) => t.name === garment.type)
 
   const total = garmentTotal({
     id: garment.id,
@@ -62,6 +64,11 @@ export function GarmentCard({ garment, index, canRemove, onChange, onRemove, col
               <option key={t} value={t}>{t}</option>
             ))}
           </Select>
+          {selectedType?.supplierUrl && (
+            <div className="mt-1">
+              <SupplierLink url={selectedType.supplierUrl} label="View Supplier Garment" />
+            </div>
+          )}
         </FormField>
         <FormField label="Brand" required>
           <Select

@@ -4,7 +4,7 @@ import { Tooltip } from '@/components/ui/Tooltip'
 import { useMockupPreviewUrl } from '@/hooks/useMockupPreviews'
 import { countAdditionalPrintSpecs, selectPrimaryPrintSpec } from '@/api/mappers/printSpec'
 import { GarmentMockup } from '@/components/domain/GarmentMockup'
-import { getPositionView, isPrintPositionSupported } from '@/config/garmentGeometry'
+import { CANONICAL_VIEWPORT, getPositionView, isPrintPositionSupported } from '@/config/garmentGeometry'
 
 interface MockupThumbnailProps {
   mockups: PrintSpec[]
@@ -14,6 +14,18 @@ interface MockupThumbnailProps {
   /** Shows a "+N" badge for additional PrintSpecs beyond the one shown — opt-in so Production Board's existing single-preview look is unaffected unless a caller asks for it (Batch B, Orders list). */
   showAdditionalCount?: boolean
 }
+
+// Batch C visual hardening: garment content (saved preview PNGs and the
+// live GarmentMockup fallback) renders at the canonical viewBox's own
+// aspect ratio (~0.956, near-square but not exact) rather than a forced
+// square box — a forced square previously either cropped a saved preview
+// via object-cover (hiding a sliver of garment anatomy top/bottom) or let
+// the live fallback overflow its own clipped box by the same margin.
+// Matching the box to the real content ratio means neither ever needs to
+// crop or stretch. Icon-only states (no primary spec, no fallback
+// possible) stay a plain square — there's no garment image there to have
+// an aspect ratio opinion about.
+const CONTENT_ASPECT_RATIO = CANONICAL_VIEWPORT.width / CANONICAL_VIEWPORT.height
 
 // Batch B: replaces the generic Shirt-icon placeholder with a live,
 // deterministic V2 mockup (GarmentMockup — no Fabric) when a saved preview
@@ -29,11 +41,13 @@ export function MockupThumbnail({ mockups, garments, size = 32, showAdditionalCo
   const additionalCount = showAdditionalCount ? countAdditionalPrintSpecs(mockups) : 0
 
   const boxClass = 'relative flex items-center justify-center overflow-hidden rounded-md border'
+  const contentBoxStyle = { width: size, height: Math.round(size / CONTENT_ASPECT_RATIO) }
+  const iconBoxStyle = { width: size, height: size }
 
   if (!primary) {
     return (
       <Tooltip content="Awaiting artwork">
-        <div style={{ width: size, height: size }} className={`${boxClass} border-dashed border-zinc-200 bg-zinc-50 text-zinc-300`}>
+        <div style={iconBoxStyle} className={`${boxClass} border-dashed border-zinc-200 bg-zinc-50 text-zinc-300`}>
           <ImageOff size={14} />
         </div>
       </Tooltip>
@@ -54,8 +68,8 @@ export function MockupThumbnail({ mockups, garments, size = 32, showAdditionalCo
   if (previewUrl) {
     return (
       <Tooltip content={label}>
-        <div style={{ width: size, height: size }} className={`${boxClass} border-zinc-200`}>
-          <img src={previewUrl} alt={label} loading="lazy" className="h-full w-full object-cover" />
+        <div style={contentBoxStyle} className={`${boxClass} border-zinc-200 bg-white`}>
+          <img src={previewUrl} alt={label} loading="lazy" className="h-full w-full object-contain" />
           {countBadge}
         </div>
       </Tooltip>
@@ -69,7 +83,7 @@ export function MockupThumbnail({ mockups, garments, size = 32, showAdditionalCo
   if (canShowLiveFallback && garmentType) {
     return (
       <Tooltip content={`${label} — no saved preview yet`}>
-        <div style={{ width: size, height: size }} className={`${boxClass} border-zinc-200 bg-white`}>
+        <div style={contentBoxStyle} className={`${boxClass} border-zinc-200 bg-white`}>
           <GarmentMockup
             garmentType={garmentType}
             colour={garmentColour}
@@ -94,7 +108,7 @@ export function MockupThumbnail({ mockups, garments, size = 32, showAdditionalCo
 
   return (
     <Tooltip content={`${label} — ${noFallbackReason}`}>
-      <div style={{ width: size, height: size }} className={`${boxClass} border-zinc-200 bg-zinc-100 text-zinc-400`}>
+      <div style={iconBoxStyle} className={`${boxClass} border-zinc-200 bg-zinc-100 text-zinc-400`}>
         <ImageOff size={16} />
         {countBadge}
       </div>

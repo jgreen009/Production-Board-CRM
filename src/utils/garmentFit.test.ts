@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { fitGarmentIntoViewport, mapCanonicalPointToViewport, mapCanonicalRectToViewport } from './garmentFit'
+import { computeAssetCorrectedScale, fitGarmentIntoViewport, mapCanonicalPointToViewport, mapCanonicalRectToViewport } from './garmentFit'
 
 describe('fitGarmentIntoViewport', () => {
   it('preserves a portrait-ish source aspect ratio inside a wider target (letterboxed left/right)', () => {
@@ -94,5 +94,65 @@ describe('mapCanonicalPointToViewport', () => {
     const fit = fitGarmentIntoViewport(1000, 1000, 500, 500)
     const point = mapCanonicalPointToViewport({ x: 500, y: 500 }, fit)
     expect(point).toEqual({ x: 250, y: 250 })
+  })
+})
+
+// Mockup System V2 Batch C — "geometry safety" (Part 13 #14-16): an
+// optimized garment asset's real pixel dimensions no longer match the
+// declared canonical viewBox (1226x1283 -> ~900px long-edge webp), and
+// this correction factor is what keeps Fabric's natural-size-relative
+// scaling from silently shrinking every garment render by the resize
+// ratio. Canonical zone coordinates themselves are never touched — only
+// how a Fabric image object's scaleX/scaleY is computed from them.
+describe('computeAssetCorrectedScale (Batch C: asset optimization does not alter canonical geometry)', () => {
+  const viewBoxWidth = 1226
+  const viewBoxHeight = 1283
+
+  it('is a no-op (scale unchanged) when the asset natural size already matches the declared viewBox', () => {
+    const fit = fitGarmentIntoViewport(viewBoxWidth, viewBoxHeight, 400, 500)
+    const corrected = computeAssetCorrectedScale(fit, viewBoxWidth, viewBoxHeight, viewBoxWidth, viewBoxHeight)
+    expect(corrected.scaleX).toBeCloseTo(fit.scale, 10)
+    expect(corrected.scaleY).toBeCloseTo(fit.scale, 10)
+  })
+
+  it('scales up to compensate for a smaller optimized asset, rendering at the same on-screen size either way', () => {
+    const targetWidth = 400
+    const targetHeight = 500
+    const fit = fitGarmentIntoViewport(viewBoxWidth, viewBoxHeight, targetWidth, targetHeight)
+
+    // Original-resolution asset (natural size == viewBox)
+    const originalCorrection = computeAssetCorrectedScale(fit, viewBoxWidth, viewBoxHeight, viewBoxWidth, viewBoxHeight)
+    const originalRenderedWidth = viewBoxWidth * originalCorrection.scaleX
+
+    // Optimized asset at 900px long-edge, same aspect ratio
+    const naturalWidth = 860
+    const naturalHeight = 900
+    const optimizedCorrection = computeAssetCorrectedScale(fit, viewBoxWidth, viewBoxHeight, naturalWidth, naturalHeight)
+    const optimizedRenderedWidth = naturalWidth * optimizedCorrection.scaleX
+
+    // Same declared viewBox -> same rendered on-screen size, regardless of the asset's real resolution
+    expect(optimizedRenderedWidth).toBeCloseTo(originalRenderedWidth, 6)
+  })
+
+  it('preserves aspect ratio: correcting width and height independently still yields a square rendering for a square asset/viewBox', () => {
+    const fit = fitGarmentIntoViewport(1000, 1000, 500, 500)
+    const corrected = computeAssetCorrectedScale(fit, 1000, 1000, 700, 700)
+    const renderedWidth = 700 * corrected.scaleX
+    const renderedHeight = 700 * corrected.scaleY
+    expect(renderedWidth).toBeCloseTo(renderedHeight, 10)
+  })
+
+  it('does not mutate or depend on any canonical zone coordinate — pure function of fit + dimensions only', () => {
+    const fit = fitGarmentIntoViewport(viewBoxWidth, viewBoxHeight, 300, 400)
+    const before = computeAssetCorrectedScale(fit, viewBoxWidth, viewBoxHeight, 860, 900)
+    const after = computeAssetCorrectedScale(fit, viewBoxWidth, viewBoxHeight, 860, 900)
+    expect(after).toEqual(before)
+  })
+
+  it('degrades safely (no division by zero) for a zero-size natural dimension', () => {
+    const fit = fitGarmentIntoViewport(viewBoxWidth, viewBoxHeight, 300, 400)
+    const corrected = computeAssetCorrectedScale(fit, viewBoxWidth, viewBoxHeight, 0, 0)
+    expect(Number.isFinite(corrected.scaleX)).toBe(true)
+    expect(Number.isFinite(corrected.scaleY)).toBe(true)
   })
 })

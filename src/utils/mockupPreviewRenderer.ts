@@ -2,7 +2,7 @@ import * as fabric from 'fabric'
 import type { GarmentType, PrintPosition } from '@/types'
 import { getPositionView, resolveGarmentGeometry, resolvePrintZone } from '@/config/garmentGeometry'
 import { garmentTemplateToDataUrl } from '@/config/garmentTemplates'
-import { fitGarmentIntoViewport } from '@/utils/garmentFit'
+import { computeAssetCorrectedScale, fitGarmentIntoViewport } from '@/utils/garmentFit'
 import { resolveArtworkPlacement } from '@/utils/mockupGeometry'
 
 // Phase 3 Batch B — clean PNG export. Deliberately a SEPARATE render path
@@ -57,7 +57,13 @@ export async function renderMockupPreviewPng(input: MockupPreviewInput): Promise
     const garmentUrl = garmentTemplateToDataUrl(input.garmentType, view, input.garmentColour)
     const garmentImg = await fabric.FabricImage.fromURL(garmentUrl, { crossOrigin: 'anonymous' })
     const fit = fitGarmentIntoViewport(viewGeometry.viewBox.width, viewGeometry.viewBox.height, width, height)
-    garmentImg.set({ left: fit.x, top: fit.y, originX: 'left', originY: 'top', scaleX: fit.scale, scaleY: fit.scale })
+    // Batch C: correct for the garment asset's real pixel size no longer
+    // matching the declared canonical viewBox (assets re-encoded at 900px
+    // long-edge) — same shared helper MockupCanvas.tsx uses, so this
+    // deliberately separate render path (see this file's own header
+    // comment) can never compute a different correction.
+    const assetScale = computeAssetCorrectedScale(fit, viewGeometry.viewBox.width, viewGeometry.viewBox.height, garmentImg.width || 1, garmentImg.height || 1)
+    garmentImg.set({ left: fit.x, top: fit.y, originX: 'left', originY: 'top', scaleX: assetScale.scaleX, scaleY: assetScale.scaleY })
     canvas.backgroundImage = garmentImg
 
     const zone = resolvePrintZone(input.garmentType, view, input.position)

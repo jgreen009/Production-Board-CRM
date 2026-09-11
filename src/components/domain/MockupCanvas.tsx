@@ -3,7 +3,7 @@ import * as fabric from 'fabric'
 import type { GarmentType, PrintPosition } from '@/types'
 import { resolveGarmentGeometry, resolvePrintZone } from '@/config/garmentGeometry'
 import { garmentTemplateToDataUrl } from '@/config/garmentTemplates'
-import { fitGarmentIntoViewport, mapCanonicalRectToViewport, type FitResult } from '@/utils/garmentFit'
+import { computeAssetCorrectedScale, fitGarmentIntoViewport, mapCanonicalRectToViewport, type FitResult } from '@/utils/garmentFit'
 import { resolveArtworkPlacement } from '@/utils/mockupGeometry'
 
 // Phase 3 Batch A — the real interactive Mockup Studio canvas, replacing
@@ -106,6 +106,26 @@ export function MockupCanvas({
 
   function currentZone() {
     return resolvePrintZone(garmentTypeRef.current, viewRef.current, positionRef.current)
+  }
+
+  // Mockup System V2 Batch C: the garment background is fit into the
+  // canvas against the DECLARED canonical viewBox (config/garmentGeometry.ts),
+  // not the asset's own real pixel dimensions — those diverged once the
+  // garment photos were re-encoded at 900px long-edge instead of the
+  // original 1226x1283 (see the Batch C handover's "geometry safety"
+  // section). Fabric always scales an image relative to ITS OWN natural
+  // pixel size, though, so `fit.scale` alone is no longer correct once
+  // natural size != viewBox size — an extra `assetScale` factor
+  // (viewBox / natural) corrects for exactly that gap, and is 1 (a no-op)
+  // whenever an asset's natural size already matches its declared viewBox.
+  // Applied identically on initial load and on every resize so the two
+  // paths can never compute a different scale for the same image.
+  function fitGarmentBackground(canvas: fabric.Canvas, img: fabric.FabricImage): FitResult {
+    const viewGeometry = resolveGarmentGeometry(garmentTypeRef.current, viewRef.current)
+    const fit = fitGarmentIntoViewport(viewGeometry.viewBox.width, viewGeometry.viewBox.height, canvas.getWidth(), canvas.getHeight())
+    const assetScale = computeAssetCorrectedScale(fit, viewGeometry.viewBox.width, viewGeometry.viewBox.height, img.width || 1, img.height || 1)
+    img.set({ left: fit.x, top: fit.y, originX: 'left', originY: 'top', scaleX: assetScale.scaleX, scaleY: assetScale.scaleY })
+    return fit
   }
 
   function syncGuide() {
@@ -257,9 +277,7 @@ export function MockupCanvas({
     canvas.setDimensions({ width, height })
     const bg = canvas.backgroundImage
     if (bg) {
-      const fit = fitGarmentIntoViewport(bg.width || 1, bg.height || 1, width, height)
-      fitRef.current = fit
-      bg.set({ left: fit.x, top: fit.y, scaleX: fit.scale, scaleY: fit.scale })
+      fitRef.current = fitGarmentBackground(canvas, bg as fabric.FabricImage)
     }
     syncGuide()
     syncDebugBounds()
@@ -282,25 +300,8 @@ export function MockupCanvas({
         const url = garmentTemplateToDataUrl(garmentType, view, garmentColour)
         const img = await fabric.FabricImage.fromURL(url, { crossOrigin: 'anonymous' })
         if (cancelled) return
-        // The declared canonical viewBox — not the runtime-measured asset
-        // pixel size — is the authoritative source dimension for the fit,
-        // so garment geometry and print-zone geometry always share exactly
-        // one coordinate space (see garmentGeometry.ts's CANONICAL_VIEWPORT
-        // comment for why this is safe for every calibrated/fallback type).
-        const viewGeometry = resolveGarmentGeometry(garmentType, view)
-        const fit = fitGarmentIntoViewport(viewGeometry.viewBox.width, viewGeometry.viewBox.height, canvas.getWidth(), canvas.getHeight())
-        fitRef.current = fit
-        img.set({
-          left: fit.x,
-          top: fit.y,
-          originX: 'left',
-          originY: 'top',
-          scaleX: fit.scale,
-          scaleY: fit.scale,
-          selectable: false,
-          evented: false,
-          excludeFromExport: true,
-        })
+        img.set({ selectable: false, evented: false, excludeFromExport: true })
+        fitRef.current = fitGarmentBackground(canvas, img)
         canvas.backgroundImage = img
         syncGuide()
         syncDebugBounds()

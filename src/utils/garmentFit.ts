@@ -75,3 +75,34 @@ export interface ViewportPoint {
 export function mapCanonicalPointToViewport(point: CanonicalPoint, fit: FitResult): ViewportPoint {
   return { x: fit.x + point.x * fit.scale, y: fit.y + point.y * fit.scale }
 }
+
+export interface AssetScale {
+  scaleX: number
+  scaleY: number
+}
+
+// Mockup System V2 Batch C — corrects a Fabric-style "scale relative to
+// the image's own natural pixel size" for a garment asset whose real
+// encoded resolution no longer matches its declared canonical viewBox
+// (config/garmentGeometry.ts). fitGarmentIntoViewport's `scale` is always
+// computed against the declared viewBox dimensions (so geometry stays
+// authoritative regardless of asset resolution — see the Batch C
+// handover's "geometry safety" section) — but a rendering library that
+// scales relative to an image's OWN natural size (Fabric.js) needs an
+// extra correction factor whenever natural size != viewBox size. This
+// factor is exactly 1 (a no-op) whenever they match, so it's always safe
+// to apply, not just after an asset swap.
+export function computeAssetCorrectedScale(
+  fit: FitResult,
+  viewBoxWidth: number,
+  viewBoxHeight: number,
+  naturalWidth: number,
+  naturalHeight: number,
+): AssetScale {
+  const safeNaturalWidth = naturalWidth || 1
+  const safeNaturalHeight = naturalHeight || 1
+  return {
+    scaleX: fit.scale * (viewBoxWidth / safeNaturalWidth),
+    scaleY: fit.scale * (viewBoxHeight / safeNaturalHeight),
+  }
+}

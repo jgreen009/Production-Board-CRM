@@ -98,6 +98,40 @@ describe('getGarmentImage (real artwork, when available)', () => {
   })
 })
 
+// Mockup System V2 Batch C — asset mapping (Part 13 #8-13): one central
+// resolver (getGarmentImage/garmentTemplateToDataUrl) is the only place
+// any renderer obtains a garment visual asset reference, and it now
+// resolves to the optimized *.webp re-encodings rather than the original
+// *.png source photos (scripts/optimize-mockup-assets.mjs) — asserted
+// explicitly per priority garment so a future accidental revert to a .png
+// import is caught by a failing test, not just a bundle-size regression.
+describe('getGarmentImage resolves the optimized (webp) asset per priority garment', () => {
+  it('T-shirt front and back resolve to a webp asset', () => {
+    expect(getGarmentImage('T-shirt', 'Front')).toMatch(/\.webp($|\?)/)
+    expect(getGarmentImage('T-shirt', 'Back')).toMatch(/\.webp($|\?)/)
+  })
+
+  it('Hoody front and back resolve to a webp asset', () => {
+    expect(getGarmentImage('Hoody', 'Front')).toMatch(/\.webp($|\?)/)
+    expect(getGarmentImage('Hoody', 'Back')).toMatch(/\.webp($|\?)/)
+  })
+
+  it('Polo front and back resolve to a webp asset', () => {
+    expect(getGarmentImage('Polo', 'Front')).toMatch(/\.webp($|\?)/)
+    expect(getGarmentImage('Polo', 'Back')).toMatch(/\.webp($|\?)/)
+  })
+
+  it('Crew neck front and back resolve to a webp asset', () => {
+    expect(getGarmentImage('Crew neck (jumper)', 'Front')).toMatch(/\.webp($|\?)/)
+    expect(getGarmentImage('Crew neck (jumper)', 'Back')).toMatch(/\.webp($|\?)/)
+  })
+
+  it('falls back safely to generated vector markup for Customized, which has no raster asset at all', () => {
+    expect(getGarmentImage('Customized', 'Front')).toBeUndefined()
+    expect(garmentTemplateToDataUrl('Customized', 'Front', 'Navy')).toContain('data:image/svg+xml')
+  })
+})
+
 describe('garmentTemplateToDataUrl', () => {
   it('prefers real artwork over the generated vector markup when available', () => {
     const url = garmentTemplateToDataUrl('T-shirt', 'Front', 'Navy')
