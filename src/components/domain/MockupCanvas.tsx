@@ -1,9 +1,10 @@
 import { useEffect, useRef } from 'react'
 import * as fabric from 'fabric'
-import type { GarmentType } from '@/types'
-import type { PrintZone } from '@/config/printZones'
+import type { GarmentType, PrintPosition } from '@/types'
+import { resolveGarmentGeometry, resolvePrintZone } from '@/config/garmentGeometry'
 import { garmentTemplateToDataUrl } from '@/config/garmentTemplates'
-import { physicalSizeToPixelSize, zoneBoxPx, zoneOffsetToCanvasPosition } from '@/utils/mockupGeometry'
+import { fitGarmentIntoViewport, mapCanonicalRectToViewport, type FitResult } from '@/utils/garmentFit'
+import { resolveArtworkPlacement } from '@/utils/mockupGeometry'
 
 // Phase 3 Batch A — the real interactive Mockup Studio canvas, replacing
 // the Milestone 1 architectural spike. Editing-only: read-only surfaces
@@ -13,18 +14,30 @@ import { physicalSizeToPixelSize, zoneBoxPx, zoneOffsetToCanvasPosition } from '
 // authoritative for artwork placement — staff no longer drag artwork
 // around the garment. This component is a pure renderer: it draws the
 // garment, the zone guide, and the artwork at the position/size the
-// canonical `transform` prop (and the zone it's rendered against)
-// dictate, and never writes anything back. Resize (via Fabric handles)
-// and rotation were already made non-interactive in an earlier pass
-// (auto-fit sizing, always-upright artwork); this removes the one
-// remaining interactive gesture (drag) and the now-fully-unreachable
-// imperative center/reset handle that went with it — nothing called it
-// (no `ref` was ever passed to this component from MockupStudio), and
-// keeping it would misleadingly imply a movement model that no longer
-// exists. `offsetX`/`offsetY` remain on `MockupTransform` and the
-// `print_specs` table for backward compatibility (existing historical
-// data), but this renderer center the artwork within its zone
-// deterministically — see MockupStudio.tsx.
+// canonical garment/zone geometry (config/garmentGeometry.ts) dictates,
+// and never writes anything back.
+//
+// Mockup System V2 Batch A: the garment background is no longer
+// independently stretched on X/Y to fill the canvas (audit §7-8) — it is
+// fit into the canvas preserving its own aspect ratio via
+// fitGarmentIntoViewport, then the print zone/anchor (garment-specific,
+// not the old global percentage table) is mapped through that same fit so
+// garment and zone always share one coordinate space. `offsetX`/`offsetY`
+// remain on `MockupTransform` and the `print_specs` table for backward
+// compatibility (existing historical data) but are never read by this
+// renderer — artwork is always centered on the zone's configured anchor.
+
+// Mockup System V2 Batch A — dev-only geometry debug overlay (Part 26).
+// Shows the garment's canonical bounds (blue) and the active zone's anchor
+// point (red dot) on top of the normal dashed zone guide, to help
+// calibrate print zones against the real photos during development. Never
+// enabled in production — gated on both DEV mode and an explicit opt-in
+// query flag so it never appears by accident.
+function isGeometryDebugEnabled(): boolean {
+  if (!import.meta.env.DEV) return false
+  if (typeof window === 'undefined') return false
+  return new URLSearchParams(window.location.search).get('mockupDebug') === '1'
+}
 
 export interface MockupTransform {
   offsetX: number
@@ -40,7 +53,7 @@ interface MockupCanvasProps {
   garmentType: GarmentType
   garmentColour: string
   view: 'Front' | 'Back'
-  zone: PrintZone
+  position: PrintPosition
   /** Signed/object URL for previewable artwork — undefined shows the zone guide with no artwork. */
   artworkUrl?: string
   /** Canonical PrintSpec transform — the single source of truth this canvas renders from. Never written back. */
@@ -56,7 +69,7 @@ export function MockupCanvas({
   garmentType,
   garmentColour,
   view,
-  zone,
+  position,
   artworkUrl,
   transform,
   onArtworkAspectRatio,
@@ -66,50 +79,94 @@ export function MockupCanvas({
   const fabricCanvasRef = useRef<fabric.Canvas | null>(null)
   const artworkObjectRef = useRef<fabric.FabricImage | null>(null)
   const guideRectRef = useRef<fabric.Rect | null>(null)
+  const debugBoundsRectRef = useRef<fabric.Rect | null>(null)
+  const debugAnchorDotRef = useRef<fabric.Circle | null>(null)
+  // The garment's aspect-ratio-preserving fit within the current canvas
+  // size — recomputed whenever the garment background loads or the canvas
+  // resizes, and the single shared basis for both the zone guide and the
+  // artwork placement below (Part 11: "no renderer may independently
+  // calculate garment bounds, zone bounds, anchors, or mm scale").
+  const fitRef = useRef<FitResult>({ x: 0, y: 0, width, height, scale: 1 })
 
   // Latest-value refs so the init effect (which must run once) and the
   // async image-load effects always see current props without re-creating
   // the Fabric canvas or re-subscribing listeners on every prop change.
-  const zoneRef = useRef(zone)
+  const garmentTypeRef = useRef(garmentType)
+  const viewRef = useRef(view)
+  const positionRef = useRef(position)
   const transformRef = useRef(transform)
   const onArtworkAspectRatioRef = useRef(onArtworkAspectRatio)
   const onErrorRef = useRef(onError)
-  zoneRef.current = zone
+  garmentTypeRef.current = garmentType
+  viewRef.current = view
+  positionRef.current = position
   transformRef.current = transform
   onArtworkAspectRatioRef.current = onArtworkAspectRatio
   onErrorRef.current = onError
+
+  function currentZone() {
+    return resolvePrintZone(garmentTypeRef.current, viewRef.current, positionRef.current)
+  }
 
   function syncGuide() {
     const canvas = fabricCanvasRef.current
     const guide = guideRectRef.current
     if (!canvas || !guide) return
-    const zonePx = zoneBoxPx(zoneRef.current, canvas.getWidth(), canvas.getHeight())
-    guide.set({ left: zonePx.x, top: zonePx.y, width: zonePx.width, height: zonePx.height })
+    const zone = currentZone()
+    if (!zone) {
+      // Unsupported garment/position combination (Part 16) — no fabricated
+      // box; hide the guide entirely rather than guess a location.
+      guide.set({ width: 0, height: 0 })
+      guide.setCoords()
+      return
+    }
+    const box = mapCanonicalRectToViewport(zone, fitRef.current)
+    guide.set({ left: box.x, top: box.y, width: box.width, height: box.height })
     guide.setCoords()
+
+    const anchorDot = debugAnchorDotRef.current
+    if (anchorDot) {
+      const anchor = mapCanonicalRectToViewport({ x: zone.anchorX, y: zone.anchorY, width: 0, height: 0 }, fitRef.current)
+      anchorDot.set({ left: anchor.x, top: anchor.y })
+      anchorDot.setCoords()
+    }
   }
 
-  // Rebuilds the artwork object's on-canvas position/size/rotation purely
-  // from the canonical transform + current zone/canvas size — never the
-  // other way around. The artwork object is non-interactive (see below),
-  // so this is the ONLY thing that ever moves, sizes, or rotates it.
+  function syncDebugBounds() {
+    const boundsRect = debugBoundsRectRef.current
+    if (!boundsRect) return
+    const viewGeometry = resolveGarmentGeometry(garmentTypeRef.current, viewRef.current)
+    const box = mapCanonicalRectToViewport(viewGeometry.garmentBounds, fitRef.current)
+    boundsRect.set({ left: box.x, top: box.y, width: box.width, height: box.height })
+    boundsRect.setCoords()
+  }
+
+  // Rebuilds the artwork object's on-canvas position/size purely from the
+  // canonical transform + current zone/fit — never the other way around.
+  // The artwork object is non-interactive (see below), so this is the ONLY
+  // thing that ever moves or sizes it. Rotation is the one persisted value
+  // still applied directly (Part 10: not expanded, not removed).
   function syncArtworkTransform() {
     const canvas = fabricCanvasRef.current
     const obj = artworkObjectRef.current
     if (!canvas || !obj) return
-    const zonePx = zoneBoxPx(zoneRef.current, canvas.getWidth(), canvas.getHeight())
-    const pos = zoneOffsetToCanvasPosition(
-      { offsetX: transformRef.current.offsetX, offsetY: transformRef.current.offsetY },
-      zonePx,
-    )
-    const size = physicalSizeToPixelSize(transformRef.current.widthMm, transformRef.current.heightMm, zoneRef.current, zonePx)
+    const zone = currentZone()
+    if (!zone) {
+      // No calibrated zone for this garment/position — do not fake a
+      // placement; leave the artwork object off-canvas rather than guess.
+      obj.set({ left: -9999, top: -9999 })
+      obj.setCoords()
+      return
+    }
+    const placement = resolveArtworkPlacement(zone, fitRef.current, transformRef.current.widthMm, transformRef.current.heightMm)
     const naturalWidth = obj.width || 1
     const naturalHeight = obj.height || 1
     obj.set({
-      left: pos.left,
-      top: pos.top,
+      left: placement.centerX,
+      top: placement.centerY,
       angle: transformRef.current.rotationDeg,
-      scaleX: size.widthPx / naturalWidth,
-      scaleY: size.heightPx / naturalHeight,
+      scaleX: placement.width / naturalWidth,
+      scaleY: placement.height / naturalHeight,
     })
     obj.setCoords()
   }
@@ -120,7 +177,7 @@ export function MockupCanvas({
     if (!canvasElRef.current) return
     let canvas: fabric.Canvas
     try {
-      canvas = new fabric.Canvas(canvasElRef.current, { width, height, selection: false })
+      canvas = new fabric.Canvas(canvasElRef.current, { width, height, selection: false, backgroundColor: '#ffffff' })
     } catch {
       onErrorRef.current?.('Could not initialize the mockup canvas.')
       return
@@ -143,13 +200,50 @@ export function MockupCanvas({
     })
     canvas.add(guide)
     guideRectRef.current = guide
+
+    if (isGeometryDebugEnabled()) {
+      const boundsRect = new fabric.Rect({
+        left: 0,
+        top: 0,
+        width: 0,
+        height: 0,
+        fill: 'transparent',
+        stroke: '#2563eb',
+        strokeDashArray: [2, 3],
+        strokeWidth: 1,
+        selectable: false,
+        evented: false,
+        excludeFromExport: true,
+        hoverCursor: 'default',
+      })
+      const anchorDot = new fabric.Circle({
+        left: 0,
+        top: 0,
+        radius: 4,
+        originX: 'center',
+        originY: 'center',
+        fill: '#dc2626',
+        selectable: false,
+        evented: false,
+        excludeFromExport: true,
+        hoverCursor: 'default',
+      })
+      canvas.add(boundsRect)
+      canvas.add(anchorDot)
+      debugBoundsRectRef.current = boundsRect
+      debugAnchorDotRef.current = anchorDot
+    }
+
     syncGuide()
+    syncDebugBounds()
 
     return () => {
       canvas.dispose()
       fabricCanvasRef.current = null
       artworkObjectRef.current = null
       guideRectRef.current = null
+      debugBoundsRectRef.current = null
+      debugAnchorDotRef.current = null
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
@@ -163,9 +257,12 @@ export function MockupCanvas({
     canvas.setDimensions({ width, height })
     const bg = canvas.backgroundImage
     if (bg) {
-      bg.set({ scaleX: width / (bg.width || 1), scaleY: height / (bg.height || 1) })
+      const fit = fitGarmentIntoViewport(bg.width || 1, bg.height || 1, width, height)
+      fitRef.current = fit
+      bg.set({ left: fit.x, top: fit.y, scaleX: fit.scale, scaleY: fit.scale })
     }
     syncGuide()
+    syncDebugBounds()
     syncArtworkTransform()
     canvas.requestRenderAll()
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -173,7 +270,9 @@ export function MockupCanvas({
 
   // Garment background — reloads on type/colour/view change. Locked,
   // non-selectable, non-evented by construction (Fabric background images
-  // are never interactive), and excluded from any future export.
+  // are never interactive), and excluded from any future export. Fit into
+  // the canvas preserving its own aspect ratio (Batch A) rather than the
+  // old independent scaleX/scaleY stretch.
   useEffect(() => {
     const canvas = fabricCanvasRef.current
     if (!canvas) return
@@ -183,14 +282,29 @@ export function MockupCanvas({
         const url = garmentTemplateToDataUrl(garmentType, view, garmentColour)
         const img = await fabric.FabricImage.fromURL(url, { crossOrigin: 'anonymous' })
         if (cancelled) return
+        // The declared canonical viewBox — not the runtime-measured asset
+        // pixel size — is the authoritative source dimension for the fit,
+        // so garment geometry and print-zone geometry always share exactly
+        // one coordinate space (see garmentGeometry.ts's CANONICAL_VIEWPORT
+        // comment for why this is safe for every calibrated/fallback type).
+        const viewGeometry = resolveGarmentGeometry(garmentType, view)
+        const fit = fitGarmentIntoViewport(viewGeometry.viewBox.width, viewGeometry.viewBox.height, canvas.getWidth(), canvas.getHeight())
+        fitRef.current = fit
         img.set({
-          scaleX: canvas.getWidth() / (img.width || 1),
-          scaleY: canvas.getHeight() / (img.height || 1),
+          left: fit.x,
+          top: fit.y,
+          originX: 'left',
+          originY: 'top',
+          scaleX: fit.scale,
+          scaleY: fit.scale,
           selectable: false,
           evented: false,
           excludeFromExport: true,
         })
         canvas.backgroundImage = img
+        syncGuide()
+        syncDebugBounds()
+        syncArtworkTransform()
         canvas.requestRenderAll()
       } catch {
         if (!cancelled) onErrorRef.current?.('Could not load the garment template for this preview.')
@@ -199,6 +313,7 @@ export function MockupCanvas({
     return () => {
       cancelled = true
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [garmentType, garmentColour, view])
 
   // Artwork object — reloads whenever the selected artwork's preview URL
@@ -227,7 +342,7 @@ export function MockupCanvas({
         // never draggable, resizable via handles, or rotatable by hand.
         // `selectable: false` + `evented: false` make it fully inert to
         // mouse/touch input (no click-to-select, no drag, no handles ever
-        // rendered); position/size/rotation only ever change by re-running
+        // rendered); position/size only ever change by re-running
         // syncArtworkTransform() from the canonical transform prop below.
         img.set({
           originX: 'center',
@@ -263,15 +378,15 @@ export function MockupCanvas({
   }, [transform.offsetX, transform.offsetY, transform.rotationDeg, transform.widthMm, transform.heightMm])
 
   // Re-sync the zone guide + artwork placement whenever the active print
-  // position's zone changes — physical width/height are preserved (they
-  // come from the transform prop unchanged); only their on-canvas pixel
-  // representation is recalculated against the new zone's calibration.
+  // position changes — physical width/height are preserved (they come from
+  // the transform prop unchanged); only their on-canvas representation is
+  // recalculated against the new (garment-specific) zone.
   useEffect(() => {
     syncGuide()
     syncArtworkTransform()
     fabricCanvasRef.current?.requestRenderAll()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [zone])
+  }, [position])
 
-  return <canvas ref={canvasElRef} width={width} height={height} role="img" aria-label="Mockup preview canvas" />
+  return <canvas ref={canvasElRef} width={width} height={height} role="img" aria-label={`${garmentType} ${view} mockup preview — ${position}`} />
 }

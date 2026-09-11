@@ -1,7 +1,7 @@
 import type { OrderFormValues, GarmentFormValues, PrintSpecFormValues } from '@/schemas/orderFormSchema'
 import { generateId } from '@/utils/id'
 import { todayIso, addDays } from '@/utils/date'
-import { PRINT_ZONES } from '@/config/printZones'
+import { ALL_PRINT_POSITIONS } from '@/config/garmentGeometry'
 import { PRINT_SIZES } from '@/data/printSizes'
 
 export function emptyGarment(): GarmentFormValues {
@@ -17,7 +17,6 @@ export function emptyGarment(): GarmentFormValues {
 }
 
 export function emptyPrintSpec(): PrintSpecFormValues {
-  const first = PRINT_ZONES[0]
   const defaultSize = PRINT_SIZES.find((s) => s.label === 'A4') ?? PRINT_SIZES[0]
   return {
     // A real UUID, not the old generateId('print') string — required so
@@ -25,7 +24,7 @@ export function emptyPrintSpec(): PrintSpecFormValues {
     // across every future save (Phase 3 plan §12a), the same pattern
     // ArtworkSection.tsx already uses for artworkId before first upload.
     id: crypto.randomUUID(),
-    position: first.position,
+    position: ALL_PRINT_POSITIONS[0].position,
     colour: '',
     widthMm: defaultSize.widthMm,
     heightMm: defaultSize.heightMm,

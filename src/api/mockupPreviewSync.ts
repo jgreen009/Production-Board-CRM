@@ -1,5 +1,4 @@
 import { supabase } from '@/lib/supabase'
-import { getPrintZone } from '@/config/printZones'
 import type { GarmentType, PrintPosition } from '@/types'
 import type { ArtworkFileFormValues, PrintSpecFormValues } from '@/schemas/orderFormSchema'
 import { BUCKET, mockupPreviewStoragePath } from '@/api/mockupPreviews'
@@ -102,21 +101,19 @@ export async function syncMockupPreviewsForOrder({
       const artwork = artworkFiles.find((f) => f.id === spec.artworkId)
       const artworkUrl =
         artwork && PREVIEWABLE_ARTWORK_TYPES.includes(artwork.fileType) ? artwork.previewUrl : undefined
-      const zone = getPrintZone(spec.position as PrintPosition)
 
       const blob = await renderMockupPreviewPng({
         garmentType: effectiveGarmentType(spec, garments),
         garmentColour: spec.garmentColour || '',
-        view: zone.view,
-        zone,
+        position: spec.position as PrintPosition,
         artworkUrl,
         // Pre-UAT product decision: print position is authoritative for
         // placement, not a stored drag offset (see MockupStudio.tsx) — the
         // saved preview must match what staff actually saw in the editor
-        // (always centered), including when regenerating a preview for an
-        // older spec that has a historical non-zero offset on file.
-        offsetX: 0,
-        offsetY: 0,
+        // (always centered on the position's configured anchor), including
+        // when regenerating a preview for an older spec that has a
+        // historical non-zero offset on file (Mockup System V2 Batch A:
+        // offsetX/offsetY are legacy-ignored — rendering never reads them).
         rotationDeg: spec.rotationDeg ?? 0,
         widthMm: spec.widthMm,
         heightMm: spec.heightMm,

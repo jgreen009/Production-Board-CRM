@@ -1,4 +1,6 @@
 import type { PrintZone } from '@/config/printZones'
+import type { GarmentPrintZone } from '@/config/garmentGeometry'
+import { mapCanonicalPointToViewport, type FitResult } from '@/utils/garmentFit'
 
 export interface PixelBox {
   x: number
@@ -112,4 +114,92 @@ export function fitArtworkToZone(zone: PrintZone, aspectRatio: number): { widthM
 // sidesteps that basis mismatch entirely.
 export function isOverflowingZonePx(size: PixelSize, zonePx: PixelBox): boolean {
   return size.widthPx > zonePx.width || size.heightPx > zonePx.height
+}
+
+// ---------------------------------------------------------------------
+// Mockup System V2 Batch A — canonical-unit geometry (garment-specific
+// zones defined in config/garmentGeometry.ts). These are the functions the
+// real render path (MockupCanvas, GarmentMockup, mockupPreviewRenderer)
+// uses; everything above this point is the legacy percentage-based model,
+// kept only for its own pure-math tests and printZones.ts's historical
+// offsetX/offsetY reconstruction semantics (Part "OFFSET_X / OFFSET_Y" —
+// rendering no longer depends on those fields at all, but the columns and
+// their pure conversion math are kept, not deleted).
+// ---------------------------------------------------------------------
+
+// Canonical units per real-world mm, calibrated from the zone's own
+// refWidthMm against its own canonical `width` — one factor applied
+// uniformly to both axes (Part 7: "verify whether width-only calibration
+// is sufficient" — it is, because canonical units are isotropic by
+// construction: the canonical viewBox equals the garment photo's own
+// native pixel grid, which has no independent per-axis distortion once
+// fitGarmentIntoViewport replaces the old independent scaleX/scaleY).
+export function canonicalUnitsPerMm(zone: GarmentPrintZone): number {
+  return zone.width / zone.refWidthMm
+}
+
+export function physicalSizeToCanonicalSize(
+  widthMm: number,
+  heightMm: number,
+  zone: GarmentPrintZone,
+): { width: number; height: number } {
+  const scale = canonicalUnitsPerMm(zone)
+  return { width: widthMm * scale, height: heightMm * scale }
+}
+
+// The zone's own realistic box size in real-world mm — width comes
+// straight from refWidthMm; height derives from the box's own canonical
+// aspect ratio, exactly mirroring the legacy zoneBoxMm's reasoning but
+// against canonical units instead of a percentage-of-240x300 box.
+export function canonicalZoneBoxMm(zone: GarmentPrintZone): { widthMm: number; heightMm: number } {
+  return { widthMm: zone.refWidthMm, heightMm: zone.refWidthMm * (zone.height / zone.width) }
+}
+
+// Auto-fill sizing (contain fit) against a garment-specific canonical zone
+// — the V2 equivalent of the legacy fitArtworkToZone.
+export function fitArtworkToCanonicalZone(
+  zone: GarmentPrintZone,
+  aspectRatio: number,
+): { widthMm: number; heightMm: number } {
+  const box = canonicalZoneBoxMm(zone)
+  const boxAspect = box.widthMm / box.heightMm
+  if (aspectRatio >= boxAspect) {
+    return { widthMm: box.widthMm, heightMm: box.widthMm / aspectRatio }
+  }
+  return { widthMm: box.heightMm * aspectRatio, heightMm: box.heightMm }
+}
+
+// Non-blocking overflow check against a garment-specific canonical zone,
+// computed directly in mm (Part 5.10 rule unchanged: a warning threshold,
+// never a hard clamp).
+export function isOverflowingCanonicalZoneMm(widthMm: number, heightMm: number, zone: GarmentPrintZone): boolean {
+  const box = canonicalZoneBoxMm(zone)
+  return widthMm > box.widthMm || heightMm > box.heightMm
+}
+
+export interface ArtworkPlacement {
+  /** Center point in viewport pixels — matches Fabric's originX/originY: 'center' convention already used by every renderer. */
+  centerX: number
+  centerY: number
+  width: number
+  height: number
+}
+
+// The full anchor-based placement pipeline (Part 6/11): artwork is always
+// centered on the zone's configured anchor — offsetX/offsetY are never
+// read here (Part "OFFSET_X / OFFSET_Y": legacy-ignored for rendering).
+export function resolveArtworkPlacement(
+  zone: GarmentPrintZone,
+  fit: FitResult,
+  widthMm: number,
+  heightMm: number,
+): ArtworkPlacement {
+  const canonicalSize = physicalSizeToCanonicalSize(widthMm, heightMm, zone)
+  const center = mapCanonicalPointToViewport({ x: zone.anchorX, y: zone.anchorY }, fit)
+  return {
+    centerX: center.x,
+    centerY: center.y,
+    width: canonicalSize.width * fit.scale,
+    height: canonicalSize.height * fit.scale,
+  }
 }

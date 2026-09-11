@@ -21,18 +21,27 @@ export interface PrintZone {
   refWidthMm: number
 }
 
-// Single source of truth for print-zone geometry, replacing
-// src/data/printPositions.ts (deleted in the same change — no second,
-// competing position config). Reshaped from the old center-point + max-box
-// shape into a top-left-anchored box (xPct/yPct/widthPct/heightPct), which
-// maps directly onto Fabric.js object placement. Coordinates are
-// percentages of the garment mockup image's rendered box, carried over
-// (allowing for the center->corner reshape) from the values already
-// checked against each garment photo during Phase 1/2.
+// SUPERSEDED as of Mockup System V2 Batch A — this flat, garment-agnostic
+// table is no longer the render path's source of geometry (see
+// MOCKUP_SYSTEM_V2_AUDIT.md §6/§8.2: one shared box per position across
+// all 12 garment types was itself a root cause of misplacement). Real
+// placement now comes from src/config/garmentGeometry.ts, which defines
+// zones per garment TYPE and VIEW, not just per position. This file is
+// kept only for:
+//  (a) the `PrintZone` type/legacy percentage-based pure-math helpers in
+//      utils/mockupGeometry.ts that still have their own tests exercising
+//      historical offsetX/offsetY reconstruction semantics — code no
+//      renderer calls any more, but which is harmless to leave in place;
+//  (b) any as-yet-unmigrated consumer this batch didn't touch.
+// Do not add new consumers of PRINT_ZONES/getPrintZone — use
+// config/garmentGeometry.ts's resolveGarmentGeometry/resolvePrintZone
+// instead, which is the actual current source of truth.
 //
-// Per Phase 3 plan §5.10: these box dimensions are the OVERFLOW-WARNING
-// threshold, not a hard clamp. Placement may exceed them — the UI warns,
-// it never silently clips (unlike the old GarmentMockup.tsx behavior).
+// Original Phase 3 note, kept for history: reshaped from the old
+// center-point + max-box shape into a top-left-anchored box
+// (xPct/yPct/widthPct/heightPct). Per Phase 3 plan §5.10: these box
+// dimensions were the OVERFLOW-WARNING threshold, not a hard clamp — that
+// rule carries forward unchanged in the V2 model (isOverflowingCanonicalZoneMm).
 export const PRINT_ZONES: PrintZone[] = [
   // Left/Right Chest recalibrated per staff feedback: the box was too tall
   // (nearly square) for a real chest-logo print area, and it spanned all

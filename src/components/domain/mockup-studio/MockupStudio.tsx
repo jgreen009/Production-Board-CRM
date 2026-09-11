@@ -10,9 +10,14 @@ import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { ErrorBoundary } from '@/components/ui/ErrorBoundary'
 import { emptyPrintSpec } from '@/pages/new-order/defaultValues'
-import { PRINT_ZONES, getPrintZone } from '@/config/printZones'
+import {
+  ALL_PRINT_POSITIONS,
+  getPositionView,
+  isPrintPositionSupported,
+  resolvePrintZone,
+} from '@/config/garmentGeometry'
 import { PRINT_SIZE_PRESETS, matchPrintSizePreset } from '@/config/printSizePresets'
-import { fitArtworkToZone, isOverflowingZonePx, physicalSizeToPixelSize, zoneBoxPx } from '@/utils/mockupGeometry'
+import { fitArtworkToCanonicalZone, isOverflowingCanonicalZoneMm } from '@/utils/mockupGeometry'
 import { heightMmFromWidth } from '@/utils/printSizeConversion'
 import type { MockupTransform } from '@/components/domain/MockupCanvas'
 import { PrintSpecTabs } from './PrintSpecTabs'
@@ -24,14 +29,6 @@ import { ArtworkSelector } from './ArtworkSelector'
 const MockupCanvas = lazy(() =>
   import('@/components/domain/MockupCanvas').then((m) => ({ default: m.MockupCanvas })),
 )
-
-// Fixed reference aspect ratio for the overflow pre-check (§ "Print zone
-// guide"/"Overflow warnings") — matches GARMENT_VIEW_BOX (240:300) exactly,
-// so the proportional comparison it produces is identical to what the real
-// canvas (always kept at this same ratio) would show, independent of the
-// editor's actual current pixel size.
-const OVERFLOW_CHECK_WIDTH = 800
-const OVERFLOW_CHECK_HEIGHT = 1000
 
 function useContainerWidth() {
   const ref = useRef<HTMLDivElement>(null)
@@ -74,10 +71,18 @@ export function MockupStudio() {
   const garments = watch('garments')
   const artworkFiles = watch('artworkFiles')
 
+  // Garments section is the single source of truth for what the mockup
+  // preview shows — no separate garment type/colour override lives on the
+  // print spec itself (previously spec.garmentType/garmentColour, now
+  // unused). Computed up front since garment-specific zone resolution
+  // (Batch A) needs it everywhere below, not just once near the JSX.
+  const effectiveGarmentType = (garments[0]?.type || 'T-shirt') as GarmentType
+  const effectiveColour = garments[0]?.colour || ''
+
   const [activeId, setActiveId] = useState<string | null>(fields[0]?.id ?? null)
   const [activeView, setActiveView] = useState<'Front' | 'Back'>(() => {
     const first = printSpecs[0]
-    return first ? getPrintZone(first.position as PrintPosition).view : 'Front'
+    return first ? getPositionView(first.position as PrintPosition) : 'Front'
   })
   const [canvasError, setCanvasError] = useState<string | null>(null)
   // Reported by MockupCanvas once the active spec's artwork image loads —
@@ -96,7 +101,7 @@ export function MockupStudio() {
   // or Add Print) — "changing print position must derive Front/Back view."
   useEffect(() => {
     if (!spec) return
-    const derived = getPrintZone(spec.position as PrintPosition).view
+    const derived = getPositionView(spec.position as PrintPosition)
     setActiveView((current) => (current === derived ? current : derived))
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [spec?.position])
@@ -108,25 +113,30 @@ export function MockupStudio() {
 
   // Manual resizing is gone — artwork auto-fills its print position the
   // moment an aspect ratio is known, and re-fills whenever the active
-  // spec's artwork or position changes (switching position re-fits to the
-  // new zone's box). "Contain" fit: the largest size that still fits
-  // entirely inside the zone, so it never overflows on its own.
+  // spec's artwork, position, or garment changes (switching position or
+  // garment re-fits to the new garment-specific zone's box). "Contain"
+  // fit: the largest size that still fits entirely inside the zone, so it
+  // never overflows on its own. Unsupported garment/position combinations
+  // (Batch A §16) have no zone to fit against — left untouched rather than
+  // guessing a size.
   useEffect(() => {
     if (!spec || aspectRatio == null) return
-    const zone = getPrintZone(spec.position as PrintPosition)
-    const fit = fitArtworkToZone(zone, aspectRatio)
+    const view = getPositionView(spec.position as PrintPosition)
+    const zone = resolvePrintZone(effectiveGarmentType, view, spec.position as PrintPosition)
+    if (!zone) return
+    const fit = fitArtworkToCanonicalZone(zone, aspectRatio)
     if (Math.abs(fit.widthMm - spec.widthMm) > 0.01 || Math.abs(fit.heightMm - spec.heightMm) > 0.01) {
       setValue(`printSpecs.${activeIndex}`, { ...spec, widthMm: fit.widthMm, heightMm: fit.heightMm })
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [aspectRatio, activeId, spec?.position, spec?.artworkId])
+  }, [aspectRatio, activeId, spec?.position, spec?.artworkId, effectiveGarmentType])
 
   const { frontEntries, backEntries } = useMemo(() => {
     const front: { id: string; label: string }[] = []
     const back: { id: string; label: string }[] = []
     fields.forEach((f, i) => {
       const entry = { id: f.id, label: `${printSpecs[i].position}` }
-      if (getPrintZone(printSpecs[i]?.position as PrintPosition).view === 'Front') front.push(entry)
+      if (getPositionView(printSpecs[i]?.position as PrintPosition) === 'Front') front.push(entry)
       else back.push(entry)
     })
     return { frontEntries: front, backEntries: back }
@@ -136,7 +146,7 @@ export function MockupStudio() {
     const idx = fields.findIndex((f) => f.id === id)
     if (idx < 0) return
     setActiveId(id)
-    setActiveView(getPrintZone(printSpecs[idx].position as PrintPosition).view)
+    setActiveView(getPositionView(printSpecs[idx].position as PrintPosition))
   }
 
   const handleViewChange = (view: 'Front' | 'Back') => {
@@ -148,7 +158,7 @@ export function MockupStudio() {
   }
 
   const handleAdd = () => {
-    const fallback = PRINT_ZONES.find((z) => z.view === activeView) ?? PRINT_ZONES[0]
+    const fallback = ALL_PRINT_POSITIONS.find((p) => getPositionView(p.position) === activeView) ?? ALL_PRINT_POSITIONS[0]
     const newSpec = { ...emptyPrintSpec(), position: fallback.position }
     append(newSpec)
     // useFieldArray appends synchronously to `fields` on next render; the
@@ -162,7 +172,7 @@ export function MockupStudio() {
     if (fields.length > previousFieldCount.current) {
       const newest = fields[fields.length - 1]
       setActiveId(newest.id)
-      setActiveView(getPrintZone(printSpecs[fields.length - 1].position as PrintPosition).view)
+      setActiveView(getPositionView(printSpecs[fields.length - 1].position as PrintPosition))
     }
     previousFieldCount.current = fields.length
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -199,12 +209,9 @@ export function MockupStudio() {
 
   if (!spec) return null
 
-  const config = getPrintZone(spec.position as PrintPosition)
-  // Garments section is the single source of truth for what the mockup
-  // preview shows — no separate garment type/colour override lives here
-  // any more (previously spec.garmentType/garmentColour, now unused).
-  const effectiveGarmentType = (garments[0]?.type || 'T-shirt') as GarmentType
-  const effectiveColour = garments[0]?.colour || ''
+  const view = getPositionView(spec.position as PrintPosition)
+  const zone = resolvePrintZone(effectiveGarmentType, view, spec.position as PrintPosition)
+  const positionSupported = isPrintPositionSupported(effectiveGarmentType, spec.position as PrintPosition)
   const artwork = artworkFiles.find((f) => f.id === spec.artworkId)
   const artworkPreviewable = artwork && ['PNG', 'JPG', 'WEBP', 'SVG'].includes(artwork.fileType)
 
@@ -240,9 +247,7 @@ export function MockupStudio() {
     heightMm: spec.heightMm,
   }
 
-  const overflowZonePx = zoneBoxPx(config, OVERFLOW_CHECK_WIDTH, OVERFLOW_CHECK_HEIGHT)
-  const overflowSizePx = physicalSizeToPixelSize(spec.widthMm, spec.heightMm, config, overflowZonePx)
-  const overflowing = !!artwork && isOverflowingZonePx(overflowSizePx, overflowZonePx)
+  const overflowing = !!artwork && !!zone && isOverflowingCanonicalZoneMm(spec.widthMm, spec.heightMm, zone)
 
   return (
     <div className="flex flex-col gap-3">
@@ -266,21 +271,27 @@ export function MockupStudio() {
           <div>
             <p className="mb-1.5 text-xs font-semibold tracking-wide text-zinc-500">POSITION</p>
             <div className="flex flex-wrap gap-1.5">
-              {PRINT_ZONES.map((p) => (
-                <button
-                  key={p.position}
-                  type="button"
-                  onClick={() => update({ position: p.position })}
-                  className={clsx(
-                    'min-h-9 rounded-md border px-2.5 py-1.5 text-xs font-medium transition-colors',
-                    spec.position === p.position
-                      ? 'border-brand-accent bg-brand-accent-soft text-brand-accent'
-                      : 'border-zinc-200 bg-white text-zinc-600 hover:border-zinc-300',
-                  )}
-                >
-                  {p.label}
-                </button>
-              ))}
+              {ALL_PRINT_POSITIONS.map((p) => {
+                const supported = isPrintPositionSupported(effectiveGarmentType, p.position)
+                return (
+                  <button
+                    key={p.position}
+                    type="button"
+                    onClick={() => update({ position: p.position })}
+                    title={supported ? undefined : `${effectiveGarmentType} doesn't have a calibrated zone for ${p.label} yet`}
+                    className={clsx(
+                      'min-h-9 rounded-md border px-2.5 py-1.5 text-xs font-medium transition-colors',
+                      spec.position === p.position
+                        ? 'border-brand-accent bg-brand-accent-soft text-brand-accent'
+                        : supported
+                          ? 'border-zinc-200 bg-white text-zinc-600 hover:border-zinc-300'
+                          : 'border-zinc-100 bg-white text-zinc-300 hover:border-zinc-200',
+                    )}
+                  >
+                    {p.label}
+                  </button>
+                )
+              })}
             </div>
           </div>
 
@@ -339,8 +350,8 @@ export function MockupStudio() {
                   height={canvasHeight}
                   garmentType={effectiveGarmentType}
                   garmentColour={effectiveColour}
-                  view={config.view}
-                  zone={config}
+                  view={view}
+                  position={spec.position as PrintPosition}
                   artworkUrl={artworkPreviewable ? artwork?.previewUrl : undefined}
                   transform={transform}
                   onArtworkAspectRatio={setAspectRatio}
@@ -360,12 +371,19 @@ export function MockupStudio() {
             )}
           </div>
           {canvasError && <p className="text-xs text-danger">{canvasError}</p>}
+          {!positionSupported && (
+            <p className="rounded-md border border-warning/30 bg-warning-soft px-2.5 py-2 text-xs text-warning">
+              {effectiveGarmentType} doesn&rsquo;t have a calibrated print zone for {spec.position} yet — the garment
+              preview shows without a specific placement. Staff can still save this order; the mockup preview will
+              improve once this garment/position combination is supported.
+            </p>
+          )}
           {overflowing && (
             <p className="rounded-md border border-warning/30 bg-warning-soft px-2.5 py-2 text-xs text-warning">
               Artwork extends beyond the recommended print area for this position. Staff may still save this placement.
             </p>
           )}
-          {artwork && (
+          {artwork && positionSupported && (
             <p className="text-center text-[11px] text-zinc-400">
               Positioned and sized automatically for this print position.
             </p>

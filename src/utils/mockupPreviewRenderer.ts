@@ -1,8 +1,9 @@
 import * as fabric from 'fabric'
-import type { GarmentType } from '@/types'
-import type { PrintZone } from '@/config/printZones'
+import type { GarmentType, PrintPosition } from '@/types'
+import { getPositionView, resolveGarmentGeometry, resolvePrintZone } from '@/config/garmentGeometry'
 import { garmentTemplateToDataUrl } from '@/config/garmentTemplates'
-import { physicalSizeToPixelSize, zoneBoxPx, zoneOffsetToCanvasPosition } from '@/utils/mockupGeometry'
+import { fitGarmentIntoViewport } from '@/utils/garmentFit'
+import { resolveArtworkPlacement } from '@/utils/mockupGeometry'
 
 // Phase 3 Batch B — clean PNG export. Deliberately a SEPARATE render path
 // from the interactive MockupCanvas.tsx rather than exporting the live
@@ -10,71 +11,73 @@ import { physicalSizeToPixelSize, zoneBoxPx, zoneOffsetToCanvasPosition } from '
 // the garment background and the artwork object ever added to it, so there
 // is no print-zone guide, no selection controls, and no editor chrome to
 // have to filter out — nothing extra is ever added to this canvas in the
-// first place. (fabric's `excludeFromExport` object flag, used elsewhere in
-// this codebase's interactive canvas, only affects toObject/toJSON
-// serialization, not pixel rendering — it would NOT have hidden the guide
-// from a toDataURL() export, which is the real reason this stays a
-// separate canvas rather than reusing MockupCanvas's live one.)
+// first place.
+//
+// Mockup System V2 Batch A: uses the same garment-specific canonical
+// geometry and aspect-ratio-preserving fit as MockupCanvas.tsx and
+// GarmentMockup.tsx (Part 11 "unify all three renderers") — no independent
+// scaleX/scaleY stretch, no offsetX/offsetY reposition, always centered on
+// the position's configured anchor.
 
-// Matches GARMENT_VIEW_BOX (240x300) at 3x — 720x900px output. Sharp enough
-// to be a clear staff/customer reference image without being unnecessarily
-// large; this is a visual proof, not print-production source artwork.
-export const PREVIEW_BASE_WIDTH = 240
-export const PREVIEW_BASE_HEIGHT = 300
-export const PREVIEW_MULTIPLIER = 3
+// Output width in px — a sharp reference image without shipping the
+// garment photo's own full native resolution (visual proof, not
+// print-production source artwork). Height is derived from the garment's
+// own canonical aspect ratio via the same fit helper every renderer uses,
+// so this output is never independently stretched either.
+export const PREVIEW_OUTPUT_WIDTH = 900
 
 export interface MockupPreviewInput {
   garmentType: GarmentType
   garmentColour: string
-  view: 'Front' | 'Back'
-  zone: PrintZone
+  position: PrintPosition
   /** Previewable artwork URL (signed URL or blob: URL) — omitted renders the garment alone. */
   artworkUrl?: string
-  offsetX: number
-  offsetY: number
   rotationDeg: number
   widthMm: number
   heightMm: number
 }
 
 // White background (not transparent): the garment templates themselves are
-// already opaque white-background flats/photos (Milestone 2/asset swap), so
-// a white canvas base is the choice that's actually consistent with what
-// staff already see while editing, and gives a more reliable product-style
-// preview than transparency would against art that isn't itself transparent.
+// already opaque white-background flats/photos, so a white canvas base is
+// the choice that's actually consistent with what staff already see while
+// editing, and gives a more reliable product-style preview than
+// transparency would against art that isn't itself transparent.
 const BACKGROUND_COLOUR = '#ffffff'
 
 export async function renderMockupPreviewPng(input: MockupPreviewInput): Promise<Blob> {
-  const width = PREVIEW_BASE_WIDTH * PREVIEW_MULTIPLIER
-  const height = PREVIEW_BASE_HEIGHT * PREVIEW_MULTIPLIER
+  const view = getPositionView(input.position)
+  const viewGeometry = resolveGarmentGeometry(input.garmentType, view)
+  const outputScale = PREVIEW_OUTPUT_WIDTH / viewGeometry.viewBox.width
+  const width = PREVIEW_OUTPUT_WIDTH
+  const height = viewGeometry.viewBox.height * outputScale
   const canvasEl = document.createElement('canvas')
   const canvas = new fabric.StaticCanvas(canvasEl, { width, height, backgroundColor: BACKGROUND_COLOUR })
 
   try {
-    const garmentUrl = garmentTemplateToDataUrl(input.garmentType, input.view, input.garmentColour)
+    const garmentUrl = garmentTemplateToDataUrl(input.garmentType, view, input.garmentColour)
     const garmentImg = await fabric.FabricImage.fromURL(garmentUrl, { crossOrigin: 'anonymous' })
-    garmentImg.set({
-      scaleX: width / (garmentImg.width || 1),
-      scaleY: height / (garmentImg.height || 1),
-    })
+    const fit = fitGarmentIntoViewport(viewGeometry.viewBox.width, viewGeometry.viewBox.height, width, height)
+    garmentImg.set({ left: fit.x, top: fit.y, originX: 'left', originY: 'top', scaleX: fit.scale, scaleY: fit.scale })
     canvas.backgroundImage = garmentImg
 
-    if (input.artworkUrl) {
+    const zone = resolvePrintZone(input.garmentType, view, input.position)
+    if (input.artworkUrl && zone) {
       const artworkImg = await fabric.FabricImage.fromURL(input.artworkUrl, { crossOrigin: 'anonymous' })
-      const zonePx = zoneBoxPx(input.zone, width, height)
-      const pos = zoneOffsetToCanvasPosition({ offsetX: input.offsetX, offsetY: input.offsetY }, zonePx)
-      const size = physicalSizeToPixelSize(input.widthMm, input.heightMm, input.zone, zonePx)
+      const placement = resolveArtworkPlacement(zone, fit, input.widthMm, input.heightMm)
       artworkImg.set({
         originX: 'center',
         originY: 'center',
-        left: pos.left,
-        top: pos.top,
+        left: placement.centerX,
+        top: placement.centerY,
         angle: input.rotationDeg,
-        scaleX: size.widthPx / (artworkImg.width || 1),
-        scaleY: size.heightPx / (artworkImg.height || 1),
+        scaleX: placement.width / (artworkImg.width || 1),
+        scaleY: placement.height / (artworkImg.height || 1),
       })
       canvas.add(artworkImg)
     }
+    // Unsupported garment/position combination (no calibrated zone) — the
+    // garment still renders (Part 19: historical PrintSpecs still render),
+    // just without a fabricated artwork placement on top of it.
 
     canvas.renderAll()
     const dataUrl = canvas.toDataURL({ format: 'png', multiplier: 1 })

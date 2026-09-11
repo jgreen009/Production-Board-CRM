@@ -1,16 +1,25 @@
 import { describe, expect, it } from 'vitest'
 import {
+  canonicalUnitsPerMm,
+  canonicalZoneBoxMm,
   canvasPositionToZoneOffset,
+  fitArtworkToCanonicalZone,
   fitArtworkToZone,
+  isOverflowingCanonicalZoneMm,
   isOverflowingZonePx,
   normalizeRotationDeg,
+  physicalSizeToCanonicalSize,
   physicalSizeToPixelSize,
   pixelWidthToPhysicalWidth,
+  resolveArtworkPlacement,
   zoneBoxMm,
   zoneBoxPx,
   zoneOffsetToCanvasPosition,
 } from './mockupGeometry'
 import type { PrintZone } from '@/config/printZones'
+import type { GarmentPrintZone } from '@/config/garmentGeometry'
+import { fitGarmentIntoViewport } from '@/utils/garmentFit'
+import { resolvePrintZone } from '@/config/garmentGeometry'
 
 const zone: PrintZone = {
   position: 'Left Chest',
@@ -224,10 +233,121 @@ describe('cross-viewport reconstruction (Batch A/B "same offset/size/rotation at
     const mobileZonePx = zoneBoxPx(zone, viewports.mobile.width, viewports.mobile.height)
     const desktopSize = physicalSizeToPixelSize(savedPrintSpec.widthMm, savedPrintSpec.heightMm, zone, desktopZonePx)
     const mobileSize = physicalSizeToPixelSize(savedPrintSpec.widthMm, savedPrintSpec.heightMm, zone, mobileZonePx)
-    // absolute pixels differ (different canvas sizes)...
     expect(desktopSize.widthPx).not.toBeCloseTo(mobileSize.widthPx, 0)
-    // ...but both recover the exact same physical width
     expect(pixelWidthToPhysicalWidth(desktopSize.widthPx, zone, desktopZonePx)).toBeCloseTo(savedPrintSpec.widthMm, 8)
     expect(pixelWidthToPhysicalWidth(mobileSize.widthPx, zone, mobileZonePx)).toBeCloseTo(savedPrintSpec.widthMm, 8)
+  })
+})
+
+// Mockup System V2 Batch A — canonical (garment-specific) geometry tests.
+// A representative T-shirt Left Chest zone, matching the real calibrated
+// value in config/garmentGeometry.ts, used as a fixture throughout.
+describe('canonical zone geometry (Batch A)', () => {
+  const canonicalZone: GarmentPrintZone = resolvePrintZone('T-shirt', 'Front', 'Left Chest')!
+
+  it('a real garment/position combination resolves a usable zone', () => {
+    expect(canonicalZone).toBeDefined()
+  })
+
+  describe('canonicalUnitsPerMm / physicalSizeToCanonicalSize', () => {
+    it('a width equal to refWidthMm renders at exactly the zone canonical width', () => {
+      const size = physicalSizeToCanonicalSize(canonicalZone.refWidthMm, canonicalZone.refWidthMm, canonicalZone)
+      expect(size.width).toBeCloseTo(canonicalZone.width, 6)
+    })
+
+    it('applies the same units-per-mm factor to both width and height (isotropic canonical space)', () => {
+      const scale = canonicalUnitsPerMm(canonicalZone)
+      const size = physicalSizeToCanonicalSize(50, 30, canonicalZone)
+      expect(size.width).toBeCloseTo(50 * scale, 8)
+      expect(size.height).toBeCloseTo(30 * scale, 8)
+    })
+  })
+
+  describe('canonicalZoneBoxMm / fitArtworkToCanonicalZone', () => {
+    it('width always equals refWidthMm; height derives from the box canonical aspect ratio', () => {
+      const box = canonicalZoneBoxMm(canonicalZone)
+      expect(box.widthMm).toBe(canonicalZone.refWidthMm)
+      expect(box.heightMm).toBeCloseTo(canonicalZone.refWidthMm * (canonicalZone.height / canonicalZone.width), 8)
+    })
+
+    it('fits a square artwork within the zone without overflowing either dimension', () => {
+      const box = canonicalZoneBoxMm(canonicalZone)
+      for (const aspectRatio of [0.2, 0.5, 1, 2, 5]) {
+        const fit = fitArtworkToCanonicalZone(canonicalZone, aspectRatio)
+        expect(fit.widthMm).toBeLessThanOrEqual(box.widthMm + 1e-8)
+        expect(fit.heightMm).toBeLessThanOrEqual(box.heightMm + 1e-8)
+        expect(fit.widthMm / fit.heightMm).toBeCloseTo(aspectRatio, 6)
+      }
+    })
+  })
+
+  describe('isOverflowingCanonicalZoneMm', () => {
+    it('flags a physical size exceeding the zone box in mm', () => {
+      const box = canonicalZoneBoxMm(canonicalZone)
+      expect(isOverflowingCanonicalZoneMm(box.widthMm + 10, box.heightMm, canonicalZone)).toBe(true)
+      expect(isOverflowingCanonicalZoneMm(box.widthMm - 1, box.heightMm - 1, canonicalZone)).toBe(false)
+    })
+  })
+
+  describe('resolveArtworkPlacement (Part 7/"physical-size invariant")', () => {
+    it('a 90mm print stays 90mm-equivalent regardless of viewport/canvas size', () => {
+      const viewports = [
+        { width: 220, height: 275 }, // mobile
+        { width: 400, height: 500 }, // tablet
+        { width: 1200, height: 1500 }, // desktop
+      ]
+      const widthMm = 90
+      const heightMm = 90
+      const results = viewports.map((v) => {
+        const fit = fitGarmentIntoViewport(1226, 1283, v.width, v.height)
+        const placement = resolveArtworkPlacement(canonicalZone, fit, widthMm, heightMm)
+        // recover the physical width from the rendered pixel width at this viewport
+        const canonicalWidth = placement.width / fit.scale
+        return canonicalWidth / canonicalUnitsPerMm(canonicalZone)
+      })
+      for (const recoveredMm of results) {
+        expect(recoveredMm).toBeCloseTo(widthMm, 6)
+      }
+    })
+
+    it('changing print position (a different zone) preserves the requested physical widthMm', () => {
+      const fullFrontZone = resolvePrintZone('T-shirt', 'Front', 'Full Front')!
+      const fit = fitGarmentIntoViewport(1226, 1283, 400, 500)
+      const widthMm = 90
+      const chestPlacement = resolveArtworkPlacement(canonicalZone, fit, widthMm, widthMm)
+      const fullFrontPlacement = resolveArtworkPlacement(fullFrontZone, fit, widthMm, widthMm)
+      const chestMm = chestPlacement.width / fit.scale / canonicalUnitsPerMm(canonicalZone)
+      const fullFrontMm = fullFrontPlacement.width / fit.scale / canonicalUnitsPerMm(fullFrontZone)
+      expect(chestMm).toBeCloseTo(widthMm, 6)
+      expect(fullFrontMm).toBeCloseTo(widthMm, 6)
+      // same physical width occupies a smaller fraction of its own (much
+      // larger) zone box on Full Front than it does on Left Chest — the
+      // relative-size invariant the old percentage model also asserted.
+      const chestFraction = chestPlacement.width / (canonicalZone.width * fit.scale)
+      const fullFrontFraction = fullFrontPlacement.width / (fullFrontZone.width * fit.scale)
+      expect(chestFraction).toBeGreaterThan(fullFrontFraction)
+    })
+
+    it('centers artwork exactly on the zone anchor, ignoring any offsetX/offsetY value (Part "OFFSET_X/OFFSET_Y")', () => {
+      const fit = fitGarmentIntoViewport(1226, 1283, 400, 500)
+      const placement = resolveArtworkPlacement(canonicalZone, fit, 90, 90)
+      const expectedCenter = {
+        x: fit.x + canonicalZone.anchorX * fit.scale,
+        y: fit.y + canonicalZone.anchorY * fit.scale,
+      }
+      expect(placement.centerX).toBeCloseTo(expectedCenter.x, 8)
+      expect(placement.centerY).toBeCloseTo(expectedCenter.y, 8)
+      // resolveArtworkPlacement's signature has no offsetX/offsetY parameter
+      // at all — there is no way to move it off-anchor even historically.
+    })
+
+    it('derives height from the artwork intrinsic aspect ratio when only width is chosen (Part 8)', () => {
+      const widthMm = 90
+      const aspectRatio = 1.5 // wide artwork
+      const heightMm = widthMm / aspectRatio
+      const fit = fitGarmentIntoViewport(1226, 1283, 400, 500)
+      const placement = resolveArtworkPlacement(canonicalZone, fit, widthMm, heightMm)
+      expect(placement.width / placement.height).toBeCloseTo(aspectRatio, 6)
+    })
   })
 })
