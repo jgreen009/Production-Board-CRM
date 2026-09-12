@@ -50,6 +50,7 @@ export const mockOrders: Order[] = [
     notes: 'This is overdue — chase up printing today, club needs them for Saturday.',
     productionNotes: 'On press, second colour running behind schedule.',
     staffCompleted: false,
+    source: 'staff',
   },
   {
     id: 'order-2',
@@ -89,6 +90,7 @@ export const mockOrders: Order[] = [
     notes: 'Needed for this evening class — same-day turnaround confirmed with customer.',
     productionNotes: 'Next in queue after SP-1001.',
     staffCompleted: false,
+    source: 'staff',
   },
   {
     id: 'order-3',
@@ -128,6 +130,7 @@ export const mockOrders: Order[] = [
     notes: 'Delivery requested to site office, not pickup.',
     productionNotes: 'Waiting on vest stock to arrive before starting embroidery.',
     staffCompleted: false,
+    source: 'staff',
   },
   {
     id: 'order-4',
@@ -167,6 +170,7 @@ export const mockOrders: Order[] = [
     notes: 'Collected in full.',
     productionNotes: 'Completed and collected — no follow-up required.',
     staffCompleted: false,
+    source: 'staff',
   },
   {
     id: 'order-5',
@@ -206,6 +210,7 @@ export const mockOrders: Order[] = [
     notes: 'Customer still deciding on design, waiting on file supply.',
     productionNotes: 'Follow up for artwork — no file received yet.',
     staffCompleted: false,
+    source: 'staff',
   },
   {
     id: 'order-6',
@@ -245,6 +250,7 @@ export const mockOrders: Order[] = [
     notes: 'Logo supplied as a low-res JPG — needs vectoring before it can be digitised for embroidery.',
     productionNotes: 'On hold pending vectored artwork from design.',
     staffCompleted: false,
+    source: 'staff',
   },
   {
     id: 'order-7',
@@ -287,6 +293,7 @@ export const mockOrders: Order[] = [
     notes: 'Supplier is out of stock on size 12 — following up on ETA.',
     productionNotes: 'Chasing garment supplier for restock, weekly follow-up.',
     staffCompleted: false,
+    source: 'staff',
   },
   {
     id: 'order-8',
@@ -326,6 +333,7 @@ export const mockOrders: Order[] = [
     notes: 'Rush job — due tomorrow, currently on the embroidery machine.',
     productionNotes: 'Half the run embroidered, remaining batch running this afternoon.',
     staffCompleted: false,
+    source: 'staff',
   },
   {
     id: 'order-9',
@@ -366,6 +374,7 @@ export const mockOrders: Order[] = [
     notes: 'Ready — waiting on customer to collect.',
     productionNotes: 'Printed and quality checked, texted customer for pickup.',
     staffCompleted: false,
+    source: 'staff',
   },
   {
     id: 'order-10',
@@ -405,6 +414,7 @@ export const mockOrders: Order[] = [
     notes: 'Waiting on club committee sign-off for the mockup before production starts.',
     productionNotes: 'On hold — awaiting artwork approval from customer.',
     staffCompleted: false,
+    source: 'staff',
   },
   {
     id: 'order-11',
@@ -444,6 +454,7 @@ export const mockOrders: Order[] = [
     notes: 'Final check before boxing up.',
     productionNotes: 'Embroidery complete, checking stitch quality and thread trims.',
     staffCompleted: false,
+    source: 'staff',
   },
   {
     id: 'order-12',
@@ -483,6 +494,7 @@ export const mockOrders: Order[] = [
     notes: 'Reorder, same artwork as SP-1003 on file.',
     productionNotes: 'Garments need to be ordered from supplier before production can start.',
     staffCompleted: false,
+    source: 'staff',
   },
   {
     id: 'order-13',
@@ -522,6 +534,7 @@ export const mockOrders: Order[] = [
     notes: 'Courier booked for delivery to clubhouse.',
     productionNotes: 'Out with courier, tracking confirmed.',
     staffCompleted: false,
+    source: 'staff',
   },
   {
     id: 'order-14',
@@ -561,6 +574,7 @@ export const mockOrders: Order[] = [
     notes: 'New order, just logged, not yet started.',
     productionNotes: '',
     staffCompleted: false,
+    source: 'staff',
   },
 ]
 

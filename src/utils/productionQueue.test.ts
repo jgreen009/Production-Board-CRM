@@ -33,6 +33,7 @@ function makeOrder(overrides: Partial<Order> = {}): Order {
     notes: '',
     productionNotes: '',
     staffCompleted: false,
+    source: 'staff',
     ...overrides,
   }
 }

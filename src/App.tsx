@@ -14,6 +14,8 @@ import EditOrderForm from '@/pages/EditOrderForm'
 import OrderDetail from '@/pages/OrderDetail'
 import CustomersList from '@/pages/CustomersList'
 import CustomerDetail from '@/pages/CustomerDetail'
+import PublicOrderLinks from '@/pages/PublicOrderLinks'
+import PublicOrderForm from '@/pages/PublicOrderForm'
 import SettingsIndex from '@/pages/settings/SettingsIndex'
 import SettingsGarments from '@/pages/settings/SettingsGarments'
 import SettingsServices from '@/pages/settings/SettingsServices'
@@ -62,6 +64,11 @@ export default function App() {
       <ToastProvider>
         <Routes>
           <Route path="/login" element={<Login />} />
+          {/* Public Customer Order Link — intentionally outside RequireAuth
+              and AppShell, the same way /login is: no session, no sidebar.
+              This is the one route in the app a fully anonymous visitor
+              can reach. */}
+          <Route path="/order-request/:token" element={<PublicOrderForm />} />
           <Route element={<RequireAuth />}>
             <Route path="/change-password" element={<ChangePassword />} />
             <Route element={<AppShell />}>
@@ -69,6 +76,7 @@ export default function App() {
               <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/production" element={<ProductionBoard />} />
               <Route path="/orders" element={<OrdersList />} />
+              <Route path="/orders/links" element={<PublicOrderLinks />} />
               <Route path="/orders/new" element={<NewOrderForm />} />
               <Route path="/orders/:id/edit" element={<EditOrderForm />} />
               <Route path="/orders/:id" element={<OrderDetail />} />

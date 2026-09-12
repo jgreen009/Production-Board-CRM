@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { Search, Plus, ClipboardList, ArrowUpDown } from 'lucide-react'
+import { Search, Plus, ClipboardList, ArrowUpDown, Link2 } from 'lucide-react'
 import { PageHeader } from '@/components/domain/PageHeader'
 import { Tabs } from '@/components/ui/Tabs'
 import { Button } from '@/components/ui/Button'
@@ -81,10 +81,16 @@ export default function OrdersList() {
         title="Orders"
         description={`${allOrders.length} orders total`}
         actions={
-          <Button variant="primary" size="sm" onClick={() => navigate('/orders/new')}>
-            <Plus size={15} />
-            New Order
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="secondary" size="sm" onClick={() => navigate('/orders/links')}>
+              <Link2 size={15} />
+              Customer Order Links
+            </Button>
+            <Button variant="primary" size="sm" onClick={() => navigate('/orders/new')}>
+              <Plus size={15} />
+              New Order
+            </Button>
+          </div>
         }
       />
 

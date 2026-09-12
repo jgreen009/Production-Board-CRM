@@ -255,4 +255,6 @@ export interface Order {
   // Completed, cleared if it moves off Completed again) — never written by
   // the client. undefined for any order that has never been completed.
   completedAt?: string
+  /** Public Customer Order Link — 'public_form' for an order a customer submitted through a public link (no login), 'staff' for a normal internally-created order. */
+  source: 'staff' | 'public_form'
 }
