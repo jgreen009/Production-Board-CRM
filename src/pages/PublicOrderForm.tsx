@@ -157,6 +157,19 @@ export default function PublicOrderForm() {
 
   const primaryGarmentType = values.garments[0]?.type || ''
 
+  // A brand-new form starts with zero print locations — without this, the
+  // mockup preview never appears at all until the customer notices and
+  // clicks the easy-to-miss "+ Add Print Location" button below. As soon
+  // as a garment type is chosen, seed one default print location
+  // automatically so the mockup shows up right away; the customer can
+  // still remove it or add more manually.
+  useEffect(() => {
+    if (primaryGarmentType && values.printSpecs.length === 0) {
+      update({ printSpecs: [emptyPrintSpec(primaryGarmentType)] })
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [primaryGarmentType])
+
   const addPrintSpec = () => update({ printSpecs: [...values.printSpecs, emptyPrintSpec(primaryGarmentType)] })
   const updatePrintSpec = (id: string, patch: Partial<PublicPrintSpecFormValues>) =>
     update({ printSpecs: values.printSpecs.map((p) => (p.id === id ? { ...p, ...patch } : p)) })
