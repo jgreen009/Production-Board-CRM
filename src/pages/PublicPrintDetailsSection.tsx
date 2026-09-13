@@ -219,6 +219,7 @@ export function PublicPrintDetailsSection({
                       artworkUrl={artwork?.previewUrl}
                       widthMm={spec.widthMm}
                       heightMm={spec.heightMm}
+                      showZoneGuide
                       size={260}
                     />
                   ) : (
