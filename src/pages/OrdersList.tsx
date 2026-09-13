@@ -11,6 +11,7 @@ import { StatusBadge } from '@/components/domain/StatusBadge'
 import { TableSkeleton } from '@/components/ui/LoadingSkeleton'
 import { MockupThumbnail } from '@/components/domain/MockupThumbnail'
 import { MockupPreviewDrawer } from '@/components/domain/production/MockupPreviewDrawer'
+import { OrderSourceBadge } from '@/components/domain/OrderSourceBadge'
 import { useOrders } from '@/hooks/useOrders'
 import { formatDateShort, dueDateLabel, isOverdue, isDueToday } from '@/utils/date'
 import { clsx } from 'clsx'
@@ -18,6 +19,13 @@ import type { Order } from '@/types'
 
 type OrdersTab = 'all' | 'active' | 'completed' | 'on-hold'
 type SortKey = 'due' | 'orderNumber' | 'customer'
+type SourceFilter = 'all' | Order['source']
+
+const SOURCE_FILTER_OPTIONS: { key: SourceFilter; label: string }[] = [
+  { key: 'all', label: 'All Sources' },
+  { key: 'staff', label: 'Staff Created' },
+  { key: 'public_form', label: 'Customer Submitted' },
+]
 
 const TABS: { key: OrdersTab; label: string }[] = [
   { key: 'all', label: 'All' },
@@ -50,6 +58,7 @@ export default function OrdersList() {
   const [search, setSearch] = useState('')
   const [sortKey, setSortKey] = useState<SortKey>('due')
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc')
+  const [sourceFilter, setSourceFilter] = useState<SourceFilter>('all')
   const [previewOrder, setPreviewOrder] = useState<Order | null>(null)
   const { data: allOrders = [], isLoading } = useOrders()
 
@@ -58,6 +67,8 @@ export default function OrdersList() {
     if (tab === 'active') result = result.filter((o) => !['Completed', 'On Hold'].includes(o.productionStatus))
     if (tab === 'completed') result = result.filter((o) => o.productionStatus === 'Completed')
     if (tab === 'on-hold') result = result.filter((o) => o.productionStatus === 'On Hold')
+
+    if (sourceFilter !== 'all') result = result.filter((o) => o.source === sourceFilter)
 
     if (search.trim()) {
       const q = search.trim().toLowerCase()
@@ -71,7 +82,7 @@ export default function OrdersList() {
 
     const sorted = [...result].sort((a, b) => compareOrders(a, b, sortKey))
     return sortDir === 'desc' ? sorted.reverse() : sorted
-  }, [allOrders, tab, search, sortKey, sortDir])
+  }, [allOrders, tab, sourceFilter, search, sortKey, sortDir])
 
   const handleRowClick = (orderId: string) => navigate(`/orders/${orderId}`)
 
@@ -108,6 +119,18 @@ export default function OrdersList() {
             />
           </div>
           <div className="flex items-center gap-1.5">
+            <select
+              value={sourceFilter}
+              onChange={(e) => setSourceFilter(e.target.value as SourceFilter)}
+              aria-label="Filter orders by source"
+              className="h-9 rounded-md border border-zinc-300 bg-white px-2 text-sm text-zinc-600 focus:border-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-900/10"
+            >
+              {SOURCE_FILTER_OPTIONS.map((opt) => (
+                <option key={opt.key} value={opt.key}>
+                  {opt.label}
+                </option>
+              ))}
+            </select>
             <select
               value={sortKey}
               onChange={(e) => setSortKey(e.target.value as SortKey)}
@@ -178,13 +201,16 @@ export default function OrdersList() {
                       </button>
                     </td>
                     <td className="px-3 py-2.5 font-medium text-zinc-800">
-                      <Link
-                        to={`/orders/${order.id}`}
-                        onClick={(e) => e.stopPropagation()}
-                        className="hover:underline"
-                      >
-                        {order.orderNumber}
-                      </Link>
+                      <div className="flex items-center gap-1.5">
+                        <Link
+                          to={`/orders/${order.id}`}
+                          onClick={(e) => e.stopPropagation()}
+                          className="hover:underline"
+                        >
+                          {order.orderNumber}
+                        </Link>
+                        <OrderSourceBadge source={order.source} />
+                      </div>
                     </td>
                     <td className="px-3 py-2.5">
                       <p className="max-w-[220px] truncate font-medium text-zinc-700">{order.jobName}</p>
@@ -239,9 +265,12 @@ export default function OrdersList() {
                   </button>
                 }
                 extra={
-                  <Badge className="border-zinc-200 bg-zinc-50 text-zinc-500">
-                    {order.assignedTo ? order.assignedToName || 'Unnamed staff' : 'Unassigned'}
-                  </Badge>
+                  <>
+                    <OrderSourceBadge source={order.source} />
+                    <Badge className="border-zinc-200 bg-zinc-50 text-zinc-500">
+                      {order.assignedTo ? order.assignedToName || 'Unnamed staff' : 'Unassigned'}
+                    </Badge>
+                  </>
                 }
               />
             ))}

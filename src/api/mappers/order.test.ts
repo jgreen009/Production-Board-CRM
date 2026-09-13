@@ -19,6 +19,23 @@ describe('mapOrderFormToUpsertPayload', () => {
     expect(payload.services).toEqual(['Screen Printing'])
     expect(payload.garments).toHaveLength(1)
   })
+
+  // Order Source Visibility patch, Step 16/18 — a staff-initiated save
+  // (including Reorder, which builds its form values from an existing
+  // order and then goes through this exact same save path) can never
+  // influence `orders.source`: the payload this function builds simply
+  // has no `source` key at all, and upsert_order's own INSERT statement
+  // never reads one either — the column's `default 'staff'` is the only
+  // thing that ever applies to a staff/reorder save, which is what makes
+  // "Reorder always resolves to Staff Created" true by construction
+  // rather than by an explicit reset staff/reorder code would have to
+  // remember to do.
+  it('never includes a source field — staff/reorder saves cannot influence order source', () => {
+    const values = defaultOrderFormValues()
+    values.garments = [emptyGarment()]
+    const payload = mapOrderFormToUpsertPayload(values)
+    expect(payload).not.toHaveProperty('source')
+  })
 })
 
 describe('mapDatabaseOrderToDomain', () => {
@@ -134,6 +151,25 @@ describe('mapDatabaseOrderToDomain', () => {
     expect(order.assignedTo).toBe('staff-1')
     expect(order.assignedToName).toBe('James Smith')
     expect(order.assignedToActive).toBe(false)
+  })
+
+  // Order Source Visibility patch — a customer-link order maps through
+  // exactly the same domain shape as a staff order (same query, same
+  // mapper, no separate code path for either), with `source` carried
+  // straight through from the row.
+  it('maps a customer-link order the same way as a staff order, with source preserved', () => {
+    const staffOrder = mapDatabaseOrderToDomain({ ...baseRow, source: 'staff' })
+    const publicOrder = mapDatabaseOrderToDomain({ ...baseRow, source: 'public_form' })
+    expect(staffOrder.source).toBe('staff')
+    expect(publicOrder.source).toBe('public_form')
+    // Nothing else about the mapped shape differs based on source alone.
+    expect({ ...staffOrder, source: undefined }).toEqual({ ...publicOrder, source: undefined })
+  })
+
+  it('a customer-link order with no assignment maps the same "unassigned" shape a staff order would', () => {
+    const order = mapDatabaseOrderToDomain({ ...baseRow, source: 'public_form', assigned_to: null, assignee: null })
+    expect(order.assignedTo).toBeUndefined()
+    expect(order.assignedToName).toBeNull()
   })
 })
 

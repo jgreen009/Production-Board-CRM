@@ -7,6 +7,7 @@ import { useProfile } from '@/hooks/useProfile'
 import { isRealOrderId } from '@/utils/id'
 import { StatCard } from '@/components/domain/StatCard'
 import { StatusBadge } from '@/components/domain/StatusBadge'
+import { OrderSourceBadge } from '@/components/domain/OrderSourceBadge'
 import { Tabs } from '@/components/ui/Tabs'
 import { Button } from '@/components/ui/Button'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
@@ -82,6 +83,7 @@ export default function OrderDetail() {
           <div className="flex flex-wrap items-center gap-2">
             <h1 className="text-xl font-semibold text-zinc-900">{order.jobName}</h1>
             <StatusBadge kind="production" value={order.productionStatus} />
+            <OrderSourceBadge source={order.source} />
           </div>
           <p className="mt-0.5 text-sm text-zinc-500">
             {order.orderNumber} — {order.customer}

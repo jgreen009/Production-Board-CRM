@@ -5,6 +5,7 @@ import type { Customer } from '@/types'
 import { PageHeader } from '@/components/domain/PageHeader'
 import { StatCard } from '@/components/domain/StatCard'
 import { StatusBadge } from '@/components/domain/StatusBadge'
+import { OrderSourceBadge } from '@/components/domain/OrderSourceBadge'
 import { Card, CardBody, CardHeader } from '@/components/ui/Card'
 import { Textarea } from '@/components/ui/Field'
 import { Button } from '@/components/ui/Button'
@@ -99,7 +100,12 @@ export default function CustomerDetail() {
                             onClick={() => navigate(`/orders/${order.id}`)}
                             className="cursor-pointer border-b border-zinc-50 last:border-0 hover:bg-zinc-50"
                           >
-                            <td className="px-4 py-2.5 font-medium text-zinc-800">{order.orderNumber}</td>
+                            <td className="px-4 py-2.5 font-medium text-zinc-800">
+                              <div className="flex items-center gap-1.5">
+                                {order.orderNumber}
+                                <OrderSourceBadge source={order.source} />
+                              </div>
+                            </td>
                             <td className="px-4 py-2.5 text-zinc-600">{order.jobName}</td>
                             <td className="px-4 py-2.5 text-zinc-500">{formatDateShort(order.createdAt)}</td>
                             <td className="px-4 py-2.5 text-zinc-500">{formatDateShort(order.dueDate)}</td>
@@ -152,8 +158,11 @@ export default function CustomerDetail() {
                         <ChevronRight size={16} className="mt-0.5 shrink-0 text-zinc-300" />
                       </div>
 
-                      <div className="mt-2 flex items-center justify-between gap-2">
-                        <StatusBadge kind="production" value={order.productionStatus} />
+                      <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <StatusBadge kind="production" value={order.productionStatus} />
+                          <OrderSourceBadge source={order.source} />
+                        </div>
                         <span className="text-xs text-zinc-400">Qty {order.quantity}</span>
                       </div>
 
