@@ -240,19 +240,25 @@ async function handleValidate(admin: ReturnType<typeof adminClient>, token: stri
   if (link.expires_at && new Date(link.expires_at).getTime() < Date.now()) return json({ valid: false, reason: 'expired' }, 200)
   if (link.submission_count >= link.max_submissions) return json({ valid: false, reason: 'used' }, 200)
 
+  // garment_types/garment_brands/services all have zero anon read access
+  // by design (see the handover doc) — fetched here with the service-role
+  // key instead of ever opening a new anon RLS policy on tables staff also
+  // write to. supplier_url is included so the public form's reused
+  // GarmentCard component can show the same "View Supplier Garment" link
+  // staff see — read-only reference data, not the supplier MANAGEMENT UI.
   const [{ data: garmentTypes }, { data: garmentBrands }, { data: services }, { data: business }] = await Promise.all([
-    admin.from('garment_types').select('name').eq('active', true).order('sort_order'),
+    admin.from('garment_types').select('name, supplier_url').eq('active', true).order('sort_order'),
     admin.from('garment_brands').select('name').eq('active', true).order('sort_order'),
-    admin.from('services').select('name').eq('active', true).order('sort_order'),
+    admin.from('services').select('id, name').eq('active', true).order('sort_order'),
     admin.from('business_settings').select('business_name').limit(1).maybeSingle(),
   ])
 
   return json(
     {
       valid: true,
-      garmentTypes: (garmentTypes ?? []).map((g) => g.name),
+      garmentTypes: (garmentTypes ?? []).map((g) => ({ name: g.name, supplierUrl: g.supplier_url ?? undefined })),
       garmentBrands: (garmentBrands ?? []).map((b) => b.name),
-      services: (services ?? []).map((s) => s.name),
+      services: (services ?? []).map((s) => ({ id: s.id, name: s.name })),
       businessName: business?.business_name ?? 'Brand Fanatix',
     },
     200,

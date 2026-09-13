@@ -1,32 +1,30 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useParams } from 'react-router-dom'
-import { CheckCircle2, ImageOff, Loader2, Plus, Trash2, Upload } from 'lucide-react'
+import { CheckCircle2, ImageOff, Loader2, Plus } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Card, CardBody } from '@/components/ui/Card'
-import { FormField, Input, Select, Textarea } from '@/components/ui/Field'
-import { SizeQuantityGrid } from '@/components/domain/SizeQuantityGrid'
-import { GarmentMockup } from '@/components/domain/GarmentMockup'
-import { ADULT_SIZES, YOUTH_SIZES } from '@/types'
-import type { GarmentType, PrintPosition } from '@/types'
-import { ALL_PRINT_POSITIONS, getPositionView, isPrintPositionSupported } from '@/config/garmentGeometry'
-import { PRINT_SIZE_PRESETS } from '@/config/printSizePresets'
-import { validateArtworkFile } from '@/utils/artworkValidation'
+import { FormField, Input, Textarea } from '@/components/ui/Field'
+import { OrderFormSection } from '@/components/domain/OrderFormSection'
+import { GarmentCard, type GarmentCardValues, type GarmentCatalogEntry } from '@/components/domain/GarmentCard'
+import { ServiceCheckboxGrid } from '@/components/domain/ServiceCheckboxGrid'
+import { PublicPrintDetailsSection } from '@/pages/PublicPrintDetailsSection'
+import { ensureDefaultPrintSpec, syncPrintSpecsToEffectiveGarment } from '@/pages/publicPrintSpecDefaults'
 import { validatePublicOrderLink, submitPublicOrder } from '@/api/publicOrder'
-import type { PublicLinkInvalidReason } from '@/api/publicOrder'
-import type {
-  PublicArtworkFileFormValues,
-  PublicGarmentFormValues,
-  PublicOrderFormValues,
-  PublicPrintSpecFormValues,
-} from '@/schemas/publicOrderFormSchema'
+import type { PublicLinkInvalidReason, PublicGarmentTypeOption, PublicServiceOption } from '@/api/publicOrder'
+import type { PublicOrderFormValues } from '@/schemas/publicOrderFormSchema'
 import { publicOrderFormSchema } from '@/schemas/publicOrderFormSchema'
 
 // Public Customer Order Link — a fully anonymous, chrome-free page (no
-// AppShell/sidebar, no RequireAuth — see src/App.tsx). This is
-// specification-entry for a customer, not an internal production editor:
-// no drag/reposition, no staff-only fields anywhere in this component's
-// state, and the mockup preview is the lightweight non-Fabric
-// GarmentMockup renderer (Mockup System V2) — Fabric is never loaded here.
+// AppShell/sidebar, no RequireAuth — see src/App.tsx). Sections 3-5
+// (Services / Garments / Artwork & Print) deliberately reuse the exact
+// same components the internal Staff Order Form uses
+// (ServiceCheckboxGrid, GarmentCard, and the Mockup Studio's shared
+// PrintPositionButtons/PrintSizePresetButtons/ArtworkSelector/PrintSpecTabs)
+// rather than a second, separately-styled implementation — see
+// docs/PUBLIC_ORDER_LINK_HANDOVER.md for the full component-sharing
+// strategy. The mockup preview is the lightweight non-Fabric GarmentMockup
+// renderer, always visible as part of the normal section layout — there
+// is no button/toggle anywhere that reveals it.
 
 let idCounter = 0
 function localId(prefix: string): string {
@@ -34,21 +32,8 @@ function localId(prefix: string): string {
   return `${prefix}-${idCounter}-${Date.now()}`
 }
 
-function emptyGarment(): PublicGarmentFormValues {
+function emptyGarment(): GarmentCardValues {
   return { id: localId('garment'), type: '', brand: '', colour: '', sizing: 'Adult', adultQuantities: {}, youthQuantities: {} }
-}
-
-function emptyPrintSpec(garmentType: string): PublicPrintSpecFormValues {
-  return {
-    id: crypto.randomUUID(),
-    position: 'Left Chest',
-    garmentType,
-    garmentColour: '',
-    widthMm: 210,
-    heightMm: 210,
-    colour: '',
-    artworkFileId: null,
-  }
 }
 
 type Stage = 'loading' | 'invalid' | 'form' | 'submitting' | 'success' | 'error'
@@ -65,12 +50,13 @@ export default function PublicOrderForm() {
   const [stage, setStage] = useState<Stage>('loading')
   const [invalidReason, setInvalidReason] = useState<PublicLinkInvalidReason>('not_found')
   const [businessName, setBusinessName] = useState('Brand Fanatix')
-  const [garmentTypes, setGarmentTypes] = useState<string[]>([])
+  const [garmentTypes, setGarmentTypes] = useState<PublicGarmentTypeOption[]>([])
   const [garmentBrands, setGarmentBrands] = useState<string[]>([])
-  const [availableServices, setAvailableServices] = useState<string[]>([])
+  const [availableServices, setAvailableServices] = useState<PublicServiceOption[]>([])
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [orderNumber, setOrderNumber] = useState<string | null>(null)
+  const [activeSpecId, setActiveSpecId] = useState<string>('')
 
   const [values, setValues] = useState<PublicOrderFormValues>({
     customerName: '',
@@ -113,67 +99,50 @@ export default function PublicOrderForm() {
 
   const update = (patch: Partial<PublicOrderFormValues>) => setValues((v) => ({ ...v, ...patch }))
 
-  const updateGarment = (id: string, patch: Partial<PublicGarmentFormValues>) =>
-    update({ garments: values.garments.map((g) => (g.id === id ? { ...g, ...patch } : g)) })
+  const updateGarment = (index: number, updated: GarmentCardValues) =>
+    update({ garments: values.garments.map((g, i) => (i === index ? updated : g)) })
 
   const addGarment = () => update({ garments: [...values.garments, emptyGarment()] })
-  const removeGarment = (id: string) => {
+  const removeGarment = (index: number) => {
     if (values.garments.length <= 1) return
-    update({ garments: values.garments.filter((g) => g.id !== id) })
+    update({ garments: values.garments.filter((_, i) => i !== index) })
   }
 
-  const toggleService = (name: string) =>
-    update({ services: values.services.includes(name) ? values.services.filter((s) => s !== name) : [...values.services, name] })
+  const toggleService = (name: string, checked: boolean) =>
+    update({ services: checked ? [...values.services, name] : values.services.filter((s) => s !== name) })
 
-  const handleArtworkUpload = (files: FileList | null) => {
-    if (!files) return
-    const additions: PublicArtworkFileFormValues[] = []
-    for (const file of Array.from(files)) {
-      const validation = validateArtworkFile(file)
-      if (!validation.valid) {
-        setErrors((e) => ({ ...e, artwork: validation.reason ?? 'Invalid file' }))
-        continue
-      }
-      additions.push({
-        id: localId('artwork'),
-        fileName: file.name,
-        fileType: validation.fileType!,
-        previewUrl: file.type.startsWith('image/') ? URL.createObjectURL(file) : undefined,
-        file,
-      })
-    }
-    if (additions.length > 0) {
-      setErrors((e) => ({ ...e, artwork: '' }))
-      update({ artworkFiles: [...values.artworkFiles, ...additions] })
-    }
-  }
-
-  const removeArtwork = (id: string) => {
-    update({
-      artworkFiles: values.artworkFiles.filter((a) => a.id !== id),
-      printSpecs: values.printSpecs.map((p) => (p.artworkFileId === id ? { ...p, artworkFileId: null } : p)),
-    })
-  }
-
-  const primaryGarmentType = values.garments[0]?.type || ''
+  // Garments section is the single source of truth for what the mockup
+  // preview shows (matching the staff Mockup Studio's own convention
+  // exactly — see MockupStudio.tsx's identical comment) — the first
+  // garment's type/colour, not a separate per-print-location selector.
+  const effectiveGarmentType = values.garments[0]?.type || ''
+  const effectiveColour = values.garments[0]?.colour || ''
 
   // A brand-new form starts with zero print locations — without this, the
-  // mockup preview never appears at all until the customer notices and
-  // clicks the easy-to-miss "+ Add Print Location" button below. As soon
-  // as a garment type is chosen, seed one default print location
-  // automatically so the mockup shows up right away; the customer can
-  // still remove it or add more manually.
+  // preview never appears at all until the customer notices a manual "Add
+  // Print Location" action. As soon as a garment type is chosen, seed one
+  // default print location automatically so GarmentPreview is visible
+  // immediately, matching "visible by default, no reveal button" exactly.
+  // (Pure decision logic lives in ensureDefaultPrintSpec, directly unit
+  // tested — this effect just applies whatever it decides.)
   useEffect(() => {
-    if (primaryGarmentType && values.printSpecs.length === 0) {
-      update({ printSpecs: [emptyPrintSpec(primaryGarmentType)] })
-    }
+    const result = ensureDefaultPrintSpec(values.printSpecs, effectiveGarmentType, effectiveColour, activeSpecId)
+    if (!result.changed) return
+    update({ printSpecs: result.printSpecs })
+    setActiveSpecId(result.activeSpecId)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [primaryGarmentType])
+  }, [effectiveGarmentType])
 
-  const addPrintSpec = () => update({ printSpecs: [...values.printSpecs, emptyPrintSpec(primaryGarmentType)] })
-  const updatePrintSpec = (id: string, patch: Partial<PublicPrintSpecFormValues>) =>
-    update({ printSpecs: values.printSpecs.map((p) => (p.id === id ? { ...p, ...patch } : p)) })
-  const removePrintSpec = (id: string) => update({ printSpecs: values.printSpecs.filter((p) => p.id !== id) })
+  // Keeps every print location's snapshotted garmentType/garmentColour in
+  // sync with garments[0] as the customer edits it — mirrors how the
+  // staff form treats garments[0] as the live source of truth rather than
+  // a value copied once and left to go stale. (Pure sync logic lives in
+  // syncPrintSpecsToEffectiveGarment, directly unit tested.)
+  useEffect(() => {
+    const synced = syncPrintSpecsToEffectiveGarment(values.printSpecs, effectiveGarmentType, effectiveColour)
+    if (synced !== values.printSpecs) update({ printSpecs: synced })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [effectiveGarmentType, effectiveColour])
 
   const [reviewing, setReviewing] = useState(false)
 
@@ -214,6 +183,9 @@ export default function PublicOrderForm() {
       ),
     [values.garments],
   )
+
+  const garmentTypeEntries: GarmentCatalogEntry[] = garmentTypes.map((g) => ({ name: g.name, active: true, supplierUrl: g.supplierUrl }))
+  const garmentBrandEntries: GarmentCatalogEntry[] = garmentBrands.map((name) => ({ name, active: true }))
 
   if (stage === 'loading') {
     return (
@@ -271,25 +243,27 @@ export default function PublicOrderForm() {
         />
       ) : (
         <div className="flex flex-col gap-4">
-          <Section title="1. Your Details">
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <OrderFormSection step={1} title="Your Details">
+            <div className="grid grid-cols-1 gap-3">
               <FormField label="Your Name" required error={errors.customerName}>
                 <Input value={values.customerName} onChange={(e) => update({ customerName: e.target.value })} placeholder="Jane Smith" />
               </FormField>
+              <div className="grid grid-cols-2 gap-3">
+                <FormField label="Email" error={errors.email}>
+                  <Input type="email" value={values.email} onChange={(e) => update({ email: e.target.value })} placeholder="you@example.com" />
+                </FormField>
+                <FormField label="Phone">
+                  <Input value={values.phone} onChange={(e) => update({ phone: e.target.value })} placeholder="04xx xxx xxx" />
+                </FormField>
+              </div>
               <FormField label="Business / Company Name">
                 <Input value={values.company} onChange={(e) => update({ company: e.target.value })} placeholder="Optional" />
               </FormField>
-              <FormField label="Email" error={errors.email}>
-                <Input type="email" value={values.email} onChange={(e) => update({ email: e.target.value })} placeholder="you@example.com" />
-              </FormField>
-              <FormField label="Phone">
-                <Input value={values.phone} onChange={(e) => update({ phone: e.target.value })} placeholder="04xx xxx xxx" />
-              </FormField>
             </div>
-          </Section>
+          </OrderFormSection>
 
-          <Section title="2. Job Details">
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <OrderFormSection step={2} title="Job / Turnaround / Delivery">
+            <div className="grid grid-cols-2 gap-3">
               <FormField label="Job / Order Title">
                 <Input value={values.jobTitle} onChange={(e) => update({ jobTitle: e.target.value })} placeholder="e.g. Team Tees 2026" />
               </FormField>
@@ -297,7 +271,7 @@ export default function PublicOrderForm() {
                 <Input type="date" value={values.dueDate} onChange={(e) => update({ dueDate: e.target.value })} />
               </FormField>
             </div>
-            <div className="mt-3 flex gap-1.5">
+            <div className="flex gap-1.5">
               {(['Pick Up', 'Delivery'] as const).map((method) => (
                 <button
                   key={method}
@@ -313,218 +287,60 @@ export default function PublicOrderForm() {
                 </button>
               ))}
             </div>
-          </Section>
+          </OrderFormSection>
 
-          <Section title="3. Garments" error={errors.garments}>
+          <OrderFormSection step={3} title="Services Required" description="Matches the paper form's checkbox list, in the same order.">
+            <ServiceCheckboxGrid
+              services={availableServices.map((s) => ({ ...s, active: true }))}
+              selected={values.services}
+              onToggle={toggleService}
+              error={errors.services}
+            />
+          </OrderFormSection>
+
+          <OrderFormSection step={4} title="Garments & Styles" description="One card per garment type — type, brand, colour, and quantities.">
+            {errors.garments && <p className="mb-2 text-xs font-medium text-danger">{errors.garments}</p>}
             <div className="flex flex-col gap-3">
               {values.garments.map((garment, i) => (
-                <Card key={garment.id}>
-                  <CardBody className="flex flex-col gap-3">
-                    <div className="flex items-center justify-between">
-                      <p className="text-sm font-semibold text-zinc-700">Garment {i + 1}</p>
-                      {values.garments.length > 1 && (
-                        <button type="button" onClick={() => removeGarment(garment.id)} className="text-zinc-400 hover:text-danger">
-                          <Trash2 size={14} />
-                        </button>
-                      )}
-                    </div>
-                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-                      <FormField label="Garment Type" required>
-                        <Select value={garment.type} onChange={(e) => updateGarment(garment.id, { type: e.target.value })}>
-                          <option value="">Select…</option>
-                          {garmentTypes.map((t) => (
-                            <option key={t} value={t}>{t}</option>
-                          ))}
-                        </Select>
-                      </FormField>
-                      <FormField label="Brand">
-                        <Select value={garment.brand} onChange={(e) => updateGarment(garment.id, { brand: e.target.value })}>
-                          <option value="">Select…</option>
-                          {garmentBrands.map((b) => (
-                            <option key={b} value={b}>{b}</option>
-                          ))}
-                        </Select>
-                      </FormField>
-                      <FormField label="Colour" required>
-                        <Input value={garment.colour} onChange={(e) => updateGarment(garment.id, { colour: e.target.value })} placeholder="e.g. Navy" />
-                      </FormField>
-                    </div>
-                    <div className="flex gap-1.5">
-                      {(['Adult', 'Youth'] as const).map((sizing) => (
-                        <button
-                          key={sizing}
-                          type="button"
-                          onClick={() => updateGarment(garment.id, { sizing })}
-                          className={`min-h-9 rounded-md border px-3 py-1.5 text-xs font-medium ${
-                            garment.sizing === sizing ? 'border-brand-accent bg-brand-accent-soft text-brand-accent' : 'border-zinc-200 bg-white text-zinc-500'
-                          }`}
-                        >
-                          {sizing} Sizing
-                        </button>
-                      ))}
-                    </div>
-                    <SizeQuantityGrid
-                      idPrefix={`public-garment-${garment.id}`}
-                      sizes={garment.sizing === 'Adult' ? ADULT_SIZES : YOUTH_SIZES}
-                      values={garment.sizing === 'Adult' ? garment.adultQuantities : garment.youthQuantities}
-                      onChange={(size, qty) =>
-                        updateGarment(garment.id, {
-                          [garment.sizing === 'Adult' ? 'adultQuantities' : 'youthQuantities']: {
-                            ...(garment.sizing === 'Adult' ? garment.adultQuantities : garment.youthQuantities),
-                            [size]: qty,
-                          },
-                        })
-                      }
-                    />
-                  </CardBody>
-                </Card>
+                <GarmentCard
+                  key={garment.id}
+                  garment={garment}
+                  index={i}
+                  canRemove={values.garments.length > 1}
+                  onChange={(updated) => updateGarment(i, updated)}
+                  onRemove={() => removeGarment(i)}
+                  garmentTypes={garmentTypeEntries}
+                  garmentBrands={garmentBrandEntries}
+                />
               ))}
-              <Button type="button" variant="secondary" size="sm" onClick={addGarment} className="self-start">
-                <Plus size={14} /> Add Garment
-              </Button>
             </div>
-          </Section>
+            <Button type="button" variant="secondary" size="sm" className="mt-3 w-full self-start sm:w-auto" onClick={addGarment}>
+              <Plus size={14} /> Add Another Garment
+            </Button>
+          </OrderFormSection>
 
-          {availableServices.length > 0 && (
-            <Section title="4. Services Required">
-              <div className="flex flex-wrap gap-1.5">
-                {availableServices.map((service) => (
-                  <button
-                    key={service}
-                    type="button"
-                    onClick={() => toggleService(service)}
-                    className={`min-h-9 rounded-md border px-3 py-1.5 text-xs font-medium ${
-                      values.services.includes(service) ? 'border-brand-accent bg-brand-accent-soft text-brand-accent' : 'border-zinc-200 bg-white text-zinc-500'
-                    }`}
-                  >
-                    {service}
-                  </button>
-                ))}
-              </div>
-            </Section>
-          )}
+          <OrderFormSection step={5} title="Artwork / Print Details" description="Your artwork, print position, and size — with a live preview.">
+            <PublicPrintDetailsSection
+              artworkFiles={values.artworkFiles}
+              onArtworkFilesChange={(artworkFiles) => update({ artworkFiles })}
+              printSpecs={values.printSpecs}
+              onPrintSpecsChange={(printSpecs) => update({ printSpecs })}
+              activeSpecId={activeSpecId}
+              onActiveSpecIdChange={setActiveSpecId}
+              effectiveGarmentType={effectiveGarmentType}
+              effectiveColour={effectiveColour}
+              artworkError={errors.artwork}
+            />
+          </OrderFormSection>
 
-          <Section title="5. Artwork & Print" error={errors.artwork}>
-            <div className="flex flex-col gap-3">
-              <label className="flex cursor-pointer flex-col items-center gap-2 rounded-md border-2 border-dashed border-zinc-300 p-6 text-center hover:border-brand-accent">
-                <Upload size={20} className="text-zinc-400" />
-                <span className="text-sm font-medium text-zinc-600">Upload artwork</span>
-                <span className="text-xs text-zinc-400">PNG, JPG, WEBP, SVG, PDF, AI — up to 25MB each</span>
-                <input type="file" multiple className="hidden" onChange={(e) => handleArtworkUpload(e.target.files)} />
-              </label>
-
-              {values.artworkFiles.length > 0 && (
-                <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-                  {values.artworkFiles.map((a) => (
-                    <div key={a.id} className="relative rounded-md border border-zinc-200 p-2">
-                      <button
-                        type="button"
-                        onClick={() => removeArtwork(a.id)}
-                        className="absolute right-1 top-1 rounded-full bg-white p-1 text-zinc-400 shadow hover:text-danger"
-                        aria-label={`Remove ${a.fileName}`}
-                      >
-                        <Trash2 size={12} />
-                      </button>
-                      <div className="mb-1 flex h-16 items-center justify-center overflow-hidden rounded bg-zinc-50">
-                        {a.previewUrl ? (
-                          <img src={a.previewUrl} alt={a.fileName} className="h-full w-full object-contain" />
-                        ) : (
-                          <ImageOff size={16} className="text-zinc-300" />
-                        )}
-                      </div>
-                      <p className="truncate text-[11px] text-zinc-500">{a.fileName}</p>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              <div className="flex flex-col gap-3">
-                {values.printSpecs.map((spec) => {
-                  const supported = spec.garmentType ? isPrintPositionSupported(spec.garmentType as GarmentType, spec.position as PrintPosition) : false
-                  const artwork = values.artworkFiles.find((a) => a.id === spec.artworkFileId)
-                  return (
-                    <Card key={spec.id}>
-                      <CardBody className="flex flex-col gap-3 sm:flex-row sm:items-start">
-                        <div className="flex-1 flex flex-col gap-2">
-                          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                            <FormField label="Garment">
-                              <Select value={spec.garmentType} onChange={(e) => updatePrintSpec(spec.id, { garmentType: e.target.value })}>
-                                <option value="">Select…</option>
-                                {values.garments.filter((g) => g.type).map((g) => (
-                                  <option key={g.id} value={g.type}>{g.type} ({g.colour || 'colour tbc'})</option>
-                                ))}
-                              </Select>
-                            </FormField>
-                            <FormField label="Print Position">
-                              <Select value={spec.position} onChange={(e) => updatePrintSpec(spec.id, { position: e.target.value })}>
-                                {ALL_PRINT_POSITIONS.map((p) => (
-                                  <option key={p.position} value={p.position}>{p.label}</option>
-                                ))}
-                              </Select>
-                            </FormField>
-                          </div>
-                          <div className="flex flex-wrap gap-1.5">
-                            {PRINT_SIZE_PRESETS.map((preset) => (
-                              <button
-                                key={preset.key}
-                                type="button"
-                                onClick={() => updatePrintSpec(spec.id, { widthMm: preset.widthMm, heightMm: preset.widthMm })}
-                                className={`min-h-8 rounded-md border px-2.5 py-1 text-xs font-medium ${
-                                  spec.widthMm === preset.widthMm ? 'border-brand-accent bg-brand-accent-soft text-brand-accent' : 'border-zinc-200 bg-white text-zinc-500'
-                                }`}
-                              >
-                                {preset.label}
-                              </button>
-                            ))}
-                          </div>
-                          <FormField label="Artwork for this print">
-                            <Select value={spec.artworkFileId ?? ''} onChange={(e) => updatePrintSpec(spec.id, { artworkFileId: e.target.value || null })}>
-                              <option value="">No artwork selected</option>
-                              {values.artworkFiles.map((a) => (
-                                <option key={a.id} value={a.id}>{a.fileName}</option>
-                              ))}
-                            </Select>
-                          </FormField>
-                          {!supported && spec.garmentType && (
-                            <p className="text-xs text-warning">{spec.garmentType} doesn&rsquo;t support this print position yet — choose another.</p>
-                          )}
-                          <button type="button" onClick={() => removePrintSpec(spec.id)} className="self-start text-xs text-zinc-400 hover:text-danger">
-                            Remove this print location
-                          </button>
-                        </div>
-                        {spec.garmentType && supported && (
-                          <div className="shrink-0">
-                            <GarmentMockup
-                              garmentType={spec.garmentType as GarmentType}
-                              colour={values.garments.find((g) => g.type === spec.garmentType)?.colour ?? ''}
-                              view={getPositionView(spec.position as PrintPosition)}
-                              position={spec.position as PrintPosition}
-                              artworkUrl={artwork?.previewUrl}
-                              widthMm={spec.widthMm}
-                              heightMm={spec.heightMm}
-                              size={140}
-                            />
-                          </div>
-                        )}
-                      </CardBody>
-                    </Card>
-                  )
-                })}
-                <Button type="button" variant="secondary" size="sm" onClick={addPrintSpec} className="self-start" disabled={!primaryGarmentType}>
-                  <Plus size={14} /> Add Print Location
-                </Button>
-              </div>
-            </div>
-          </Section>
-
-          <Section title="6. Additional Instructions">
+          <OrderFormSection step={6} title="Additional Instructions">
             <Textarea
               value={values.notes}
               onChange={(e) => update({ notes: e.target.value })}
               rows={3}
               placeholder="Anything else we should know about this order?"
             />
-          </Section>
+          </OrderFormSection>
 
           {submitError && <p className="text-sm font-medium text-danger">{submitError}</p>}
 
@@ -534,16 +350,6 @@ export default function PublicOrderForm() {
         </div>
       )}
     </PublicShell>
-  )
-}
-
-function Section({ title, error, children }: { title: string; error?: string; children: React.ReactNode }) {
-  return (
-    <div className="flex flex-col gap-2">
-      <h2 className="text-sm font-semibold text-zinc-700">{title}</h2>
-      {children}
-      {error && <p className="text-xs font-medium text-danger">{error}</p>}
-    </div>
   )
 }
 

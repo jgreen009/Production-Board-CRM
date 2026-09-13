@@ -1,26 +1,45 @@
 import { Trash2 } from 'lucide-react'
-import type { GarmentFormValues } from '@/schemas/orderFormSchema'
 import { ADULT_SIZES, YOUTH_SIZES } from '@/types'
 import { SizeQuantityGrid } from '@/components/domain/SizeQuantityGrid'
 import { FormField, Input, Select } from '@/components/ui/Field'
 import { garmentTotal } from '@/utils/quantity'
-import { useGarmentTypesSettings, useGarmentBrandsSettings } from '@/hooks/useSettings'
 import { selectableCatalogNames } from '@/utils/catalog'
 import { SupplierLink } from '@/components/domain/SupplierLink'
 import { clsx } from 'clsx'
 
-interface GarmentCardProps {
-  garment: GarmentFormValues
-  index: number
-  canRemove: boolean
-  onChange: (garment: GarmentFormValues) => void
-  onRemove: () => void
-  colourError?: string
+// A minimal, generic shape — not the staff-only GarmentFormValues
+// (orderFormSchema) — so this component stays reusable by the public
+// order form, whose garment state is shaped slightly differently
+// (publicOrderFormSchema) but satisfies this same structural shape.
+export interface GarmentCardValues {
+  id: string
+  type: string
+  brand: string
+  colour: string
+  sizing: 'Adult' | 'Youth'
+  adultQuantities: Record<string, number>
+  youthQuantities: Record<string, number>
 }
 
-export function GarmentCard({ garment, index, canRemove, onChange, onRemove, colourError }: GarmentCardProps) {
-  const { data: garmentTypes = [] } = useGarmentTypesSettings()
-  const { data: garmentBrands = [] } = useGarmentBrandsSettings()
+export interface GarmentCatalogEntry {
+  name: string
+  active: boolean
+  supplierUrl?: string
+}
+
+interface GarmentCardProps {
+  garment: GarmentCardValues
+  index: number
+  canRemove: boolean
+  onChange: (garment: GarmentCardValues) => void
+  onRemove: () => void
+  colourError?: string
+  /** Live catalog data — fetched by the caller (staff: useGarmentTypesSettings/useGarmentBrandsSettings; public: the order-link Edge Function's validate response), never by this component itself, so it works the same whether the caller is authenticated or anonymous. */
+  garmentTypes: GarmentCatalogEntry[]
+  garmentBrands: GarmentCatalogEntry[]
+}
+
+export function GarmentCard({ garment, index, canRemove, onChange, onRemove, colourError, garmentTypes, garmentBrands }: GarmentCardProps) {
   const typeOptions = selectableCatalogNames(garmentTypes, garment.type)
   const brandOptions = selectableCatalogNames(garmentBrands, garment.brand)
   const selectedType = garmentTypes.find((t) => t.name === garment.type)
@@ -54,12 +73,13 @@ export function GarmentCard({ garment, index, canRemove, onChange, onRemove, col
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
         <FormField label="Garment Type" required>
           <Select
             value={garment.type}
             onChange={(e) => onChange({ ...garment, type: e.target.value })}
           >
+            <option value="">Select…</option>
             {typeOptions.map((t) => (
               <option key={t} value={t}>{t}</option>
             ))}
@@ -75,12 +95,13 @@ export function GarmentCard({ garment, index, canRemove, onChange, onRemove, col
             value={garment.brand}
             onChange={(e) => onChange({ ...garment, brand: e.target.value })}
           >
+            <option value="">Select…</option>
             {brandOptions.map((b) => (
               <option key={b} value={b}>{b}</option>
             ))}
           </Select>
         </FormField>
-        <FormField label="Colour" required error={colourError}>
+        <FormField label="Colour" required error={colourError} className="col-span-2 sm:col-span-1">
           <Input
             value={garment.colour}
             onChange={(e) => onChange({ ...garment, colour: e.target.value })}

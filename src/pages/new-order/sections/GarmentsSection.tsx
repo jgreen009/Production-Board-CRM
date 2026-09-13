@@ -1,11 +1,12 @@
 import { useFieldArray, useFormContext } from 'react-hook-form'
 import { Plus } from 'lucide-react'
-import type { OrderFormValues } from '@/schemas/orderFormSchema'
+import type { GarmentFormValues, OrderFormValues } from '@/schemas/orderFormSchema'
 import { GarmentCard } from '@/components/domain/GarmentCard'
 import { Button } from '@/components/ui/Button'
 import { emptyGarment } from '@/pages/new-order/defaultValues'
 import { orderSubTotal } from '@/utils/quantity'
 import type { GarmentItem } from '@/types'
+import { useGarmentBrandsSettings, useGarmentTypesSettings } from '@/hooks/useSettings'
 
 export function GarmentsSection() {
   const {
@@ -17,6 +18,12 @@ export function GarmentsSection() {
 
   const { fields, append, remove } = useFieldArray({ control, name: 'garments' })
   const garments = watch('garments')
+  // Fetched once here and passed down — GarmentCard itself no longer
+  // calls these hooks directly, which is what lets the public order form
+  // reuse the exact same component with its own (anonymous-safe) catalog
+  // source instead.
+  const { data: garmentTypes = [] } = useGarmentTypesSettings()
+  const { data: garmentBrands = [] } = useGarmentBrandsSettings()
 
   const subTotal = orderSubTotal(
     garments.map(
@@ -53,9 +60,17 @@ export function GarmentsSection() {
             garment={garments[index]}
             index={index}
             canRemove={fields.length > 1}
-            onChange={(updated) => setValue(`garments.${index}`, updated)}
+            // GarmentCard is deliberately typed against a generic
+            // GarmentCardValues shape (Record<string, number> quantities)
+            // so the public order form can reuse it too — this cast back
+            // to the staff schema's stricter per-size-key shape is safe
+            // because GarmentCard only ever spreads the original object
+            // and sets one of the real ADULT_SIZES/YOUTH_SIZES keys.
+            onChange={(updated) => setValue(`garments.${index}`, updated as GarmentFormValues)}
             onRemove={() => remove(index)}
             colourError={isSubmitted && !garments[index].colour.trim() ? 'Colour is required' : undefined}
+            garmentTypes={garmentTypes}
+            garmentBrands={garmentBrands}
           />
         ))}
       </div>

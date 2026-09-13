@@ -3,12 +3,22 @@ import type { PublicOrderFormValues } from '@/schemas/publicOrderFormSchema'
 
 export type PublicLinkInvalidReason = 'not_found' | 'revoked' | 'expired' | 'used'
 
+export interface PublicGarmentTypeOption {
+  name: string
+  supplierUrl?: string
+}
+
+export interface PublicServiceOption {
+  id: string
+  name: string
+}
+
 export interface PublicLinkValidation {
   valid: boolean
   reason?: PublicLinkInvalidReason
-  garmentTypes: string[]
+  garmentTypes: PublicGarmentTypeOption[]
   garmentBrands: string[]
-  services: string[]
+  services: PublicServiceOption[]
   businessName: string
 }
 

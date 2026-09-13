@@ -1,12 +1,23 @@
 import { FileIcon } from 'lucide-react'
 import { Select } from '@/components/ui/Field'
-import type { ArtworkFileFormValues } from '@/schemas/orderFormSchema'
 
 const PREVIEWABLE_TYPES = ['PNG', 'JPG', 'WEBP', 'SVG']
 
+// A minimal, generic shape rather than importing the staff-only
+// ArtworkFileFormValues (orderFormSchema) — this component only ever
+// reads these four fields, and staying decoupled from that schema is what
+// lets the public order form reuse it directly with its own (differently
+// shaped) artwork file state.
+export interface ArtworkSelectorFile {
+  id: string
+  fileName: string
+  fileType: string
+  previewUrl?: string
+}
+
 interface ArtworkSelectorProps {
-  files: ArtworkFileFormValues[]
-  selectedId?: string
+  files: ArtworkSelectorFile[]
+  selectedId?: string | null
   onSelect: (id: string | undefined) => void
 }
 

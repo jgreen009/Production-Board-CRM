@@ -1,6 +1,5 @@
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react'
 import { useFieldArray, useFormContext } from 'react-hook-form'
-import { clsx } from 'clsx'
 import { ImageOff } from 'lucide-react'
 import type { OrderFormValues, PrintSpecFormValues } from '@/schemas/orderFormSchema'
 import type { GarmentType, PrintPosition } from '@/types'
@@ -16,12 +15,14 @@ import {
   isPrintPositionSupported,
   resolvePrintZone,
 } from '@/config/garmentGeometry'
-import { PRINT_SIZE_PRESETS, matchPrintSizePreset } from '@/config/printSizePresets'
+import { matchPrintSizePreset } from '@/config/printSizePresets'
 import { fitArtworkToCanonicalZone, isOverflowingCanonicalZoneMm } from '@/utils/mockupGeometry'
 import { heightMmFromWidth } from '@/utils/printSizeConversion'
 import type { MockupTransform } from '@/components/domain/MockupCanvas'
 import { PrintSpecTabs } from './PrintSpecTabs'
 import { ArtworkSelector } from './ArtworkSelector'
+import { PrintPositionButtons } from './PrintPositionButtons'
+import { PrintSizePresetButtons } from './PrintSizePresetButtons'
 
 // Fabric.js only loads when the Mockup Studio actually mounts — Dashboard,
 // Customers, Orders List, Production Board never pull it in (Batch A
@@ -270,29 +271,14 @@ export function MockupStudio() {
         <div className="order-1 flex flex-col gap-4">
           <div>
             <p className="mb-1.5 text-xs font-semibold tracking-wide text-zinc-500">POSITION</p>
-            <div className="flex flex-wrap gap-1.5">
-              {ALL_PRINT_POSITIONS.map((p) => {
-                const supported = isPrintPositionSupported(effectiveGarmentType, p.position)
-                return (
-                  <button
-                    key={p.position}
-                    type="button"
-                    onClick={() => update({ position: p.position })}
-                    title={supported ? undefined : `${effectiveGarmentType} doesn't have a calibrated zone for ${p.label} yet`}
-                    className={clsx(
-                      'min-h-9 rounded-md border px-2.5 py-1.5 text-xs font-medium transition-colors',
-                      spec.position === p.position
-                        ? 'border-brand-accent bg-brand-accent-soft text-brand-accent'
-                        : supported
-                          ? 'border-zinc-200 bg-white text-zinc-600 hover:border-zinc-300'
-                          : 'border-zinc-100 bg-white text-zinc-300 hover:border-zinc-200',
-                    )}
-                  >
-                    {p.label}
-                  </button>
-                )
-              })}
-            </div>
+            <PrintPositionButtons
+              value={spec.position as PrintPosition}
+              onChange={(position) => update({ position })}
+              isSupported={(position) => isPrintPositionSupported(effectiveGarmentType, position)}
+              unsupportedTitle={(position) =>
+                `${effectiveGarmentType} doesn't have a calibrated zone for ${ALL_PRINT_POSITIONS.find((p) => p.position === position)?.label} yet`
+              }
+            />
           </div>
 
           <div>
@@ -306,23 +292,7 @@ export function MockupStudio() {
 
           <div>
             <p className="mb-1.5 text-xs font-semibold tracking-wide text-zinc-500">PRINT SIZE</p>
-            <div className="flex flex-wrap gap-1.5">
-              {PRINT_SIZE_PRESETS.map((preset) => (
-                <button
-                  key={preset.key}
-                  type="button"
-                  onClick={() => handleSizePreset(preset.widthMm)}
-                  className={clsx(
-                    'min-h-9 rounded-md border px-2.5 py-1.5 text-xs font-medium transition-colors',
-                    activePreset === preset.key
-                      ? 'border-brand-accent bg-brand-accent-soft text-brand-accent'
-                      : 'border-zinc-200 bg-white text-zinc-600 hover:border-zinc-300',
-                  )}
-                >
-                  {preset.label}
-                </button>
-              ))}
-            </div>
+            <PrintSizePresetButtons activeKey={activePreset} onSelect={handleSizePreset} />
           </div>
         </div>
 

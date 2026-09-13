@@ -1,7 +1,8 @@
 import { useFormContext } from 'react-hook-form'
 import type { OrderFormValues } from '@/schemas/orderFormSchema'
 import { OrderFormSection } from '@/components/domain/OrderFormSection'
-import { Checkbox, Toggle } from '@/components/ui/Field'
+import { ServiceCheckboxGrid } from '@/components/domain/ServiceCheckboxGrid'
+import { Toggle } from '@/components/ui/Field'
 import { useServicesSettings } from '@/hooks/useSettings'
 
 export function ServicesSection() {
@@ -16,11 +17,6 @@ export function ServicesSection() {
   const suppliesGarments = watch('suppliesGarments')
   const graphicDesignServices = watch('graphicDesignServices')
 
-  // Active services, plus any already-selected one that's since been
-  // disabled — an existing order (or an in-progress draft) keeps showing
-  // its selection rather than silently losing it from the list.
-  const visibleServices = catalog.filter((s) => s.active || services.includes(s.name))
-
   const toggleService = (name: string, checked: boolean) => {
     if (checked) setValue('services', [...services, name])
     else setValue('services', services.filter((s) => s !== name))
@@ -32,25 +28,7 @@ export function ServicesSection() {
       title="Services Required"
       description="Matches the paper form's checkbox list, in the same order."
     >
-      <div>
-        <p className="mb-2 text-sm font-medium text-zinc-700">
-          What services do you require? <span className="text-danger">*</span>
-        </p>
-        {errors.services?.message && (
-          <p className="mb-2 text-xs font-medium text-danger">{errors.services.message}</p>
-        )}
-        <div className="grid grid-cols-2 gap-2">
-          {visibleServices.map((service) => (
-            <Checkbox
-              key={service.id}
-              id={`service-${service.id}`}
-              label={service.name}
-              checked={services.includes(service.name)}
-              onChange={(e) => toggleService(service.name, e.target.checked)}
-            />
-          ))}
-        </div>
-      </div>
+      <ServiceCheckboxGrid services={catalog} selected={services} onToggle={toggleService} error={errors.services?.message} />
 
       <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
         <Toggle
