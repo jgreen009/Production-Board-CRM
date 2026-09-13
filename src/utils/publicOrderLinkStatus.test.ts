@@ -11,6 +11,8 @@ function baseLink(overrides: Partial<PublicOrderLink> = {}): PublicOrderLink {
     submissionCount: 0,
     resultingOrderId: null,
     createdAt: '2026-01-01T00:00:00Z',
+    isGeneral: false,
+    rawToken: null,
     ...overrides,
   }
 }
@@ -46,5 +48,16 @@ describe('getPublicOrderLinkStatus', () => {
   it('Expired takes priority over Used when both are true', () => {
     const link = baseLink({ submissionCount: 1, maxSubmissions: 1, expiresAt: '2020-01-01T00:00:00Z' })
     expect(getPublicOrderLinkStatus(link, new Date('2026-01-01T00:00:00Z'))).toBe('Expired')
+  })
+
+  // The general (persistent, unlimited-use) link — maxSubmissions: null.
+  it('is Active for the general link even after many submissions (null maxSubmissions means no limit)', () => {
+    const link = baseLink({ isGeneral: true, maxSubmissions: null, submissionCount: 500 })
+    expect(getPublicOrderLinkStatus(link)).toBe('Active')
+  })
+
+  it('the general link can still be Revoked or Expired like any other link', () => {
+    const revoked = baseLink({ isGeneral: true, maxSubmissions: null, submissionCount: 10, isActive: false })
+    expect(getPublicOrderLinkStatus(revoked)).toBe('Revoked')
   })
 })

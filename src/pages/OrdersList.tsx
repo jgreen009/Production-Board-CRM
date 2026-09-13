@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { Search, Plus, ClipboardList, ArrowUpDown, Link2 } from 'lucide-react'
+import { Search, Plus, ClipboardList, ArrowUpDown, Link2, Check, Copy } from 'lucide-react'
 import { PageHeader } from '@/components/domain/PageHeader'
 import { Tabs } from '@/components/ui/Tabs'
 import { Button } from '@/components/ui/Button'
@@ -13,6 +13,8 @@ import { MockupThumbnail } from '@/components/domain/MockupThumbnail'
 import { MockupPreviewDrawer } from '@/components/domain/production/MockupPreviewDrawer'
 import { OrderSourceBadge } from '@/components/domain/OrderSourceBadge'
 import { useOrders } from '@/hooks/useOrders'
+import { useGeneralOrderLink } from '@/hooks/usePublicOrderLinks'
+import { publicOrderLinkUrl } from '@/utils/publicOrderLink'
 import { formatDateShort, dueDateLabel, isOverdue, isDueToday } from '@/utils/date'
 import { clsx } from 'clsx'
 import type { Order } from '@/types'
@@ -60,7 +62,16 @@ export default function OrdersList() {
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc')
   const [sourceFilter, setSourceFilter] = useState<SourceFilter>('all')
   const [previewOrder, setPreviewOrder] = useState<Order | null>(null)
+  const [copiedGeneralLink, setCopiedGeneralLink] = useState(false)
   const { data: allOrders = [], isLoading } = useOrders()
+  const { data: generalLink } = useGeneralOrderLink()
+
+  const handleCopyGeneralLink = async () => {
+    if (!generalLink?.rawToken) return
+    await navigator.clipboard.writeText(publicOrderLinkUrl(window.location.origin, generalLink.rawToken))
+    setCopiedGeneralLink(true)
+    setTimeout(() => setCopiedGeneralLink(false), 2000)
+  }
 
   const orders = useMemo(() => {
     let result = allOrders
@@ -93,6 +104,12 @@ export default function OrdersList() {
         description={`${allOrders.length} orders total`}
         actions={
           <div className="flex items-center gap-2">
+            {generalLink?.rawToken && (
+              <Button variant="secondary" size="sm" onClick={handleCopyGeneralLink} title="Copy the customer order link">
+                {copiedGeneralLink ? <Check size={15} /> : <Copy size={15} />}
+                {copiedGeneralLink ? 'Copied' : 'Copy Order Link'}
+              </Button>
+            )}
             <Button variant="secondary" size="sm" onClick={() => navigate('/orders/links')}>
               <Link2 size={15} />
               Customer Order Links

@@ -252,7 +252,11 @@ async function handleValidate(admin: ReturnType<typeof adminClient>, token: stri
   if (!link) return json({ valid: false, reason: 'not_found' }, 200)
   if (!link.is_active) return json({ valid: false, reason: 'revoked' }, 200)
   if (link.expires_at && new Date(link.expires_at).getTime() < Date.now()) return json({ valid: false, reason: 'expired' }, 200)
-  if (link.submission_count >= link.max_submissions) return json({ valid: false, reason: 'used' }, 200)
+  // null max_submissions means "no limit" — the general (persistent,
+  // reusable) link uses this; one-time links keep a real limit (default 1).
+  if (link.max_submissions !== null && link.submission_count >= link.max_submissions) {
+    return json({ valid: false, reason: 'used' }, 200)
+  }
 
   // garment_types/garment_brands/services all have zero anon read access
   // by design (see the handover doc) — fetched here with the service-role
@@ -322,7 +326,7 @@ async function handleSubmit(admin: ReturnType<typeof adminClient>, formData: For
   if (precheck.expires_at && new Date(precheck.expires_at).getTime() < Date.now()) {
     return json({ error: 'This order link has expired.' }, 410)
   }
-  if (precheck.submission_count >= precheck.max_submissions) {
+  if (precheck.max_submissions !== null && precheck.submission_count >= precheck.max_submissions) {
     return json({ error: 'This order link has already been used.' }, 410)
   }
 

@@ -195,6 +195,26 @@ Client bundle was scanned for secrets: no `SUPABASE_SERVICE_ROLE_KEY`/`service_r
 
 ---
 
+## Addendum — General (persistent, unlimited-use) link
+
+Product decision: instead of staff generating a new single-use link per customer, the primary flow is now **one persistent, unlimited-use "general" link**, meant to be shared broadly (business website, socials, email signature) and reused indefinitely.
+
+**Schema** (`supabase/migrations/20260914000000_general_order_link.sql`): additive columns `is_general boolean not null default false` and `raw_token text` (nullable), `max_submissions` made nullable (`null` = no limit), and a partial unique index `(is_general) where is_general and is_active` enforcing "only one active general link exists" at the database level.
+
+**The one deliberate exception to "never store the raw token"**: a one-time link still only ever stores its hash (`token_hash`) — the raw token is shown to staff once and never persisted. The general link is different on purpose: `raw_token` IS stored for it, specifically so any authenticated staff member can retrieve and copy it again later, from anywhere in the app, not just at creation time. This is not a broader security exposure than before — `public_order_links` was already restricted to `authenticated` staff via RLS, and any staff member could already mint a fresh one-time link and see its raw token once; now they can also see the persistent general one's raw token anytime, which is strictly less sensitive.
+
+**RPC/Edge Function**: `create_public_order_submission`'s atomic consumption check and the Edge Function's `validate`/`submit` prechecks all changed from `submission_count >= max_submissions` to `max_submissions IS NOT NULL AND submission_count >= max_submissions` — a null `max_submissions` means the link can never become "used." Token consumption (the `submission_count = submission_count + 1` UPDATE) still runs on every submission for visibility/stats, it just never blocks a general link.
+
+**API/hooks**: `getOrCreateGeneralOrderLink()` (`src/api/publicOrderLinks.ts`) finds the existing active general link or creates the first one — safe to call from anywhere, since the unique index (not just an application-level check) prevents a race from ever creating two. `regenerateGeneralOrderLink()` revokes the current one and creates a new one (staff-initiated rotation if the link is ever compromised). `useGeneralOrderLink()`/`useRegenerateGeneralOrderLink()` hooks wrap these for React Query caching.
+
+**UI**: `PublicOrderLinks.tsx` now shows the general link prominently at the top (auto-created on first load), with Copy and Regenerate actions; the original one-time-link creation flow moved to a collapsed "Advanced: one-time links" section for the rare case a hard single-use restriction is still wanted for a specific customer. `OrdersList.tsx`'s header also got a quick "Copy Order Link" button — the general link accessible directly from the main Orders page, not just the dedicated management page, matching "used generally throughout the app."
+
+**Live-verified** (disposable data, cleaned up after): the unique index correctly rejected a second concurrent active general link (`23505 duplicate key`); two separate customer orders (`SP-1223`, `SP-1224`) were submitted through the exact same link, and `validate` still reported the link valid after both — proving it never becomes "used." Security advisor re-run afterward: same 4 pre-existing findings only, nothing new from `raw_token` or the schema change.
+
+**Known limitation**: if the general link is ever compromised, regenerating it invalidates it for everyone who has the old URL (e.g. anyone who bookmarked it, or if it's posted on an external site staff forgot to update) — there is no way to "rotate silently." This is an inherent tradeoff of a persistent, widely-shared link versus a disposable one-time one, not an oversight.
+
+---
+
 ## PUBLIC CUSTOMER ORDER LINK GATE
 
 Stopped here per instructions. No further feature work has been started automatically.

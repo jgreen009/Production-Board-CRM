@@ -9,6 +9,8 @@ export type PublicOrderLinkStatus = 'Active' | 'Used' | 'Expired' | 'Revoked'
 export function getPublicOrderLinkStatus(link: PublicOrderLink, now: Date = new Date()): PublicOrderLinkStatus {
   if (!link.isActive) return 'Revoked'
   if (link.expiresAt && new Date(link.expiresAt).getTime() < now.getTime()) return 'Expired'
-  if (link.submissionCount >= link.maxSubmissions) return 'Used'
+  // A null maxSubmissions means "no limit" — the general (persistent,
+  // reusable) link always uses this, and can never become "Used."
+  if (link.maxSubmissions !== null && link.submissionCount >= link.maxSubmissions) return 'Used'
   return 'Active'
 }

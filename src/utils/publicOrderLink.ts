@@ -1,11 +1,17 @@
 // Public Customer Order Link — token generation, entirely client-side
-// (staff browser). The raw token is generated here, shown/copyable to
-// staff exactly once (at creation), and never sent anywhere except
-// embedded in the public URL — only its SHA-256 hash is ever written to
-// the database (public_order_links.token_hash), via the same Web Crypto
-// SubtleCrypto API the public-order Edge Function uses to re-hash an
-// incoming token for lookup, so the two sides can never disagree about
-// what a given raw token hashes to.
+// (staff browser). The raw token is generated here and embedded in the
+// public URL; only its SHA-256 hash is ever written to the database as
+// `token_hash`, via the same Web Crypto SubtleCrypto API the public-order
+// Edge Function uses to re-hash an incoming token for lookup, so the two
+// sides can never disagree about what a given raw token hashes to.
+//
+// For a one-time link, the raw token itself is shown/copyable to staff
+// exactly once (at creation) and never persisted anywhere — losing it
+// means generating a new link. The general (persistent, reusable) link is
+// the one deliberate exception: its raw token IS also stored (in
+// `public_order_links.raw_token`, RLS-restricted to `authenticated`
+// staff), specifically so it can be retrieved and copied again later from
+// anywhere in the app — see src/api/publicOrderLinks.ts.
 
 const TOKEN_BYTE_LENGTH = 32 // 256 bits — matches the SHA-256 hash length conceptually, plenty of entropy against guessing
 
