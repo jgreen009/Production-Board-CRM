@@ -6,7 +6,7 @@ import { PrintPositionButtons } from '@/components/domain/mockup-studio/PrintPos
 import { PrintSizePresetButtons } from '@/components/domain/mockup-studio/PrintSizePresetButtons'
 import { PrintSpecTabs } from '@/components/domain/mockup-studio/PrintSpecTabs'
 import { Button } from '@/components/ui/Button'
-import { ALL_PRINT_POSITIONS, getPositionView, isPrintPositionSupported } from '@/config/garmentGeometry'
+import { getPositionView, getSupportedPrintPositions, isPrintPositionSupported } from '@/config/garmentGeometry'
 import { matchPrintSizePreset } from '@/config/printSizePresets'
 import { heightMmFromWidth } from '@/utils/printSizeConversion'
 import { validateArtworkFile } from '@/utils/artworkValidation'
@@ -20,7 +20,11 @@ import { emptyPublicPrintSpec } from '@/pages/publicPrintSpecDefaults'
 // this is customer specification-entry, not an internal production editor.
 // The preview is ALWAYS rendered here — there is no button/toggle that
 // reveals it; it's part of the normal section layout, exactly like the
-// staff canvas is never hidden behind an action either.
+// staff canvas is never hidden behind an action either. This includes
+// Beanie/Hats/Shorts/Pants: the garment mockup shows regardless of whether
+// the currently-selected position has a calibrated zone (Mockup System V2
+// non-upper-body extension) — only the artwork placement box is
+// conditional on that, never the garment image itself.
 
 interface PublicPrintDetailsSectionProps {
   artworkFiles: PublicArtworkFileFormValues[]
@@ -85,9 +89,14 @@ export function PublicPrintDetailsSection({
     onPrintSpecsChange(printSpecs.map((p, i) => (i === activeIndex ? { ...p, ...patch } : p)))
   }
 
+  const supportedPositions = getSupportedPrintPositions(effectiveGarmentType as GarmentType)
+
   const handleAddPrintSpec = () => {
-    const fallback = ALL_PRINT_POSITIONS.find((p) => getPositionView(p.position) === activeView) ?? ALL_PRINT_POSITIONS[0]
-    const newSpec = { ...emptyPublicPrintSpec(effectiveGarmentType, effectiveColour), position: fallback.position }
+    const fallback = supportedPositions.find((p) => getPositionView(p.position) === activeView) ?? supportedPositions[0]
+    const newSpec = {
+      ...emptyPublicPrintSpec(effectiveGarmentType, effectiveColour),
+      position: fallback?.position ?? 'Left Chest',
+    }
     onPrintSpecsChange([...printSpecs, newSpec])
     onActiveSpecIdChange(newSpec.id)
   }
@@ -177,10 +186,9 @@ export function PublicPrintDetailsSection({
                 <div>
                   <p className="mb-1.5 text-xs font-semibold tracking-wide text-zinc-500">PRINT POSITION</p>
                   <PrintPositionButtons
+                    positions={supportedPositions}
                     value={spec.position as PrintPosition}
                     onChange={(position) => updateSpec({ position })}
-                    isSupported={(position) => isPrintPositionSupported(effectiveGarmentType as GarmentType, position)}
-                    unsupportedTitle={() => `${effectiveGarmentType || 'This garment'} doesn't support this position yet`}
                   />
                 </div>
 
@@ -197,10 +205,12 @@ export function PublicPrintDetailsSection({
 
               {/* GarmentPreview — always rendered as part of the normal
                   section layout, full width on mobile, never behind a
-                  reveal button/toggle. */}
+                  reveal button/toggle. The garment image itself shows
+                  regardless of whether the current position is supported;
+                  only the artwork placement box depends on that. */}
               <div className="order-2 flex flex-col items-center gap-2 lg:row-span-2">
                 <div className="flex w-full items-center justify-center rounded-lg border border-zinc-200 bg-zinc-50 p-4">
-                  {supported && effectiveGarmentType ? (
+                  {effectiveGarmentType ? (
                     <GarmentMockup
                       garmentType={effectiveGarmentType as GarmentType}
                       colour={effectiveColour}
@@ -214,14 +224,16 @@ export function PublicPrintDetailsSection({
                   ) : (
                     <div className="flex h-64 w-52 flex-col items-center justify-center gap-1.5 text-center text-zinc-400">
                       <ImageOffIcon size={20} />
-                      <p className="text-xs">
-                        {effectiveGarmentType
-                          ? `${effectiveGarmentType} doesn't support this print position yet — choose another.`
-                          : 'Select a garment to see the preview.'}
-                      </p>
+                      <p className="text-xs">Select a garment to see the preview.</p>
                     </div>
                   )}
                 </div>
+                {!supported && (
+                  <p className="rounded-md border border-warning/30 bg-warning-soft px-2.5 py-2 text-center text-xs text-warning">
+                    &ldquo;{spec.position}&rdquo; isn&rsquo;t available for {effectiveGarmentType} — choose one of the
+                    positions above.
+                  </p>
+                )}
                 {artwork && supported && (
                   <p className="text-center text-[11px] text-zinc-400">Positioned and sized automatically for this print position.</p>
                 )}

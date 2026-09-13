@@ -87,12 +87,50 @@ Pick one order with a saved mockup and confirm the *same* placement appears on a
 | Preview Drawer (click any thumbnail) | | |
 | Downloaded saved preview PNG | | |
 
-## Known-unsupported (expected, not a bug)
+## Beanie
 
-These should show the garment alone with a "not configured for this garment" state — not a crash, not a fabricated placement:
+Non-upper-body extension — first calibration pass, never visually confirmed in a browser. Both positions **RETEST REQUIRED**.
 
-- Shorts / Pants — any position
-- Bennie / Hats — any position
+| Position | Result | Notes |
+|---|---|---|
+| Front (cuff patch) | RETEST REQUIRED | Verified against bennie-front.png — centered patch on the folded cuff band |
+| Back where supported | RETEST REQUIRED | Reuses Front's cuff-patch coordinates — bennie-back.png shows no distinguishing rear feature to calibrate independently against (CALIBRATION_CONFIDENCE: 'inferred') |
+
+## Hat / Cap
+
+| Position | Result | Notes |
+|---|---|---|
+| Front (crown logo) | RETEST REQUIRED | Verified against hats-front.png — centered crown panel between the two eyelets |
+| Back | RETEST REQUIRED | Verified against hats-back.png — crown panel above the strap/buckle |
+| Left Side / Right Side | DEFERRED | No side-view asset exists (only front.png/back.png) — not exposed to any garment; do not add until real side-view art is supplied |
+
+## Shorts
+
+| Position | Result | Notes |
+|---|---|---|
+| Left Leg | RETEST REQUIRED | Verified against shorts-front.png — lower-leg-panel logo box, below the pocket seams |
+| Right Leg | RETEST REQUIRED | Mirror of Left Leg |
+| Back | RETEST REQUIRED | Verified against shorts-back.png — centered seat-area box below the waistband |
+
+The user must never see Left Chest/Right Chest/Across Chest/Sleeve options for Shorts — confirm the position buttons show only Left Leg/Right Leg/Back.
+
+## Pants
+
+| Position | Result | Notes |
+|---|---|---|
+| Left Thigh | RETEST REQUIRED | Verified against pants-front.png — upper-leg-panel box below the pocket bag |
+| Right Thigh | RETEST REQUIRED | Mirror of Left Thigh |
+| Left Leg | RETEST REQUIRED | Verified against pants-front.png — lower-leg-panel box, well above the hem |
+| Right Leg | RETEST REQUIRED | Mirror of Left Leg |
+| Back | RETEST REQUIRED | Verified against pants-back.png — centered band spanning both back pockets |
+
+Confirm the position buttons never show any upper-body position (Left Chest, Across Chest, etc.) for Pants.
+
+## Non-upper-body cross-cutting checks
+
+- Selecting Beanie/Hats/Shorts/Pants must show the garment mockup **immediately** — it must never fall back to a generic icon or blank state just because the position vocabulary differs from T-shirt's.
+- Changing garment type away from Beanie/Hats/Shorts/Pants (or into them) mid-session must replace an now-invalid position with that garment's own default (Beanie/Hats → Front, Shorts → Left Leg, Pants → Left Thigh) rather than leaving a stale, unsupported position selected.
+- An older order saved before this extension existed (a Shorts/Beanie/Hats/Pants order whose PrintSpec still holds an old upper-body position like "Left Chest") must render the garment mockup safely with a clear "not available for this garment" note — never crash, never silently move the print to an unrelated new position.
 
 ## After running this
 

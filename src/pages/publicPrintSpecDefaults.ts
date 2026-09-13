@@ -1,9 +1,12 @@
+import type { GarmentType } from '@/types'
+import { getSupportedPrintPositions } from '@/config/garmentGeometry'
 import type { PublicPrintSpecFormValues } from '@/schemas/publicOrderFormSchema'
 
 export function emptyPublicPrintSpec(garmentType: string, garmentColour: string): PublicPrintSpecFormValues {
+  const defaultPosition = getSupportedPrintPositions(garmentType as GarmentType)[0]?.position ?? 'Left Chest'
   return {
     id: crypto.randomUUID(),
-    position: 'Left Chest',
+    position: defaultPosition,
     garmentType,
     garmentColour,
     widthMm: 210,
@@ -43,15 +46,32 @@ export function ensureDefaultPrintSpec(
 // in sync with the customer's first garment entry (the same "garments
 // section is the single source of truth for what the mockup preview
 // shows" rule the staff Mockup Studio already follows — see
-// MockupStudio.tsx's identical comment). Returns the identical array
-// reference when nothing actually changed, so a caller can skip a state
-// update via a simple reference-equality check.
+// MockupStudio.tsx's identical comment), AND normalizes each spec's
+// position to the new garment's own default whenever the previously-held
+// position is no longer valid for it (Mockup System V2 non-upper-body
+// extension — e.g. switching T-shirt -> Shorts replaces a stale "Left
+// Chest" with "Left Leg" rather than leaving the form holding an invalid
+// position). Returns the identical array reference when nothing actually
+// changed, so a caller can skip a state update via a simple
+// reference-equality check.
 export function syncPrintSpecsToEffectiveGarment(
   printSpecs: PublicPrintSpecFormValues[],
   effectiveGarmentType: string,
   effectiveColour: string,
 ): PublicPrintSpecFormValues[] {
-  const needsSync = printSpecs.some((p) => p.garmentType !== effectiveGarmentType || p.garmentColour !== effectiveColour)
+  const supported = getSupportedPrintPositions(effectiveGarmentType as GarmentType)
+  const supportedSet = new Set<string>(supported.map((p) => p.position))
+  const defaultPosition = supported[0]?.position
+
+  const needsSync = printSpecs.some(
+    (p) => p.garmentType !== effectiveGarmentType || p.garmentColour !== effectiveColour || !supportedSet.has(p.position),
+  )
   if (!needsSync) return printSpecs
-  return printSpecs.map((p) => ({ ...p, garmentType: effectiveGarmentType, garmentColour: effectiveColour }))
+
+  return printSpecs.map((p) => ({
+    ...p,
+    garmentType: effectiveGarmentType,
+    garmentColour: effectiveColour,
+    position: supportedSet.has(p.position) ? p.position : (defaultPosition ?? p.position),
+  }))
 }

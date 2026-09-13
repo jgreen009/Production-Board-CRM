@@ -3,8 +3,10 @@ import {
   ALL_PRINT_POSITIONS,
   CANONICAL_VIEWPORT,
   getCalibrationConfidence,
+  getDefaultPrintPosition,
   getGarmentCalibrationTier,
   getPositionView,
+  getSupportedPrintPositions,
   isPrintPositionSupported,
   resolveGarmentGeometry,
   resolvePrintZone,
@@ -12,6 +14,17 @@ import {
 import type { GarmentType, PrintPosition } from '@/types'
 
 const PRIORITY_GARMENTS: GarmentType[] = ['T-shirt', 'Hoody', 'Polo', 'Crew neck (jumper)']
+
+// The original 9 upper-body positions — used wherever a test needs "every
+// position this garment family is expected to support," now that
+// ALL_PRINT_POSITIONS also includes the non-upper-body vocabulary
+// (Front/Back/Left Leg/etc.) that priority garments correctly do NOT
+// support.
+const UPPER_BODY_POSITIONS: { position: PrintPosition; label: string }[] = ALL_PRINT_POSITIONS.filter((p) =>
+  ['Left Chest', 'Right Chest', 'Across Chest', 'Full Front', 'Left Sleeve', 'Right Sleeve', 'Full Back', 'Top Back', 'Bottom Back'].includes(
+    p.position,
+  ),
+)
 
 // Mockup System V2 Batch C: asset optimization (900px webp re-encodings)
 // must never change canonical geometry — the declared viewBox stays the
@@ -87,17 +100,20 @@ describe('priority garment calibration (Part 4/17: T-shirt, Hoody, Polo, Crew ne
     expect(crewNeck.y).not.toBe(tshirt.y)
   })
 
-  it('every priority garment supports all 9 current print positions', () => {
+  it('every priority garment supports all 9 upper-body print positions (and none of the non-upper-body ones)', () => {
     for (const type of PRIORITY_GARMENTS) {
-      for (const { position } of ALL_PRINT_POSITIONS) {
+      for (const { position } of UPPER_BODY_POSITIONS) {
         expect(isPrintPositionSupported(type, position)).toBe(true)
+      }
+      for (const position of ['Front', 'Back', 'Left Leg', 'Right Leg', 'Left Thigh', 'Right Thigh'] as PrintPosition[]) {
+        expect(isPrintPositionSupported(type, position)).toBe(false)
       }
     }
   })
 
   it('each zone carries a positive refWidthMm calibration', () => {
     for (const type of PRIORITY_GARMENTS) {
-      for (const { position } of ALL_PRINT_POSITIONS) {
+      for (const { position } of UPPER_BODY_POSITIONS) {
         const view = getPositionView(position)
         const zone = resolvePrintZone(type, view, position)!
         expect(zone.refWidthMm).toBeGreaterThan(0)
@@ -107,7 +123,7 @@ describe('priority garment calibration (Part 4/17: T-shirt, Hoody, Polo, Crew ne
 
   it('every zone anchor sits at its own box center by construction', () => {
     for (const type of PRIORITY_GARMENTS) {
-      for (const { position } of ALL_PRINT_POSITIONS) {
+      for (const { position } of UPPER_BODY_POSITIONS) {
         const view = getPositionView(position)
         const zone = resolvePrintZone(type, view, position)!
         expect(zone.anchorX).toBeCloseTo(zone.x + zone.width / 2, 8)
@@ -124,39 +140,188 @@ describe('fallback tier (Part 4/16: torso-shaped, uncalibrated garments)', () =>
     }
   })
 
-  it('fallback garments still resolve a usable zone for every position (do not break them)', () => {
+  it('fallback garments still resolve a usable zone for every upper-body position (do not break them)', () => {
     for (const type of ['Shirt', 'Hi-Viz vest', 'Singlet', 'Customized'] as GarmentType[]) {
-      for (const { position } of ALL_PRINT_POSITIONS) {
+      for (const { position } of UPPER_BODY_POSITIONS) {
         expect(isPrintPositionSupported(type, position)).toBe(true)
       }
     }
   })
 })
 
-describe('unsupported tier (Part 16: anatomically-invalid position vocabulary)', () => {
-  it('Shorts, Pants, Bennie, Hats are tagged "unsupported"', () => {
+// Non-upper-body extension: Bennie/Hats/Shorts/Pants moved from the old
+// "unsupported" tier to real calibrated geometry with their OWN position
+// vocabulary — the old upper-body positions (Left Chest, Full Front,
+// sleeves...) still correctly never apply to them, but the garment mockup
+// itself must always render (never hidden), and each garment exposes only
+// its own anatomically-valid positions.
+describe('non-upper-body garments (Beanie/Hats/Shorts/Pants) — Mockup System V2 extension', () => {
+  it('Shorts, Pants, Bennie, Hats are now tagged "calibrated", not "unsupported"', () => {
     for (const type of ['Shorts', 'Pants', 'Bennie', 'Hats'] as GarmentType[]) {
-      expect(getGarmentCalibrationTier(type)).toBe('unsupported')
+      expect(getGarmentCalibrationTier(type)).toBe('calibrated')
     }
   })
 
   it('no upper-body position is silently supported on Shorts/Pants/Bennie/Hats', () => {
+    const upperBody: PrintPosition[] = [
+      'Left Chest', 'Right Chest', 'Across Chest', 'Full Front', 'Left Sleeve', 'Right Sleeve',
+      'Full Back', 'Top Back', 'Bottom Back',
+    ]
     for (const type of ['Shorts', 'Pants', 'Bennie', 'Hats'] as GarmentType[]) {
-      for (const { position } of ALL_PRINT_POSITIONS) {
+      for (const position of upperBody) {
         expect(isPrintPositionSupported(type, position)).toBe(false)
       }
     }
   })
 
-  it('resolvePrintZone returns undefined rather than a fabricated zone for unsupported combinations', () => {
-    expect(resolvePrintZone('Bennie', 'Front', 'Left Chest')).toBeUndefined()
-    expect(resolvePrintZone('Shorts', 'Back', 'Full Back')).toBeUndefined()
+  it('still resolves a garment view (viewBox/garmentBounds) so the garment photo alone can render regardless of position validity', () => {
+    for (const type of ['Shorts', 'Pants', 'Bennie', 'Hats'] as GarmentType[]) {
+      const geometry = resolveGarmentGeometry(type, 'Front')
+      expect(geometry.viewBox.width).toBeGreaterThan(0)
+      expect(geometry.viewBox.height).toBeGreaterThan(0)
+    }
   })
 
-  it('still resolves a garment view (viewBox/garmentBounds) so the garment photo alone can render', () => {
-    const geometry = resolveGarmentGeometry('Hats', 'Front')
-    expect(geometry.viewBox.width).toBeGreaterThan(0)
-    expect(geometry.viewBox.height).toBeGreaterThan(0)
+  describe('getSupportedPrintPositions — per-garment vocabulary (Step 3)', () => {
+    it('T-shirt still gets the current upper-body set (unchanged by this extension)', () => {
+      const positions = getSupportedPrintPositions('T-shirt').map((p) => p.position)
+      expect(positions).toEqual([
+        'Left Chest', 'Right Chest', 'Across Chest', 'Full Front', 'Left Sleeve', 'Right Sleeve',
+        'Full Back', 'Top Back', 'Bottom Back',
+      ])
+    })
+
+    it('Beanie gets only Front/Back', () => {
+      const positions = getSupportedPrintPositions('Bennie').map((p) => p.position)
+      expect(positions).toEqual(['Front', 'Back'])
+    })
+
+    it('Hats gets only Front/Back — Left/Right Side are reserved vocabulary but not yet exposed (no side-view asset)', () => {
+      const positions = getSupportedPrintPositions('Hats').map((p) => p.position)
+      expect(positions).toEqual(['Front', 'Back'])
+      expect(positions).not.toContain('Left Side')
+      expect(positions).not.toContain('Right Side')
+    })
+
+    it('Shorts gets only Left Leg / Right Leg / Back', () => {
+      const positions = getSupportedPrintPositions('Shorts').map((p) => p.position)
+      expect(positions).toEqual(['Left Leg', 'Right Leg', 'Back'])
+    })
+
+    it('Pants gets Left/Right Thigh, Left/Right Leg, and Back', () => {
+      const positions = getSupportedPrintPositions('Pants').map((p) => p.position)
+      expect(positions).toEqual(['Left Thigh', 'Right Thigh', 'Left Leg', 'Right Leg', 'Back'])
+    })
+  })
+
+  describe('invalid combinations (Step 17 items 6-9)', () => {
+    it('Shorts + Left Chest is invalid', () => {
+      expect(isPrintPositionSupported('Shorts', 'Left Chest')).toBe(false)
+    })
+    it('Beanie + Left Sleeve is invalid', () => {
+      expect(isPrintPositionSupported('Bennie', 'Left Sleeve')).toBe(false)
+    })
+    it('Hats + Full Front is invalid (not explicitly supported)', () => {
+      expect(isPrintPositionSupported('Hats', 'Full Front')).toBe(false)
+    })
+    it('Pants + Across Chest is invalid', () => {
+      expect(isPrintPositionSupported('Pants', 'Across Chest')).toBe(false)
+    })
+  })
+
+  describe('getDefaultPrintPosition — default normalization (Step 5/17 items 10-12)', () => {
+    it('T-shirt defaults to Left Chest', () => {
+      expect(getDefaultPrintPosition('T-shirt')).toBe('Left Chest')
+    })
+    it('Beanie defaults to Front', () => {
+      expect(getDefaultPrintPosition('Bennie')).toBe('Front')
+    })
+    it('Hats defaults to Front', () => {
+      expect(getDefaultPrintPosition('Hats')).toBe('Front')
+    })
+    it('Shorts defaults to Left Leg', () => {
+      expect(getDefaultPrintPosition('Shorts')).toBe('Left Leg')
+    })
+    it('Pants defaults to Left Thigh', () => {
+      expect(getDefaultPrintPosition('Pants')).toBe('Left Thigh')
+    })
+  })
+
+  describe('geometry exists for every new position (Step 17 items 13-19)', () => {
+    it('Beanie Front zone exists', () => {
+      expect(resolvePrintZone('Bennie', 'Front', 'Front')).toBeDefined()
+    })
+    it('Beanie Back zone exists', () => {
+      expect(resolvePrintZone('Bennie', 'Back', 'Back')).toBeDefined()
+    })
+    it('Hats Front zone exists', () => {
+      expect(resolvePrintZone('Hats', 'Front', 'Front')).toBeDefined()
+    })
+    it('Shorts Left Leg zone exists', () => {
+      expect(resolvePrintZone('Shorts', 'Front', 'Left Leg')).toBeDefined()
+    })
+    it('Shorts Right Leg zone exists', () => {
+      expect(resolvePrintZone('Shorts', 'Front', 'Right Leg')).toBeDefined()
+    })
+    it('Pants Left Thigh zone exists', () => {
+      expect(resolvePrintZone('Pants', 'Front', 'Left Thigh')).toBeDefined()
+    })
+    it('Pants Right Thigh zone exists', () => {
+      expect(resolvePrintZone('Pants', 'Front', 'Right Thigh')).toBeDefined()
+    })
+  })
+
+  describe('every new zone carries a meaningful, non-upper-body-borrowed refWidthMm (Step 14)', () => {
+    it('none of the new zones reuse Left Chest\'s 130mm reference', () => {
+      const newZones = [
+        resolvePrintZone('Bennie', 'Front', 'Front')!,
+        resolvePrintZone('Hats', 'Front', 'Front')!,
+        resolvePrintZone('Shorts', 'Front', 'Left Leg')!,
+        resolvePrintZone('Pants', 'Front', 'Left Thigh')!,
+      ]
+      for (const zone of newZones) {
+        expect(zone.refWidthMm).toBeGreaterThan(0)
+        expect(zone.refWidthMm).not.toBe(130)
+      }
+    })
+  })
+
+  describe('view resolution for the new positions (Step 11, Step 17 items 20-22)', () => {
+    it('Shorts Back resolves to back', () => {
+      expect(getPositionView('Back')).toBe('Back')
+    })
+    it('Beanie Front resolves to front', () => {
+      expect(getPositionView('Front')).toBe('Front')
+    })
+    it('Pants Left Leg resolves to front', () => {
+      expect(getPositionView('Left Leg')).toBe('Front')
+    })
+    it('Left Thigh/Right Thigh/Right Leg all resolve to front (customers view the front of their own legs)', () => {
+      expect(getPositionView('Left Thigh')).toBe('Front')
+      expect(getPositionView('Right Thigh')).toBe('Front')
+      expect(getPositionView('Right Leg')).toBe('Front')
+    })
+  })
+
+  it('every new zone anchor sits at its own box center by construction', () => {
+    const zones = [
+      resolvePrintZone('Bennie', 'Front', 'Front')!,
+      resolvePrintZone('Bennie', 'Back', 'Back')!,
+      resolvePrintZone('Hats', 'Front', 'Front')!,
+      resolvePrintZone('Hats', 'Back', 'Back')!,
+      resolvePrintZone('Shorts', 'Front', 'Left Leg')!,
+      resolvePrintZone('Shorts', 'Front', 'Right Leg')!,
+      resolvePrintZone('Shorts', 'Back', 'Back')!,
+      resolvePrintZone('Pants', 'Front', 'Left Thigh')!,
+      resolvePrintZone('Pants', 'Front', 'Right Thigh')!,
+      resolvePrintZone('Pants', 'Front', 'Left Leg')!,
+      resolvePrintZone('Pants', 'Front', 'Right Leg')!,
+      resolvePrintZone('Pants', 'Back', 'Back')!,
+    ]
+    for (const zone of zones) {
+      expect(zone.anchorX).toBeCloseTo(zone.x + zone.width / 2, 8)
+      expect(zone.anchorY).toBeCloseTo(zone.y + zone.height / 2, 8)
+    }
   })
 })
 
@@ -199,8 +364,8 @@ describe('Batch B: priority garment back-zone calibration is explicit, not blind
     }
   })
 
-  it('a garment with no recorded calibration confidence reports "unverified"', () => {
-    expect(getCalibrationConfidence('Shorts', 'Front')).toBe('unverified')
+  it('a fallback-tier garment (no dedicated calibration pass) reports "unverified"', () => {
+    expect(getCalibrationConfidence('Shirt', 'Front')).toBe('unverified')
   })
 })
 

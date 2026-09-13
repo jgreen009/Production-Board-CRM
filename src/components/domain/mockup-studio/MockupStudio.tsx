@@ -12,6 +12,7 @@ import { emptyPrintSpec } from '@/pages/new-order/defaultValues'
 import {
   ALL_PRINT_POSITIONS,
   getPositionView,
+  getSupportedPrintPositions,
   isPrintPositionSupported,
   resolvePrintZone,
 } from '@/config/garmentGeometry'
@@ -112,6 +113,38 @@ export function MockupStudio() {
     setCanvasError(null)
   }, [activeId])
 
+  // Non-upper-body print positions (Mockup System V2 extension): each
+  // garment type now has its own valid position set (T-shirt's chest/back
+  // positions vs Beanie's Front/Back vs Shorts' Left/Right Leg, etc.). When
+  // staff actively changes the garment type mid-session, every print spec
+  // holding a position that's no longer valid for the new garment is
+  // normalized to that garment's own default (e.g. T-shirt -> Shorts
+  // replaces a stale "Left Chest" with "Left Leg") — this is what "select
+  // a sensible default valid position" means for a live, in-session
+  // change. Deliberately skipped on the FIRST render (isFirstRender ref)
+  // so LOADING an existing order never silently rewrites a historical
+  // PrintSpec's position — an old Shorts/Beanie/Hats/Pants order saved
+  // before this vocabulary existed may still hold a stale upper-body
+  // position, and that must render safely (see the "not supported" banner
+  // below) rather than be silently moved to an unrelated new position.
+  const isFirstGarmentRender = useRef(true)
+  useEffect(() => {
+    if (isFirstGarmentRender.current) {
+      isFirstGarmentRender.current = false
+      return
+    }
+    const supported = getSupportedPrintPositions(effectiveGarmentType)
+    const supportedSet = new Set(supported.map((p) => p.position))
+    const fallback = supported[0]?.position
+    if (!fallback) return
+    printSpecs.forEach((p, i) => {
+      if (!supportedSet.has(p.position as PrintPosition)) {
+        setValue(`printSpecs.${i}.position`, fallback)
+      }
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [effectiveGarmentType])
+
   // Manual resizing is gone — artwork auto-fills its print position the
   // moment an aspect ratio is known, and re-fills whenever the active
   // spec's artwork, position, or garment changes (switching position or
@@ -159,7 +192,9 @@ export function MockupStudio() {
   }
 
   const handleAdd = () => {
-    const fallback = ALL_PRINT_POSITIONS.find((p) => getPositionView(p.position) === activeView) ?? ALL_PRINT_POSITIONS[0]
+    const supported = getSupportedPrintPositions(effectiveGarmentType)
+    const fallback =
+      supported.find((p) => getPositionView(p.position) === activeView) ?? supported[0] ?? ALL_PRINT_POSITIONS[0]
     const newSpec = { ...emptyPrintSpec(), position: fallback.position }
     append(newSpec)
     // useFieldArray appends synchronously to `fields` on next render; the
@@ -272,12 +307,9 @@ export function MockupStudio() {
           <div>
             <p className="mb-1.5 text-xs font-semibold tracking-wide text-zinc-500">POSITION</p>
             <PrintPositionButtons
+              positions={getSupportedPrintPositions(effectiveGarmentType)}
               value={spec.position as PrintPosition}
               onChange={(position) => update({ position })}
-              isSupported={(position) => isPrintPositionSupported(effectiveGarmentType, position)}
-              unsupportedTitle={(position) =>
-                `${effectiveGarmentType} doesn't have a calibrated zone for ${ALL_PRINT_POSITIONS.find((p) => p.position === position)?.label} yet`
-              }
             />
           </div>
 
@@ -343,9 +375,10 @@ export function MockupStudio() {
           {canvasError && <p className="text-xs text-danger">{canvasError}</p>}
           {!positionSupported && (
             <p className="rounded-md border border-warning/30 bg-warning-soft px-2.5 py-2 text-xs text-warning">
-              {effectiveGarmentType} doesn&rsquo;t have a calibrated print zone for {spec.position} yet — the garment
-              preview shows without a specific placement. Staff can still save this order; the mockup preview will
-              improve once this garment/position combination is supported.
+              &ldquo;{spec.position}&rdquo; isn&rsquo;t a valid print position for {effectiveGarmentType} — the
+              garment preview shows without a specific placement. Choose one of the available positions above before
+              relying on this print&rsquo;s placement (this usually happens on an older order saved before this
+              garment&rsquo;s current position options existed).
             </p>
           )}
           {overflowing && (

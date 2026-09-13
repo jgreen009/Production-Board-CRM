@@ -151,6 +151,21 @@ export type PrintPosition =
   | 'Full Back'
   | 'Top Back'
   | 'Bottom Back'
+  // Non-upper-body vocabulary (headwear/bottoms) — see
+  // src/config/garmentGeometry.ts's getSupportedPrintPositions() for which
+  // garment types actually expose which of these. 'Left Side'/'Right Side'
+  // are reserved for Hats but not yet exposed to any garment — the current
+  // hat assets only cover Front/Back views, and this vocabulary
+  // deliberately never fabricates a side-view placement with no matching
+  // asset (see docs/MOCKUP_V2_NON_UPPER_BODY_HANDOVER.md).
+  | 'Front'
+  | 'Back'
+  | 'Left Side'
+  | 'Right Side'
+  | 'Left Leg'
+  | 'Right Leg'
+  | 'Left Thigh'
+  | 'Right Thigh'
 
 export type ArtworkFileType = 'PNG' | 'JPG' | 'WEBP' | 'SVG' | 'PDF' | 'AI'
 

@@ -64,24 +64,38 @@ function validateArtworkFile(file: File): { valid: boolean; reason?: string; fil
 }
 
 // ---------------------------------------------------------------------
-// Print position support — mirrors the calibration tiers in
-// src/config/garmentGeometry.ts (Mockup System V2). Kept as a small,
-// explicit constant here rather than porting that whole module into Deno;
-// if garmentGeometry.ts's tiers ever change, this must be updated to
-// match, or a garment could show as supported here but render with no
-// zone client-side. Positions are never fabricated for the unsupported
-// tier (Shorts/Pants/Bennie/Hats) — same rule as every other Mockup V2
-// surface.
+// Print position support — mirrors getSupportedPrintPositions() in
+// src/config/garmentGeometry.ts (Mockup System V2's non-upper-body
+// extension). Kept as a small, explicit constant here rather than porting
+// that whole module into Deno; if garmentGeometry.ts's per-garment
+// vocabulary ever changes, this must be updated to match, or a garment
+// could show as supported here but render with no zone client-side. A
+// malicious public request combining a garment with a position it doesn't
+// support (e.g. Shorts + Left Chest, Beanie + Full Back) is always
+// rejected server-side, regardless of what the public form's own JS
+// already filtered out client-side.
 // ---------------------------------------------------------------------
-const ALL_POSITIONS = [
+const UPPER_BODY_POSITIONS = [
   'Left Chest', 'Right Chest', 'Across Chest', 'Full Front', 'Left Sleeve', 'Right Sleeve',
   'Full Back', 'Top Back', 'Bottom Back',
 ]
-const UNSUPPORTED_GARMENT_TYPES = new Set(['Shorts', 'Pants', 'Bennie', 'Hats'])
+const GARMENT_SUPPORTED_POSITIONS: Record<string, string[]> = {
+  'T-shirt': UPPER_BODY_POSITIONS,
+  Polo: UPPER_BODY_POSITIONS,
+  Shirt: UPPER_BODY_POSITIONS,
+  'Hi-Viz vest': UPPER_BODY_POSITIONS,
+  Singlet: UPPER_BODY_POSITIONS,
+  'Crew neck (jumper)': UPPER_BODY_POSITIONS,
+  Hoody: UPPER_BODY_POSITIONS,
+  Customized: UPPER_BODY_POSITIONS,
+  Bennie: ['Front', 'Back'],
+  Hats: ['Front', 'Back'],
+  Shorts: ['Left Leg', 'Right Leg', 'Back'],
+  Pants: ['Left Thigh', 'Right Thigh', 'Left Leg', 'Right Leg', 'Back'],
+}
 
 function isPrintPositionSupported(garmentType: string, position: string): boolean {
-  if (UNSUPPORTED_GARMENT_TYPES.has(garmentType)) return false
-  return ALL_POSITIONS.includes(position)
+  return (GARMENT_SUPPORTED_POSITIONS[garmentType] ?? []).includes(position)
 }
 
 // ---------------------------------------------------------------------

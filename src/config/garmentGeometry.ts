@@ -36,6 +36,23 @@ export const POSITION_VIEW: Record<PrintPosition, 'Front' | 'Back'> = {
   'Full Back': 'Back',
   'Top Back': 'Back',
   'Bottom Back': 'Back',
+  // Non-upper-body vocabulary (headwear/bottoms) — Front/Back are literal
+  // view names here, not upper-body euphemisms. Left/Right Leg and
+  // Left/Right Thigh are all front-facing placements (a customer looks at
+  // the front of their own legs), matching the actual garment photos,
+  // which only have front/back views, no per-leg side view.
+  Front: 'Front',
+  Back: 'Back',
+  'Left Leg': 'Front',
+  'Right Leg': 'Front',
+  'Left Thigh': 'Front',
+  'Right Thigh': 'Front',
+  // Reserved, not yet exposed by any garment's supported-position list
+  // (see getSupportedPrintPositions) — no current asset has a side view to
+  // render against. Mapped to 'Front' only so this Record stays total and
+  // nothing crashes if ever misused; never actually reached in practice.
+  'Left Side': 'Front',
+  'Right Side': 'Front',
 }
 
 export function getPositionView(position: PrintPosition): 'Front' | 'Back' {
@@ -46,6 +63,15 @@ export function getPositionView(position: PrintPosition): 'Front' | 'Back' {
 // (label only — geometry now comes from resolvePrintZone, which is
 // garment-specific). Order matches the original printZones.ts ordering so
 // existing UI layout (position buttons) doesn't visually reshuffle.
+// The new entries' relative order is deliberate, not cosmetic:
+// getSupportedPrintPositions() filters this list down to one garment's
+// valid positions while preserving order, and the FIRST surviving entry
+// becomes that garment's default position (see its own doc comment). This
+// single ordering has to produce the right default for every garment at
+// once — Front before Back (Beanie/Hats default to Front), Left Thigh
+// before Left Leg (Pants defaults to Left Thigh, not its lower-leg
+// position), and Back last of all (every garment that has a Back option
+// treats it as a fallback, never the default).
 export const ALL_PRINT_POSITIONS: { position: PrintPosition; label: string }[] = [
   { position: 'Left Chest', label: 'Left Chest' },
   { position: 'Right Chest', label: 'Right Chest' },
@@ -56,6 +82,14 @@ export const ALL_PRINT_POSITIONS: { position: PrintPosition; label: string }[] =
   { position: 'Full Back', label: 'Full Back' },
   { position: 'Top Back', label: 'Top Back' },
   { position: 'Bottom Back', label: 'Bottom Back' },
+  { position: 'Front', label: 'Front' },
+  { position: 'Left Side', label: 'Left Side' },
+  { position: 'Right Side', label: 'Right Side' },
+  { position: 'Left Thigh', label: 'Left Thigh' },
+  { position: 'Right Thigh', label: 'Right Thigh' },
+  { position: 'Left Leg', label: 'Left Leg' },
+  { position: 'Right Leg', label: 'Right Leg' },
+  { position: 'Back', label: 'Back' },
 ]
 
 export type GarmentCalibrationTier = 'calibrated' | 'fallback' | 'unsupported'
@@ -310,20 +344,132 @@ const FALLBACK_TORSO_FRONT: GarmentViewGeometry = TSHIRT_FRONT
 const FALLBACK_TORSO_BACK: GarmentViewGeometry = TSHIRT_BACK
 
 // ---------------------------------------------------------------------
-// UNSUPPORTED TIER (Batch A §Part 16) — the current 9-position vocabulary
-// (Left/Right Chest, Across Chest, Full Front, sleeves, back positions) is
-// upper-body apparel language. It does not describe a real location on
-// Shorts, Pants, or headwear (Bennie/Hats) — a "Left Chest" on a beanie is
-// not a real thing. The old code already tacitly admitted this for
-// Bennie/Hats via `printAnchorOverride` (garmentTemplates.ts), which
-// mapped every one of the 9 positions onto one fixed point regardless of
-// which was actually selected — exactly the "fake placement" this batch is
-// told not to do. V2 marks all four of these types as having NO calibrated
-// zones for the current vocabulary at all; `isPrintPositionSupported`
-// returns false for them, and the renderers show the garment alone with an
-// explicit "not supported" state rather than guessing a point. Proper
-// support needs its own headwear/bottoms-specific position vocabulary —
-// documented here as deferred domain work, not solved in this batch.
+// NON-UPPER-BODY CALIBRATION — Bennie, Hats, Shorts, Pants. The old
+// upper-body vocabulary (Left Chest, Full Front, sleeves...) never applied
+// to these four; rather than continuing to mark them fully unsupported
+// (the old code even hid the mockup entirely — see this file's git
+// history), each gets its own real position vocabulary and calibrated
+// zones below, visually read off the actual technical-flat photos exactly
+// like the priority upper-body garments were. See
+// docs/MOCKUP_V2_NON_UPPER_BODY_HANDOVER.md for the full reasoning and the
+// asset limitations (no side-view art exists for Hats, so Left/Right Side
+// are reserved vocabulary but not exposed — see getSupportedPrintPositions).
+// ---------------------------------------------------------------------
+
+// Beanie/Hat photos are both full-canvas headwear illustrations (crown +
+// brim/cuff) — visually estimated bounds, same "best-effort read of the
+// source art" caveat as every other garmentBounds in this file.
+const HEADWEAR_GARMENT_BOUNDS = { x: 60, y: 100, width: 1100, height: 950 }
+
+const BENNIE_FRONT: GarmentViewGeometry = {
+  viewBox: CANONICAL_VIEWPORT,
+  garmentBounds: HEADWEAR_GARMENT_BOUNDS,
+  printZones: {
+    // The only realistic beanie print location is a small centered patch
+    // on the folded cuff — verified against bennie-front.png: the cuff
+    // band spans roughly y 55%-84% of the image; a patch is centered
+    // within that band, not stretched across its full height, so it
+    // reads as a small embroidered patch rather than a full-cuff wrap.
+    Front: zone(368, 790, 490, 220, 90, { maxWidthMm: 100 }),
+  },
+}
+
+const BENNIE_BACK: GarmentViewGeometry = {
+  viewBox: CANONICAL_VIEWPORT,
+  garmentBounds: HEADWEAR_GARMENT_BOUNDS,
+  printZones: {
+    // bennie-back.png reads as visually identical to the front (the flat
+    // sketch shows no distinguishing rear feature — no seam, no tag), so
+    // this reuses the front cuff-patch position rather than inventing an
+    // unverifiable difference; see CALIBRATION_CONFIDENCE ('inferred' for
+    // back, 'verified' for front).
+    Back: zone(368, 790, 490, 220, 90, { maxWidthMm: 100 }),
+  },
+}
+
+const HATS_FRONT: GarmentViewGeometry = {
+  viewBox: CANONICAL_VIEWPORT,
+  garmentBounds: HEADWEAR_GARMENT_BOUNDS,
+  printZones: {
+    // Verified against hats-front.png: the crown panel between the top
+    // seam junction and the brim's back edge, centered between the two
+    // eyelets — a standard embroidered front-crown logo position.
+    Front: zone(380, 280, 466, 280, 90, { maxWidthMm: 100 }),
+  },
+}
+
+const HATS_BACK: GarmentViewGeometry = {
+  viewBox: CANONICAL_VIEWPORT,
+  garmentBounds: HEADWEAR_GARMENT_BOUNDS,
+  printZones: {
+    // Verified against hats-back.png: the back crown panel above the
+    // adjustable strap, between the two eyelets — same proportions as the
+    // front crown since the panel shape is symmetric.
+    Back: zone(380, 280, 466, 280, 90, { maxWidthMm: 100 }),
+  },
+}
+
+// Shorts/Pants photos are similarly near-full-canvas garment
+// illustrations — visually estimated bounds.
+const SHORTS_GARMENT_BOUNDS = { x: 60, y: 140, width: 1100, height: 1000 }
+const PANTS_GARMENT_BOUNDS = { x: 150, y: 30, width: 900, height: 1220 }
+
+const SHORTS_FRONT: GarmentViewGeometry = {
+  viewBox: CANONICAL_VIEWPORT,
+  garmentBounds: SHORTS_GARMENT_BOUNDS,
+  printZones: {
+    // Verified against shorts-front.png: a small logo box on the lower
+    // half of each leg panel, below the pocket seam lines and above the
+    // hem — the conventional spot for a one-leg sports-shorts print.
+    'Left Leg': zone(150, 500, 300, 350, 90),
+    'Right Leg': zone(776, 500, 300, 350, 90),
+  },
+}
+
+const SHORTS_BACK: GarmentViewGeometry = {
+  viewBox: CANONICAL_VIEWPORT,
+  garmentBounds: SHORTS_GARMENT_BOUNDS,
+  printZones: {
+    // Verified against shorts-back.png: a centered seat-area box below
+    // the waistband and above where the center-back seam forks into the
+    // two legs.
+    Back: zone(343, 200, 540, 350, 250),
+  },
+}
+
+const PANTS_FRONT: GarmentViewGeometry = {
+  viewBox: CANONICAL_VIEWPORT,
+  garmentBounds: PANTS_GARMENT_BOUNDS,
+  printZones: {
+    // Verified against pants-front.png: each leg panel's upper "thigh"
+    // band, below the diagonal pocket bag and belt loops.
+    'Left Thigh': zone(230, 350, 280, 280, 90),
+    'Right Thigh': zone(716, 350, 280, 280, 90),
+    // Lower-leg band, same leg panels, well above the hem.
+    'Left Leg': zone(230, 850, 280, 300, 90),
+    'Right Leg': zone(716, 850, 280, 300, 90),
+  },
+}
+
+const PANTS_BACK: GarmentViewGeometry = {
+  viewBox: CANONICAL_VIEWPORT,
+  garmentBounds: PANTS_GARMENT_BOUNDS,
+  printZones: {
+    // Verified against pants-back.png: a centered band spanning both back
+    // pockets, below the waistband yoke seam.
+    Back: zone(310, 140, 605, 280, 280),
+  },
+}
+
+// ---------------------------------------------------------------------
+// UNSUPPORTED TIER — kept as a mechanism (not currently used by any of
+// the 12 catalog garment types, now that Bennie/Hats/Shorts/Pants all
+// have real calibrated geometry above) for a future garment type that
+// genuinely has no usable asset/vocabulary yet. `isPrintPositionSupported`
+// and the renderers already handle an empty `printZones` object safely —
+// see MOCKUP_SYSTEM_V2_AUDIT.md/BATCH_A_HANDOVER.md for the original
+// "do not fake placement" reasoning that still applies whenever this is
+// used.
 // ---------------------------------------------------------------------
 
 const UNSUPPORTED_VIEW: GarmentViewGeometry = {
@@ -357,10 +503,10 @@ export const GARMENT_GEOMETRY: Record<GarmentType, GarmentGeometry> = {
     tier: 'fallback',
     views: { front: FALLBACK_TORSO_FRONT, back: FALLBACK_TORSO_BACK },
   },
-  Shorts: { garmentType: 'Shorts', tier: 'unsupported', views: { front: UNSUPPORTED_VIEW, back: UNSUPPORTED_VIEW } },
-  Pants: { garmentType: 'Pants', tier: 'unsupported', views: { front: UNSUPPORTED_VIEW, back: UNSUPPORTED_VIEW } },
-  Bennie: { garmentType: 'Bennie', tier: 'unsupported', views: { front: UNSUPPORTED_VIEW, back: UNSUPPORTED_VIEW } },
-  Hats: { garmentType: 'Hats', tier: 'unsupported', views: { front: UNSUPPORTED_VIEW, back: UNSUPPORTED_VIEW } },
+  Shorts: { garmentType: 'Shorts', tier: 'calibrated', views: { front: SHORTS_FRONT, back: SHORTS_BACK } },
+  Pants: { garmentType: 'Pants', tier: 'calibrated', views: { front: PANTS_FRONT, back: PANTS_BACK } },
+  Bennie: { garmentType: 'Bennie', tier: 'calibrated', views: { front: BENNIE_FRONT, back: BENNIE_BACK } },
+  Hats: { garmentType: 'Hats', tier: 'calibrated', views: { front: HATS_FRONT, back: HATS_BACK } },
 }
 
 // Batch B calibration-confidence record, per garment/view — see
@@ -375,6 +521,17 @@ export const CALIBRATION_CONFIDENCE: Partial<
   Hoody: { front: 'verified', back: 'verified' },
   Polo: { front: 'verified', back: 'verified' },
   'Crew neck (jumper)': { front: 'verified', back: 'verified' },
+  // Non-upper-body calibration: Front views (Bennie/Hats) and both views
+  // of Shorts/Pants were each read directly off their own photo. Bennie's
+  // Back is 'inferred' — the flat sketch shows no rear-distinguishing
+  // feature, so it deliberately reuses the front cuff-patch position
+  // rather than an independently-verified different one (see BENNIE_BACK's
+  // comment). Hats' Back was verified against its own photo (which does
+  // have a distinguishing strap/buckle feature), so it's 'verified' too.
+  Bennie: { front: 'verified', back: 'inferred' },
+  Hats: { front: 'verified', back: 'verified' },
+  Shorts: { front: 'verified', back: 'verified' },
+  Pants: { front: 'verified', back: 'verified' },
 }
 
 export function getCalibrationConfidence(
@@ -404,9 +561,34 @@ export function resolvePrintZone(
   return resolveGarmentGeometry(type, view).printZones[position]
 }
 
+// The one centralized source of truth for "which print positions make
+// sense on this garment" — derived directly from the garment's own
+// calibrated zones (front + back), never a hand-maintained parallel list
+// that could drift from the actual geometry. Order matters: it's
+// ALL_PRINT_POSITIONS' own order with everything not on this garment
+// filtered out, which is what makes the first surviving entry the right
+// default for every garment at once — see ALL_PRINT_POSITIONS' own doc
+// comment for the exact ordering reasoning.
+export function getSupportedPrintPositions(type: GarmentType): { position: PrintPosition; label: string }[] {
+  const geometry = getGarmentGeometry(type)
+  const frontPositions = geometry.views.front ? (Object.keys(geometry.views.front.printZones) as PrintPosition[]) : []
+  const backPositions = geometry.views.back ? (Object.keys(geometry.views.back.printZones) as PrintPosition[]) : []
+  const supported = new Set<PrintPosition>([...frontPositions, ...backPositions])
+  return ALL_PRINT_POSITIONS.filter((p) => supported.has(p.position))
+}
+
+// The garment's own default position — the first entry in its supported
+// list (see getSupportedPrintPositions' doc comment for why that's always
+// the right one), or undefined for a garment with no supported positions
+// at all (the 'unsupported' tier, not currently used by any real garment).
+export function getDefaultPrintPosition(type: GarmentType): PrintPosition | undefined {
+  return getSupportedPrintPositions(type)[0]?.position
+}
+
 // Pure garment/position compatibility check (Batch A §Part 16) — used by
 // the UI to disable/flag invalid combinations instead of silently
-// rendering a fabricated placement for them.
+// rendering a fabricated placement for them. Equivalent to (but simpler
+// than) checking membership in getSupportedPrintPositions(type).
 export function isPrintPositionSupported(type: GarmentType, position: PrintPosition): boolean {
   const view = getPositionView(position)
   return !!resolvePrintZone(type, view, position)
