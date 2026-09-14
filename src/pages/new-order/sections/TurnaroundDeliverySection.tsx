@@ -2,8 +2,9 @@ import { useFormContext } from 'react-hook-form'
 import type { OrderFormValues } from '@/schemas/orderFormSchema'
 import type { Turnaround, DeliveryMethod, Priority } from '@/types'
 import { OrderFormSection } from '@/components/domain/OrderFormSection'
-import { TURNAROUNDS, TURNAROUND_DESCRIPTIONS, PRIORITIES } from '@/data/mockStatuses'
+import { TURNAROUND_DESCRIPTIONS } from '@/data/mockStatuses'
 import { useBusinessSettings } from '@/hooks/useSettings'
+import { useStatusOptionsByDimension } from '@/hooks/useStatusOptions'
 import { clsx } from 'clsx'
 
 const DELIVERY_OPTIONS: { value: DeliveryMethod; label: string; hint?: string }[] = [
@@ -13,14 +14,18 @@ const DELIVERY_OPTIONS: { value: DeliveryMethod; label: string; hint?: string }[
 
 // Only these three are offered on the order form; "Custom" stays a valid
 // Turnaround value for badges elsewhere but isn't a pickable option here.
+// Any admin-added custom turnaround values also aren't offered here — this
+// form intentionally only exposes the three system ones.
 const FORM_TURNAROUND_ORDER: Turnaround[] = ['Same Day', 'Rush', 'Standard']
-const FORM_TURNAROUNDS = FORM_TURNAROUND_ORDER.map(
-  (value) => TURNAROUNDS.find((t) => t.value === value)!,
-)
 
 export function TurnaroundDeliverySection() {
   const { watch, setValue } = useFormContext<OrderFormValues>()
   const { data: businessSettings } = useBusinessSettings()
+  const turnaroundOptions = useStatusOptionsByDimension('turnaround')
+  const priorityOptions = useStatusOptionsByDimension('priority')
+  const formTurnarounds = FORM_TURNAROUND_ORDER.map(
+    (value) => turnaroundOptions.find((t) => t.value === value),
+  ).filter((t): t is NonNullable<typeof t> => !!t)
 
   const turnaround = watch('turnaround')
   const deliveryMethod = watch('deliveryMethod')
@@ -48,11 +53,11 @@ export function TurnaroundDeliverySection() {
         <p className="mb-1.5 text-sm font-medium text-zinc-700">Turnaround</p>
         <p className="mb-2 text-xs text-zinc-400">Internal staff field — not shown on the paper form.</p>
         <div className="grid grid-cols-3 gap-2">
-          {FORM_TURNAROUNDS.map((t) => (
+          {formTurnarounds.map((t) => (
             <button
               key={t.value}
               type="button"
-              onClick={() => handleTurnaroundChange(t.value)}
+              onClick={() => handleTurnaroundChange(t.value as Turnaround)}
               className={clsx(
                 'min-h-11 rounded-md border px-3 py-2 text-left text-sm transition-colors',
                 turnaround === t.value
@@ -62,7 +67,7 @@ export function TurnaroundDeliverySection() {
             >
               <p className="font-medium">{t.label}</p>
               <p className={clsx('mt-0.5 text-xs', turnaround === t.value ? 'text-zinc-600' : 'text-zinc-400')}>
-                {turnaroundDescriptions[t.value]}
+                {turnaroundDescriptions[t.value as Turnaround]}
               </p>
             </button>
           ))}
@@ -101,7 +106,7 @@ export function TurnaroundDeliverySection() {
           Internal-only — not on the paper form. Same Day sets this to Urgent automatically. Staff can override.
         </p>
         <div className="grid grid-cols-3 gap-2">
-          {PRIORITIES.map((p) => (
+          {priorityOptions.map((p) => (
             <button
               key={p.value}
               type="button"

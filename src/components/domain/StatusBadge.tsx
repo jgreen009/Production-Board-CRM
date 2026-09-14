@@ -1,13 +1,6 @@
 import { clsx } from 'clsx'
 import { Badge } from '@/components/ui/Badge'
-import {
-  getArtworkStatusConfig,
-  getGarmentStatusConfig,
-  getPaymentStatusConfig,
-  getPriorityConfig,
-  getProductionStatusConfig,
-  getTurnaroundConfig,
-} from '@/data/mockStatuses'
+import { useAllStatusOptionsByDimension } from '@/hooks/useStatusOptions'
 import type {
   ArtworkStatus,
   GarmentStatus,
@@ -25,23 +18,12 @@ type StatusKind =
   | { kind: 'priority'; value: Priority }
   | { kind: 'turnaround'; value: Turnaround }
 
+// Includes inactive statuses — an order already set to a since-deactivated
+// status must still render a real label/colour, not fall through to a
+// generic placeholder (the DB trigger explicitly keeps such values valid).
 export function StatusBadge(props: StatusKind & { className?: string }) {
-  const config = (() => {
-    switch (props.kind) {
-      case 'payment':
-        return getPaymentStatusConfig(props.value)
-      case 'artwork':
-        return getArtworkStatusConfig(props.value)
-      case 'garment':
-        return getGarmentStatusConfig(props.value)
-      case 'production':
-        return getProductionStatusConfig(props.value)
-      case 'priority':
-        return getPriorityConfig(props.value)
-      case 'turnaround':
-        return getTurnaroundConfig(props.value)
-    }
-  })()
+  const options = useAllStatusOptionsByDimension(props.kind)
+  const config = options.find((o) => o.value === props.value) ?? { label: props.value, className: 'bg-zinc-100 text-zinc-600 border-zinc-200' }
 
   return <Badge className={clsx(config.className, props.className)}>{config.label}</Badge>
 }

@@ -90,9 +90,13 @@ export const orderFormSchema = z
     dueDate: z.string().min(1, 'Due date is required'),
 
     rushFee: z.boolean(),
-    turnaround: z.enum(['Standard', 'Rush', 'Same Day', 'Custom']),
+    // Loosened from a fixed enum: turnaround/priority/paymentStatus are now
+    // admin-editable catalogs (status_options table) whose valid values
+    // can't be known at compile time — the DB trigger (validate_order_statuses)
+    // is the real source of truth for what's valid on submit.
+    turnaround: z.string().min(1),
     deliveryMethod: z.enum(['Pick Up', 'Delivery']),
-    priority: z.enum(['Normal', 'High', 'Urgent']),
+    priority: z.string().min(1),
 
     services: z.array(z.string()).min(1, 'Select at least one service'),
     suppliesGarments: z.boolean(),
@@ -106,7 +110,7 @@ export const orderFormSchema = z
 
     printSpecs: z.array(printSpecFormSchema).min(1, 'Add at least one print spec'),
 
-    paymentStatus: z.enum(['Unpaid', 'Deposit Paid', 'Part Paid', 'Paid', 'On Account']),
+    paymentStatus: z.string().min(1),
     productionNotes: z.string().optional(),
     notes: z.string().optional(),
     // Phase 4 Milestone 2 — one optional owner. Absent/undefined means

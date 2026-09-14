@@ -1,11 +1,12 @@
 import type { ReactNode } from 'react'
 import { CheckCircle2, XCircle } from 'lucide-react'
-import type { Order } from '@/types'
+import type { ArtworkStatus, GarmentStatus, Order, PaymentStatus, ProductionStatus } from '@/types'
+import type { StatusConfig } from '@/data/mockStatuses'
 import { Card, CardBody, CardHeader } from '@/components/ui/Card'
 import { StatusSelect } from '@/components/domain/StatusSelect'
 import { AssigneeSelector } from '@/components/domain/AssigneeSelector'
 import { ProductionTimeline } from '@/components/domain/ProductionTimeline'
-import { PAYMENT_STATUSES, ARTWORK_STATUSES, GARMENT_STATUSES, PRODUCTION_STATUSES } from '@/data/mockStatuses'
+import { useStatusOptionsByDimension } from '@/hooks/useStatusOptions'
 import {
   useUpdateArtworkStatus,
   useUpdateGarmentStatus,
@@ -31,6 +32,10 @@ export function ProductionTab({ order, isRealOrder }: ProductionTabProps) {
   const updatePayment = useUpdatePaymentStatus()
   const updateAssignment = useUpdateOrderAssignment()
   const { data: activeStaff = [] } = useActiveStaff()
+  const paymentStatuses = useStatusOptionsByDimension('payment') as StatusConfig<PaymentStatus>[]
+  const artworkStatuses = useStatusOptionsByDimension('artwork') as StatusConfig<ArtworkStatus>[]
+  const garmentStatuses = useStatusOptionsByDimension('garment') as StatusConfig<GarmentStatus>[]
+  const productionStatuses = useStatusOptionsByDimension('production') as StatusConfig<ProductionStatus>[]
 
   const onError = (err: unknown) => showToast(staffErrorMessage(err, 'Failed to update status'), 'info')
   const hint = isRealOrder ? undefined : 'Demo order — status changes here aren\'t saved'
@@ -47,7 +52,7 @@ export function ProductionTab({ order, isRealOrder }: ProductionTabProps) {
           control={
             <StatusSelect
               value={order.paymentStatus}
-              options={PAYMENT_STATUSES}
+              options={paymentStatuses}
               onChange={(status) => {
                 if (!isRealOrder) return
                 updatePayment.mutate({ orderId: order.id, status }, { onError })
@@ -61,7 +66,7 @@ export function ProductionTab({ order, isRealOrder }: ProductionTabProps) {
           control={
             <StatusSelect
               value={order.artworkStatus}
-              options={ARTWORK_STATUSES}
+              options={artworkStatuses}
               onChange={(status) => {
                 if (!isRealOrder) return
                 updateArtwork.mutate({ orderId: order.id, status }, { onError })
@@ -75,7 +80,7 @@ export function ProductionTab({ order, isRealOrder }: ProductionTabProps) {
           control={
             <StatusSelect
               value={order.garmentStatus}
-              options={GARMENT_STATUSES}
+              options={garmentStatuses}
               onChange={(status) => {
                 if (!isRealOrder) return
                 updateGarment.mutate({ orderId: order.id, status }, { onError })
@@ -89,7 +94,7 @@ export function ProductionTab({ order, isRealOrder }: ProductionTabProps) {
           control={
             <StatusSelect
               value={order.productionStatus}
-              options={PRODUCTION_STATUSES}
+              options={productionStatuses}
               onChange={(status) => {
                 if (!isRealOrder) return
                 updateProduction.mutate({ orderId: order.id, status }, { onError })

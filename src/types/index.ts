@@ -1,12 +1,18 @@
 // Domain types for the Brand Fanatix production management app.
 // Frontend-only phase: no backend/DB shapes, just what the UI needs.
 
+// Each status dimension is admin-editable (status_options table, see
+// src/api/statusOptions.ts) — an admin can add arbitrary custom values at
+// runtime, which can't be known at compile time. The `| (string & {})`
+// widening keeps autocomplete/IDE hints for the known seeded values while
+// still accepting any string, so a custom status never fails to type-check.
 export type PaymentStatus =
   | 'Unpaid'
   | 'Deposit Paid'
   | 'Part Paid'
   | 'Paid'
   | 'On Account'
+  | (string & {})
 
 export type ArtworkStatus =
   | 'Not Started'
@@ -18,6 +24,7 @@ export type ArtworkStatus =
   | 'Awaiting Approval'
   | 'Approved'
   | 'Completed'
+  | (string & {})
 
 export type GarmentStatus =
   | 'Not Required'
@@ -28,6 +35,7 @@ export type GarmentStatus =
   | 'Supplied'
   | 'Received'
   | 'Completed'
+  | (string & {})
 
 export type ProductionStatus =
   | 'New'
@@ -39,10 +47,11 @@ export type ProductionStatus =
   | 'Out for Delivery'
   | 'Completed'
   | 'On Hold'
+  | (string & {})
 
-export type Priority = 'Normal' | 'High' | 'Urgent'
+export type Priority = 'Normal' | 'High' | 'Urgent' | (string & {})
 
-export type Turnaround = 'Standard' | 'Rush' | 'Same Day' | 'Custom'
+export type Turnaround = 'Standard' | 'Rush' | 'Same Day' | 'Custom' | (string & {})
 
 export type DeliveryMethod = 'Pick Up' | 'Delivery'
 

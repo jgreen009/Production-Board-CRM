@@ -4,7 +4,7 @@ import { Select } from '@/components/ui/Field'
 import { Button } from '@/components/ui/Button'
 import { BOARD_VIEWS } from '@/hooks/useProductionBoard'
 import type { BoardFilters, BoardView, SortKey } from '@/hooks/useProductionBoard'
-import { PRODUCTION_STATUSES, ARTWORK_STATUSES, GARMENT_STATUSES, PRIORITIES } from '@/data/mockStatuses'
+import { useStatusOptionsByDimension } from '@/hooks/useStatusOptions'
 import { useState } from 'react'
 import type { ReactNode } from 'react'
 import { clsx } from 'clsx'
@@ -37,6 +37,10 @@ const SORT_OPTIONS: { key: SortKey; label: string }[] = [
 export function ProductionToolbar(props: ProductionToolbarProps) {
   const [filtersOpen, setFiltersOpen] = useState(false)
   const [columnsOpen, setColumnsOpen] = useState(false)
+  const productionStatuses = useStatusOptionsByDimension('production')
+  const artworkStatuses = useStatusOptionsByDimension('artwork')
+  const garmentStatuses = useStatusOptionsByDimension('garment')
+  const priorityOptions = useStatusOptionsByDimension('priority')
 
   const activeFilterCount = Object.values(props.filters).filter((v) => v !== 'All').length
 
@@ -99,7 +103,7 @@ export function ProductionToolbar(props: ProductionToolbarProps) {
                       onChange={(e) => props.onFilterChange('production', e.target.value as never)}
                     >
                       <option value="All">All</option>
-                      {PRODUCTION_STATUSES.map((s) => (
+                      {productionStatuses.map((s) => (
                         <option key={s.value} value={s.value}>{s.label}</option>
                       ))}
                     </Select>
@@ -110,7 +114,7 @@ export function ProductionToolbar(props: ProductionToolbarProps) {
                       onChange={(e) => props.onFilterChange('artwork', e.target.value as never)}
                     >
                       <option value="All">All</option>
-                      {ARTWORK_STATUSES.map((s) => (
+                      {artworkStatuses.map((s) => (
                         <option key={s.value} value={s.value}>{s.label}</option>
                       ))}
                     </Select>
@@ -121,7 +125,7 @@ export function ProductionToolbar(props: ProductionToolbarProps) {
                       onChange={(e) => props.onFilterChange('garment', e.target.value as never)}
                     >
                       <option value="All">All</option>
-                      {GARMENT_STATUSES.map((s) => (
+                      {garmentStatuses.map((s) => (
                         <option key={s.value} value={s.value}>{s.label}</option>
                       ))}
                     </Select>
@@ -132,7 +136,7 @@ export function ProductionToolbar(props: ProductionToolbarProps) {
                       onChange={(e) => props.onFilterChange('priority', e.target.value as never)}
                     >
                       <option value="All">All</option>
-                      {PRIORITIES.map((s) => (
+                      {priorityOptions.map((s) => (
                         <option key={s.value} value={s.value}>{s.label}</option>
                       ))}
                     </Select>

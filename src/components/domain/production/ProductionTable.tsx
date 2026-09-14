@@ -1,10 +1,11 @@
 import type { Order, ProductionStatus } from '@/types'
+import type { StatusConfig } from '@/data/mockStatuses'
 import { StatusBadge } from '@/components/domain/StatusBadge'
 import { StatusSelect } from '@/components/domain/StatusSelect'
 import { MockupThumbnail } from '@/components/domain/MockupThumbnail'
 import { AttentionBadge } from '@/components/domain/production/AttentionBadge'
 import { Tooltip } from '@/components/ui/Tooltip'
-import { PRODUCTION_STATUSES } from '@/data/mockStatuses'
+import { useStatusOptionsByDimension } from '@/hooks/useStatusOptions'
 import { dueDateLabel, isDueToday, isDueSoon, isOverdue } from '@/utils/date'
 import { getProductionQueueRank, queueTierLabel } from '@/utils/productionQueue'
 import { clsx } from 'clsx'
@@ -50,6 +51,7 @@ export function ProductionTable({
   onProductionStatusChange,
   onPreviewClick,
 }: ProductionTableProps) {
+  const productionStatuses = useStatusOptionsByDimension('production')
   return (
     <div className="overflow-x-auto rounded-lg border border-zinc-200 bg-white">
       <table className="w-full text-left text-sm">
@@ -119,7 +121,7 @@ export function ProductionTable({
                 <td className="px-3 py-2.5 align-top" onClick={(e) => e.stopPropagation()}>
                   <StatusSelect
                     value={order.productionStatus}
-                    options={PRODUCTION_STATUSES}
+                    options={productionStatuses as StatusConfig<ProductionStatus>[]}
                     onChange={(v) => onProductionStatusChange(order.id, v)}
                   />
                 </td>

@@ -3,7 +3,7 @@ import type { OrderFormValues } from '@/schemas/orderFormSchema'
 import { OrderFormSection } from '@/components/domain/OrderFormSection'
 import { AssigneeSelector } from '@/components/domain/AssigneeSelector'
 import { Checkbox, FormField, Select, Textarea } from '@/components/ui/Field'
-import { PAYMENT_STATUSES } from '@/data/mockStatuses'
+import { useStatusOptionsByDimension } from '@/hooks/useStatusOptions'
 
 interface PaymentAndNotesSectionProps {
   // Only present in edit-active mode — lets the AssigneeSelector show a
@@ -14,6 +14,7 @@ interface PaymentAndNotesSectionProps {
 
 export function PaymentAndNotesSection({ currentAssigneeName, currentAssigneeActive }: PaymentAndNotesSectionProps) {
   const { register, watch, setValue } = useFormContext<OrderFormValues>()
+  const paymentStatuses = useStatusOptionsByDimension('payment')
 
   return (
     <>
@@ -25,7 +26,7 @@ export function PaymentAndNotesSection({ currentAssigneeName, currentAssigneeAct
               value={watch('paymentStatus')}
               onChange={(e) => setValue('paymentStatus', e.target.value as OrderFormValues['paymentStatus'])}
             >
-              {PAYMENT_STATUSES.map((s) => (
+              {paymentStatuses.map((s) => (
                 <option key={s.value} value={s.value}>{s.label}</option>
               ))}
             </Select>
