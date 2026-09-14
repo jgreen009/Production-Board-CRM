@@ -186,8 +186,13 @@ const TSHIRT_FRONT: GarmentViewGeometry = {
     'Right Chest': zone(711, 292, 147, 154, 130),
     'Across Chest': zone(307, 268, 613, 180, 300),
     'Full Front': zone(294, 282, 637, 770, 320),
-    'Left Sleeve': zone(49, 231, 172, 205, 80),
-    'Right Sleeve': zone(1005, 231, 172, 205, 80),
+    // Sleeve labels were swapped (customer-reported fix, 2026-09-14) —
+    // "Left Sleeve" now anchors to the viewer's-right box (x=1005) and
+    // "Right Sleeve" to the viewer's-left box (x=49). y/width/height/
+    // refWidthMm are unchanged; only which label points at which side
+    // flipped, matching the same flip applied to every priority garment.
+    'Left Sleeve': zone(1005, 231, 172, 205, 80),
+    'Right Sleeve': zone(49, 231, 172, 205, 80),
   },
 }
 
@@ -219,8 +224,9 @@ const HOODY_FRONT: GarmentViewGeometry = {
     // Bounded above the kangaroo pocket (~62% down) rather than reusing
     // the T-shirt's full-hem-to-collar box.
     'Full Front': zone(294, 308, 637, 462, 320),
-    'Left Sleeve': zone(49, 282, 172, 205, 80),
-    'Right Sleeve': zone(1005, 282, 172, 205, 80),
+    // Sleeve labels swapped — see T-shirt Front's identical note above.
+    'Left Sleeve': zone(1005, 282, 172, 205, 80),
+    'Right Sleeve': zone(49, 282, 172, 205, 80),
   },
 }
 
@@ -263,8 +269,9 @@ const POLO_FRONT: GarmentViewGeometry = {
     // (+21) since some clearance was already built in.
     'Across Chest': zone(307, 278, 613, 180, 300),
     'Full Front': zone(294, 282, 637, 770, 320),
-    'Left Sleeve': zone(49, 231, 172, 205, 80),
-    'Right Sleeve': zone(1005, 231, 172, 205, 80),
+    // Sleeve labels swapped — see T-shirt Front's identical note above.
+    'Left Sleeve': zone(1005, 231, 172, 205, 80),
+    'Right Sleeve': zone(49, 231, 172, 205, 80),
   },
 }
 
@@ -301,9 +308,10 @@ const CREW_NECK_FRONT: GarmentViewGeometry = {
     'Across Chest': zone(307, 258, 613, 180, 300),
     'Full Front': zone(294, 282, 637, 770, 320),
     // Long sleeve — print sits on the upper arm, slightly lower band than
-    // a short T-shirt sleeve's cuff-adjacent spot.
-    'Left Sleeve': zone(49, 257, 172, 205, 80),
-    'Right Sleeve': zone(1005, 257, 172, 205, 80),
+    // a short T-shirt sleeve's cuff-adjacent spot. Labels swapped — see
+    // T-shirt Front's identical note above.
+    'Left Sleeve': zone(1005, 257, 172, 205, 80),
+    'Right Sleeve': zone(49, 257, 172, 205, 80),
   },
 }
 

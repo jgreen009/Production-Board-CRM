@@ -532,3 +532,32 @@ describe('Post-Batch-C neck clearance patch', () => {
     expect(new Set(topBackY).size).toBeGreaterThan(1)
   })
 })
+
+// Customer-reported fix (2026-09-14): "Left Sleeve" and "Right Sleeve"
+// were swapped relative to the garment — this pins down the corrected
+// mapping for every priority garment so it can't silently flip back.
+// Right Sleeve's box now sits on the canonical viewBox's own left half
+// (lower x) and Left Sleeve's on its right half (higher x); y/width/
+// height/refWidthMm are unchanged from before the swap, since this was a
+// pure left/right relabeling, not a recalibration.
+describe('sleeve label swap (customer-reported fix)', () => {
+  it('Left Sleeve now resolves to the higher-x (viewer-right) box for every priority garment', () => {
+    for (const type of PRIORITY_GARMENTS) {
+      const left = resolvePrintZone(type, 'Front', 'Left Sleeve')!
+      const right = resolvePrintZone(type, 'Front', 'Right Sleeve')!
+      expect(left.x).toBeGreaterThan(right.x)
+    }
+  })
+
+  it('the two sleeve boxes are still mirrored (identical width/height/refWidthMm, only x differs) for every priority garment', () => {
+    for (const type of PRIORITY_GARMENTS) {
+      const left = resolvePrintZone(type, 'Front', 'Left Sleeve')!
+      const right = resolvePrintZone(type, 'Front', 'Right Sleeve')!
+      expect(left.width).toBe(right.width)
+      expect(left.height).toBe(right.height)
+      expect(left.refWidthMm).toBe(right.refWidthMm)
+      expect(left.y).toBe(right.y)
+      expect(left.x).not.toBe(right.x)
+    }
+  })
+})
