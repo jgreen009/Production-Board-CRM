@@ -6,7 +6,7 @@ import { PrintPositionButtons } from '@/components/domain/mockup-studio/PrintPos
 import { PrintSizePresetButtons } from '@/components/domain/mockup-studio/PrintSizePresetButtons'
 import { PrintSpecTabs } from '@/components/domain/mockup-studio/PrintSpecTabs'
 import { Button } from '@/components/ui/Button'
-import { getPositionView, getSupportedPrintPositions, isPrintPositionSupported } from '@/config/garmentGeometry'
+import { getPositionView, getPrintPositionLabel, getSupportedPrintPositions, isPrintPositionSupported } from '@/config/garmentGeometry'
 import { matchPrintSizePreset } from '@/config/printSizePresets'
 import { heightMmFromWidth } from '@/utils/printSizeConversion'
 import { validateArtworkFile } from '@/utils/artworkValidation'
@@ -81,8 +81,12 @@ export function PublicPrintDetailsSection({
   const spec = activeIndex >= 0 ? printSpecs[activeIndex] : undefined
 
   const activeView = spec ? getPositionView(spec.position as PrintPosition) : 'Front'
-  const frontEntries = printSpecs.filter((p) => getPositionView(p.position as PrintPosition) === 'Front').map((p) => ({ id: p.id, label: p.position }))
-  const backEntries = printSpecs.filter((p) => getPositionView(p.position as PrintPosition) === 'Back').map((p) => ({ id: p.id, label: p.position }))
+  const frontEntries = printSpecs
+    .filter((p) => getPositionView(p.position as PrintPosition) === 'Front')
+    .map((p) => ({ id: p.id, label: getPrintPositionLabel(p.position as PrintPosition) }))
+  const backEntries = printSpecs
+    .filter((p) => getPositionView(p.position as PrintPosition) === 'Back')
+    .map((p) => ({ id: p.id, label: getPrintPositionLabel(p.position as PrintPosition) }))
 
   const updateSpec = (patch: Partial<PublicPrintSpecFormValues>) => {
     if (activeIndex < 0) return

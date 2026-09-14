@@ -6,6 +6,7 @@ import {
   getDefaultPrintPosition,
   getGarmentCalibrationTier,
   getPositionView,
+  getPrintPositionLabel,
   getSupportedPrintPositions,
   isPrintPositionSupported,
   resolveGarmentGeometry,
@@ -558,6 +559,37 @@ describe('sleeve label swap (customer-reported fix)', () => {
       expect(left.refWidthMm).toBe(right.refWidthMm)
       expect(left.y).toBe(right.y)
       expect(left.x).not.toBe(right.x)
+    }
+  })
+})
+
+// Staff request (2026-09-14): only the DISPLAYED text for 'Left Chest'
+// changes, to "Right Chest" — deliberately not a geometry/value swap like
+// the sleeve fix above. The 'Left Chest' position still resolves its own
+// (unmoved) zone; only what a user reads on the button/tab changes.
+describe('"Left Chest" display-text-only relabel (staff request)', () => {
+  it('the Left Chest position now displays as "Right Chest"', () => {
+    expect(getPrintPositionLabel('Left Chest')).toBe('Right Chest')
+  })
+
+  it('the actual Right Chest position is unaffected and still displays as "Right Chest"', () => {
+    expect(getPrintPositionLabel('Right Chest')).toBe('Right Chest')
+  })
+
+  it('Left Chest\'s underlying geometry is untouched by the relabel (still its own, unmoved zone)', () => {
+    for (const type of PRIORITY_GARMENTS) {
+      const leftChest = resolvePrintZone(type, 'Front', 'Left Chest')!
+      const rightChest = resolvePrintZone(type, 'Front', 'Right Chest')!
+      // Still two distinct zones at two distinct x positions — the
+      // relabel did not merge or move either of them.
+      expect(leftChest.x).not.toBe(rightChest.x)
+    }
+  })
+
+  it('every other position label is unaffected by the relabel', () => {
+    for (const { position, label } of ALL_PRINT_POSITIONS) {
+      if (position === 'Left Chest') continue
+      expect(getPrintPositionLabel(position)).toBe(label)
     }
   })
 })

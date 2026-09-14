@@ -12,6 +12,7 @@ import { emptyPrintSpec } from '@/pages/new-order/defaultValues'
 import {
   ALL_PRINT_POSITIONS,
   getPositionView,
+  getPrintPositionLabel,
   getSupportedPrintPositions,
   isPrintPositionSupported,
   resolvePrintZone,
@@ -169,7 +170,7 @@ export function MockupStudio() {
     const front: { id: string; label: string }[] = []
     const back: { id: string; label: string }[] = []
     fields.forEach((f, i) => {
-      const entry = { id: f.id, label: `${printSpecs[i].position}` }
+      const entry = { id: f.id, label: getPrintPositionLabel(printSpecs[i].position as PrintPosition) }
       if (getPositionView(printSpecs[i]?.position as PrintPosition) === 'Front') front.push(entry)
       else back.push(entry)
     })
