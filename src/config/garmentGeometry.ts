@@ -73,15 +73,14 @@ export function getPositionView(position: PrintPosition): 'Front' | 'Back' {
 // position), and Back last of all (every garment that has a Back option
 // treats it as a fallback, never the default).
 export const ALL_PRINT_POSITIONS: { position: PrintPosition; label: string }[] = [
-  // Display text only, per explicit staff request (2026-09-14) — the
-  // 'Left Chest' position's underlying value, geometry, and every other
-  // behavior are unchanged; only what's shown to the user for it now
-  // reads "Right Chest" (the same text already shown for the actual
-  // 'Right Chest' position, unchanged below). Not a geometry swap like
-  // the earlier sleeve fix — see getPrintPositionLabel(), the one place
-  // both order forms resolve a position to its displayed text.
+  // Display text only, per two explicit staff requests (2026-09-14) — the
+  // underlying position values, their geometry, and every other behavior
+  // are unchanged; only the text shown to the user for each was swapped.
+  // Not a geometry swap like the earlier sleeve fix — see
+  // getPrintPositionLabel(), the one place both order forms resolve a
+  // position to its displayed text.
   { position: 'Left Chest', label: 'Right Chest' },
-  { position: 'Right Chest', label: 'Right Chest' },
+  { position: 'Right Chest', label: 'Left Chest' },
   { position: 'Across Chest', label: 'Across Chest' },
   { position: 'Full Front', label: 'Full Front' },
   { position: 'Left Sleeve', label: 'Left Sleeve' },

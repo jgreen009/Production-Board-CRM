@@ -563,20 +563,23 @@ describe('sleeve label swap (customer-reported fix)', () => {
   })
 })
 
-// Staff request (2026-09-14): only the DISPLAYED text for 'Left Chest'
-// changes, to "Right Chest" — deliberately not a geometry/value swap like
-// the sleeve fix above. The 'Left Chest' position still resolves its own
-// (unmoved) zone; only what a user reads on the button/tab changes.
-describe('"Left Chest" display-text-only relabel (staff request)', () => {
+// Two explicit staff requests (2026-09-14), applied one direction at a
+// time: first "Left Chest" should display as "Right Chest", then the
+// (unrelated, still-unmoved) actual Right Chest position should display
+// as "Left Chest" — a full display-text swap, deliberately NOT a
+// geometry/value swap like the earlier sleeve fix. Each position still
+// resolves its own (unmoved) zone; only what a user reads on the
+// button/tab changed.
+describe('Left/Right Chest display-text swap (staff request)', () => {
   it('the Left Chest position now displays as "Right Chest"', () => {
     expect(getPrintPositionLabel('Left Chest')).toBe('Right Chest')
   })
 
-  it('the actual Right Chest position is unaffected and still displays as "Right Chest"', () => {
-    expect(getPrintPositionLabel('Right Chest')).toBe('Right Chest')
+  it('the Right Chest position now displays as "Left Chest"', () => {
+    expect(getPrintPositionLabel('Right Chest')).toBe('Left Chest')
   })
 
-  it('Left Chest\'s underlying geometry is untouched by the relabel (still its own, unmoved zone)', () => {
+  it('both positions\' underlying geometry is untouched by the relabel (still two distinct, unmoved zones)', () => {
     for (const type of PRIORITY_GARMENTS) {
       const leftChest = resolvePrintZone(type, 'Front', 'Left Chest')!
       const rightChest = resolvePrintZone(type, 'Front', 'Right Chest')!
@@ -588,7 +591,7 @@ describe('"Left Chest" display-text-only relabel (staff request)', () => {
 
   it('every other position label is unaffected by the relabel', () => {
     for (const { position, label } of ALL_PRINT_POSITIONS) {
-      if (position === 'Left Chest') continue
+      if (position === 'Left Chest' || position === 'Right Chest') continue
       expect(getPrintPositionLabel(position)).toBe(label)
     }
   })
