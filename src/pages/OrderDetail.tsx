@@ -142,7 +142,7 @@ export default function OrderDetail() {
       <Tabs tabs={TABS} active={tab} onChange={setTab} className="mb-4 -mx-1 overflow-x-auto px-1" />
 
       <div className="min-w-0">
-        {tab === 'overview' && <OverviewTab order={order} />}
+        {tab === 'overview' && <OverviewTab order={order} isRealOrder={isRealId} />}
         {tab === 'order-form' && <OrderFormTab order={order} />}
         {tab === 'garments' && <GarmentsTab order={order} />}
         {tab === 'artwork' && <ArtworkMockupsTab order={order} />}

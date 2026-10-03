@@ -11,6 +11,7 @@ import { buildReorderFormValues } from '@/pages/new-order/reorder'
 import { useUpdateOrderWithActivity, useUpsertOrder, useOrder, useOrderFormValues } from '@/hooks/useOrders'
 import { useActiveStaff } from '@/hooks/useStaff'
 import { logReorderActivity } from '@/api/orders'
+import { requestOrderEmail } from '@/api/orderEmails'
 import { uploadArtwork, copyReferencedArtworkForReorder } from '@/api/artwork'
 import { useToast } from '@/components/ui/toast-context'
 import { orderSaveErrorMessage } from '@/utils/errorMessage'
@@ -203,7 +204,17 @@ export function OrderFormEditor({ orderId: existingOrderId, initialValues, previ
         navigate(`/orders/${id}`)
       } else {
         const id = await performSave(values, true, true)
-        showToast('Order created', 'success')
+        // Runs only after the order is saved. A failed email is reported,
+        // never raised, so the order is never presented as a failed create.
+        const emailResult = await requestOrderEmail(id, 'staff_order_summary', false).catch(() => null)
+        if (emailResult?.status === 'sent') {
+          showToast('Order created and customer email sent.', 'success')
+        } else {
+          showToast(
+            'Order created successfully, but the customer email could not be sent. You can resend it from the order.',
+            'info',
+          )
+        }
         navigate(`/orders/${id}`)
       }
     } catch (err) {

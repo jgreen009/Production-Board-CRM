@@ -3,10 +3,11 @@ import { Mail, Phone, User } from 'lucide-react'
 import type { Order } from '@/types'
 import { StatusBadge } from '@/components/domain/StatusBadge'
 import { MockupThumbnail } from '@/components/domain/MockupThumbnail'
+import { OrderEmailStatus } from '@/components/domain/OrderEmailStatus'
 import { Card, CardBody, CardHeader } from '@/components/ui/Card'
 import { formatDate } from '@/utils/date'
 
-export function OverviewTab({ order }: { order: Order }) {
+export function OverviewTab({ order, isRealOrder }: { order: Order; isRealOrder: boolean }) {
   return (
     <div className="flex flex-col gap-4">
       {/* At-a-glance row: who / when / who owns it, plus the mockup */}
@@ -61,6 +62,8 @@ export function OverviewTab({ order }: { order: Order }) {
           <StatusBadge kind="priority" value={order.priority} />
         </CardBody>
       </Card>
+
+      {isRealOrder && <OrderEmailStatus orderId={order.id} isPublicOrder={order.source === 'public_form'} />}
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         <Card className="lg:col-span-2">

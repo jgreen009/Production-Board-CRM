@@ -9,6 +9,7 @@
 // server-side to the same safe defaults a normal new order gets.
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.4'
+import { sendOrderEmail } from '../_shared/email/sendOrderEmail.ts'
 
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
@@ -398,6 +399,22 @@ async function handleSubmit(admin: ReturnType<typeof adminClient>, formData: For
   }
 
   logStep('submit_succeeded', { orderId, orderNumber: (result as { orderNumber?: string })?.orderNumber })
+
+  // The order is already committed and the link already consumed, so a
+  // receipt failure must never change this response. Sent in-process here
+  // (not via a callable endpoint) so that no anonymous caller can ever pick
+  // an arbitrary order or recipient for a Brand Fanatix email.
+  try {
+    const receipt = await sendOrderEmail(
+      admin,
+      { apiKey: Deno.env.get('RESEND_API_KEY'), from: Deno.env.get('EMAIL_FROM') },
+      { orderId, emailType: 'customer_order_receipt', isRetry: false },
+    )
+    logStep('receipt_email_processed', { status: receipt.status })
+  } catch (err) {
+    logStep('receipt_email_exception', { errorCategory: err instanceof Error ? err.name : typeof err })
+  }
+
   return json(result, 200)
 }
 
