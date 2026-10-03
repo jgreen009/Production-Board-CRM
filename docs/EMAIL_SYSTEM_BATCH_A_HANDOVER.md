@@ -1,15 +1,21 @@
 # Email System — Batch A Handover (Transactional Order Email)
 
-**Status: code complete, unit-tested, build/lint/test green. NOT yet deployed and NOT yet live-verified.**
-Blocked on two external prerequisites (see §0). Nothing in this batch has been applied to the production database or deployed to Supabase.
+**Status: deployed to production (Supabase + Netlify) and live-verified for every path that does not need a Resend key. The real provider send is NOT yet verified: `RESEND_API_KEY` and `EMAIL_FROM` are not set.**
 
-## 0. Blockers and what is needed to finish
+## 0. Status and remaining work
 
-1. **Supabase access.** During this batch the Supabase CLI was logged into a different account (`supabase projects list` no longer shows the Brand Fanatix project `pphzbtqfttfkaphmwutr`, and DB/secrets calls return 403). Migration `20260917000000_order_emails.sql` has therefore **not** been applied, and the two Edge Functions have **not** been deployed. Fix: re-authenticate the CLI with the account that owns `pphzbtqfttfkaphmwutr`.
-2. **Resend.** No Resend API key exists in the repo or the local environment, and I have no Resend API access, so the `globalteez.com` domain's verification status is **unverified**. Required before live sends work: set the secrets (§5) and confirm the sender's domain shows *Verified* in the Resend dashboard.
-3. **Deno type-check.** Deno is not installed here and `npx deno` produced no output, so the Edge Function sources were checked only indirectly (they import the same pure modules the Vitest suite covers). Run `supabase functions deploy` and a function smoke test before relying on them.
+Done and verified:
+- Migration `20260917000000_order_emails.sql` applied to production (table, unique live-send index, RLS).
+- `send-order-email` deployed with JWT verification; `public-order` redeployed with `--no-verify-jwt`.
+- Frontend deployed to Netlify production (`globalteez.com`, site `salt-prints`) from the local `dist/` build.
+- Supabase security advisor: only the 4 pre-existing findings. Performance advisor: 0 findings.
 
-Remaining after those three: apply migration → deploy `send-order-email` (default JWT verification) and `public-order` (keep `--no-verify-jwt`) → set secrets → run §19 live verification → run Supabase security + performance advisors.
+Remaining (one item, needs the user):
+1. Set the secrets: `supabase secrets set RESEND_API_KEY=... EMAIL_FROM="Brand Fanatix <orders@globalteez.com>" --project-ref pphzbtqfttfkaphmwutr`.
+2. Confirm `globalteez.com` shows *Verified* in Resend. Verification was not checked from here (no Resend access).
+3. Then run a real send (§19-A and §19-B). Until the key exists, every new order shows the "email could not be sent" warning. This is expected, and the order is still created.
+
+Deno type-check: not run (Deno unavailable here). The functions are exercised by the live tests in §19 instead.
 
 ## 1. Objective
 
@@ -225,20 +231,34 @@ Not covered by automated tests: the database layer (the unique index, RLS, and t
 
 ## 19. Live verification
 
-**Not performed.** Blocked by §0. The planned checks, to run once unblocked:
+Run against production on 2026-10-03 with disposable data (a throwaway staff user, a test order, a test public submission). All test rows were removed afterward. No real customer address received an email, because no provider send was possible without the key.
 
-- **A. Staff-created order.** Create a test order with a disposable address → order exists → `staff_order_summary` row is `sent` with a `resend_email_id` → Order Detail shows "Sent to …".
-- **B. Public order.** Submit through a test link with a disposable address → order exists → `customer_order_receipt` row is `sent`.
-- **C. Forced failure.** With `RESEND_API_KEY` unset, create an order → order exists → row is `failed` with `sender_not_configured`. Set the key and use Resend Email → row becomes `sent`. This proves the failure path and retry without a real send failure, and it is the check that can run before the key exists.
-- **D. Duplicate guard.** Call `send-order-email` twice for one order with `retry: false` → second call returns `skipped`, and no second Resend call is made.
-- **E. Authorization.** Call `send-order-email` with no token (expect 401), with a non-staff token (expect 403), and with `customer_order_receipt` for a staff-created order (expect `skipped` / `not_allowed`).
+| Check | Result |
+|---|---|
+| No token → `send-order-email` | 401 |
+| Anon key as bearer → `send-order-email` | 401 |
+| Staff send with no key configured | 200, `failed` / `sender_not_configured`, one row persisted, order intact |
+| Explicit retry | Processed as a new attempt, second row created |
+| Automatic duplicate trigger | `skipped` / `already_attempted` |
+| Receipt requested for a staff-created order | `skipped` / `not_allowed` |
+| Unknown email type; malformed order id | 400 |
+| Staff reads `order_emails` (RLS) | Allowed |
+| Staff writes `order_emails` directly | 403 |
+| Anon reads `order_emails` | 0 rows |
+| Public submission with receipt failure | 200 with real `SP-` number; receipt row `failed` / `sender_not_configured`; order `public_form`, `Active` |
+| General link after a submission | Still valid (not consumed) |
 
-Test data must be deleted afterward. Do not send to real customer addresses.
+Not yet verified (needs the Resend key, §0):
+- **A.** Staff-created order → `sent` row with `resend_email_id`.
+- **B.** Public order → receipt `sent` row.
+- **D.** Duplicate guard on a real sent email.
+- Reading the emails themselves in a mail client, and mockup images in them.
+
+The receipt-failure case above proves the failure isolation the brief required. The retry path is proven because the second attempt was actually processed.
 
 ## 20. Known limitations
 
-- Not deployed, not migrated, not live-tested (§0).
-- Resend domain verification is unverified (§0, §3).
+- Resend domain verification and the real send are unverified until the key is set (§0, §3).
 - Mockup links in email expire after 7 days (§11).
 - The public receipt adds up to one Resend round-trip (≤10 s) to the customer's wait (§9).
 - A crash between a successful Resend send and the DB status update leaves a `queued` row, which is then marked `timed_out` after 10 minutes. The customer may already have the email, and a retry would send a second copy. Rare, and accepted for Batch A.
