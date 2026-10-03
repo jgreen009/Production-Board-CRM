@@ -60,15 +60,42 @@ ${image}
 </div>`
 }
 
-export function renderOrderEmailHtml(summary: CustomerOrderSummary, emailType: EmailType): string {
-  const intro =
-    emailType === 'staff_order_summary'
-      ? "We've prepared the order details below for your review."
-      : 'Thanks for submitting your order request. Below is a copy of the information you provided.'
+export interface OrderEmailOptions {
+  confirmationUrl?: string | null
+  isUpdate?: boolean
+}
+
+function introFor(emailType: EmailType, isUpdate: boolean): string {
+  if (emailType === 'customer_order_receipt') {
+    return 'Thanks for submitting your order request. Below is a copy of the information you provided.'
+  }
+  if (isUpdate) {
+    return "We've updated the order details below. Please review them, and if everything looks correct, use the button below to confirm the updated order."
+  }
+  return 'Please review the order details below. If everything looks correct, use the button below to confirm the order.'
+}
+
+function ctaHtml(url: string): string {
+  const safe = escapeHtml(url)
+  return `<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:24px 0 8px 0;">
+<tr><td style="border-radius:6px;background:${ORANGE};">
+<a href="${safe}" style="display:inline-block;padding:12px 22px;font-family:${FONT};font-size:15px;font-weight:bold;color:#ffffff;text-decoration:none;border-radius:6px;">Review &amp; Confirm Order</a>
+</td></tr>
+</table>
+<p style="margin:0 0 8px 0;font-family:${FONT};font-size:12px;color:${MUTED};">If the button doesn't work, copy and paste this link into your browser:<br><span style="word-break:break-all;">${safe}</span></p>`
+}
+
+export function renderOrderEmailHtml(
+  summary: CustomerOrderSummary,
+  emailType: EmailType,
+  options: OrderEmailOptions = {},
+): string {
+  const intro = introFor(emailType, options.isUpdate === true)
   const closing =
     emailType === 'staff_order_summary'
       ? 'Please review the details above.'
       : "We'll review the details and contact you if anything needs clarification."
+  const cta = emailType === 'staff_order_summary' && options.confirmationUrl ? ctaHtml(options.confirmationUrl) : ''
   const greeting = summary.customerName ? `Hi ${escapeHtml(summary.customerName)},` : 'Hello,'
   const garments = summary.garments.map(renderGarment).join('')
   const prints = summary.printSpecs.map(renderPrintSpec).join('')
@@ -93,6 +120,7 @@ export function renderOrderEmailHtml(summary: CustomerOrderSummary, emailType: E
 <tr><td style="padding:12px 28px 28px 28px;font-family:${FONT};">
 <p style="margin:0 0 12px 0;font-size:15px;color:${TEXT};">${greeting}</p>
 <p style="margin:0 0 16px 0;font-size:15px;color:${TEXT};">${escapeHtml(intro)}</p>
+${cta}
 
 ${sectionHeading('Order details')}
 <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
@@ -119,16 +147,18 @@ ${notes ? sectionHeading('Your notes') + notes : ''}
 </html>`
 }
 
-export function renderOrderEmailText(summary: CustomerOrderSummary, emailType: EmailType): string {
+export function renderOrderEmailText(
+  summary: CustomerOrderSummary,
+  emailType: EmailType,
+  options: OrderEmailOptions = {},
+): string {
   const lines: string[] = []
   lines.push('Brand Fanatix', `Order ${summary.orderNumber}`, '')
   lines.push(summary.customerName ? `Hi ${summary.customerName},` : 'Hello,', '')
-  lines.push(
-    emailType === 'staff_order_summary'
-      ? "We've prepared the order details below for your review."
-      : 'Thanks for submitting your order request. Below is a copy of the information you provided.',
-    '',
-  )
+  lines.push(introFor(emailType, options.isUpdate === true), '')
+  if (emailType === 'staff_order_summary' && options.confirmationUrl) {
+    lines.push(`Review & Confirm Order: ${options.confirmationUrl}`, '')
+  }
   lines.push('ORDER DETAILS')
   if (summary.jobTitle) lines.push(`Job / title: ${summary.jobTitle}`)
   if (summary.companyName) lines.push(`Company: ${summary.companyName}`)

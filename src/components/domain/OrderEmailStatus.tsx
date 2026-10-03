@@ -9,7 +9,7 @@ import { formatDateTime } from '@/utils/date'
 import { staffErrorMessage } from '@/utils/errorMessage'
 
 const TYPE_LABEL: Record<OrderEmailType, string> = {
-  staff_order_summary: 'Order summary',
+  staff_order_summary: 'Order summary (with confirmation link)',
   customer_order_receipt: 'Order request receipt',
 }
 

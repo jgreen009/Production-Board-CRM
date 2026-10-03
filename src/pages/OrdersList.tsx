@@ -12,6 +12,9 @@ import { TableSkeleton } from '@/components/ui/LoadingSkeleton'
 import { MockupThumbnail } from '@/components/domain/MockupThumbnail'
 import { MockupPreviewDrawer } from '@/components/domain/production/MockupPreviewDrawer'
 import { OrderSourceBadge } from '@/components/domain/OrderSourceBadge'
+import { OrderConfirmationBadge } from '@/components/domain/OrderConfirmationBadge'
+import { useConfirmationRecords } from '@/hooks/useOrderConfirmations'
+import { confirmationDisplayFor } from '@/utils/orderConfirmation'
 import { useOrders } from '@/hooks/useOrders'
 import { useGeneralOrderLink } from '@/hooks/usePublicOrderLinks'
 import { publicOrderLinkUrl } from '@/utils/publicOrderLink'
@@ -64,6 +67,7 @@ export default function OrdersList() {
   const [previewOrder, setPreviewOrder] = useState<Order | null>(null)
   const [copiedGeneralLink, setCopiedGeneralLink] = useState(false)
   const { data: allOrders = [], isLoading } = useOrders()
+  const { data: confirmationRecords = {} } = useConfirmationRecords()
   const { data: generalLink } = useGeneralOrderLink()
 
   const handleCopyGeneralLink = async () => {
@@ -227,6 +231,7 @@ export default function OrdersList() {
                           {order.orderNumber}
                         </Link>
                         <OrderSourceBadge source={order.source} />
+<OrderConfirmationBadge display={confirmationDisplayFor(confirmationRecords[order.id] ?? [])} isPublicOrder={order.source === 'public_form'} />
                       </div>
                     </td>
                     <td className="px-3 py-2.5">
@@ -284,6 +289,7 @@ export default function OrdersList() {
                 extra={
                   <>
                     <OrderSourceBadge source={order.source} />
+<OrderConfirmationBadge display={confirmationDisplayFor(confirmationRecords[order.id] ?? [])} isPublicOrder={order.source === 'public_form'} />
                     <Badge className="border-zinc-200 bg-zinc-50 text-zinc-500">
                       {order.assignedTo ? order.assignedToName || 'Unnamed staff' : 'Unassigned'}
                     </Badge>

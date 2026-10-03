@@ -10,10 +10,12 @@
 // successful submission, so anonymous callers have no route to it.
 //
 // Deployed WITH JWT verification (the default). Do not add --no-verify-jwt.
+// Staff summaries include the Review & Confirm link, so APP_PUBLIC_URL must be set.
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.4'
 import { EMAIL_TYPES, type EmailType } from '../_shared/email/policy.ts'
 import { sendOrderEmail } from '../_shared/email/sendOrderEmail.ts'
+import { requireActiveStaff } from '../_shared/auth.ts'
 
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
@@ -44,19 +46,8 @@ Deno.serve(async (req: Request) => {
   try {
     const admin = adminClient()
 
-    const authHeader = req.headers.get('authorization') ?? ''
-    const jwt = authHeader.startsWith('Bearer ') ? authHeader.slice('Bearer '.length) : ''
-    if (!jwt) return json({ error: 'Not signed in' }, 401)
-
-    const { data: userData, error: userError } = await admin.auth.getUser(jwt)
-    if (userError || !userData.user) return json({ error: 'Not signed in' }, 401)
-
-    const { data: profile } = await admin
-      .from('profiles')
-      .select('is_active')
-      .eq('id', userData.user.id)
-      .maybeSingle()
-    if (!profile || !profile.is_active) return json({ error: 'Not authorized' }, 403)
+    const auth = await requireActiveStaff(admin, req.headers.get('authorization'))
+    if (!auth.ok) return json({ error: auth.status === 401 ? 'Not signed in' : 'Not authorized' }, auth.status)
 
     const body = (await req.json().catch(() => null)) as { orderId?: unknown; emailType?: unknown; retry?: unknown } | null
     if (!body || typeof body.orderId !== 'string' || !UUID.test(body.orderId)) {
@@ -68,7 +59,11 @@ Deno.serve(async (req: Request) => {
 
     const result = await sendOrderEmail(
       admin,
-      { apiKey: Deno.env.get('RESEND_API_KEY'), from: Deno.env.get('EMAIL_FROM') },
+      {
+        apiKey: Deno.env.get('RESEND_API_KEY'),
+        from: Deno.env.get('EMAIL_FROM'),
+        appPublicUrl: Deno.env.get('APP_PUBLIC_URL'),
+      },
       { orderId: body.orderId, emailType: body.emailType as EmailType, isRetry: body.retry === true },
     )
 

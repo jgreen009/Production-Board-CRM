@@ -225,6 +225,7 @@ export interface OrderActivityEntry {
     | 'mockup'
     | 'payment'
     | 'assignment'
+    | 'customer_confirmation'
 }
 
 export interface Customer {

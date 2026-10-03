@@ -16,6 +16,7 @@ import CustomersList from '@/pages/CustomersList'
 import CustomerDetail from '@/pages/CustomerDetail'
 import PublicOrderLinks from '@/pages/PublicOrderLinks'
 import PublicOrderForm from '@/pages/PublicOrderForm'
+import PublicOrderConfirmation from '@/pages/PublicOrderConfirmation'
 import SettingsIndex from '@/pages/settings/SettingsIndex'
 import SettingsGarments from '@/pages/settings/SettingsGarments'
 import SettingsServices from '@/pages/settings/SettingsServices'
@@ -69,6 +70,7 @@ export default function App() {
               This is the one route in the app a fully anonymous visitor
               can reach. */}
           <Route path="/order-request/:token" element={<PublicOrderForm />} />
+          <Route path="/order-confirmation/:token" element={<PublicOrderConfirmation />} />
           <Route element={<RequireAuth />}>
             <Route path="/change-password" element={<ChangePassword />} />
             <Route element={<AppShell />}>

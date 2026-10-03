@@ -4,6 +4,7 @@ import type { Order } from '@/types'
 import { StatusBadge } from '@/components/domain/StatusBadge'
 import { MockupThumbnail } from '@/components/domain/MockupThumbnail'
 import { OrderEmailStatus } from '@/components/domain/OrderEmailStatus'
+import { CustomerConfirmationCard } from '@/components/domain/CustomerConfirmationCard'
 import { Card, CardBody, CardHeader } from '@/components/ui/Card'
 import { formatDate } from '@/utils/date'
 
@@ -63,7 +64,12 @@ export function OverviewTab({ order, isRealOrder }: { order: Order; isRealOrder:
         </CardBody>
       </Card>
 
-      {isRealOrder && <OrderEmailStatus orderId={order.id} isPublicOrder={order.source === 'public_form'} />}
+      {isRealOrder && (
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+          <OrderEmailStatus orderId={order.id} isPublicOrder={order.source === 'public_form'} />
+          <CustomerConfirmationCard orderId={order.id} isPublicOrder={order.source === 'public_form'} />
+        </div>
+      )}
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         <Card className="lg:col-span-2">

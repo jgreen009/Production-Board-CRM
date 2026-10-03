@@ -165,9 +165,9 @@ describe('templates', () => {
   it('public receipt subject is correct', () => {
     expect(subjectFor('customer_order_receipt', 'SP-1500')).toBe('We received your Brand Fanatix order request — SP-1500')
   })
-  it('staff email uses review wording', () => {
-    const html = renderOrderEmailHtml(summary, 'staff_order_summary')
-    expect(html).toContain("We&#39;ve prepared the order details below for your review.")
+  it('staff email uses confirmation wording', () => {
+    const html = renderOrderEmailHtml(summary, 'staff_order_summary', { confirmationUrl: 'https://x.test/order-confirmation/t' })
+    expect(html).toContain('use the button below to confirm the order.')
   })
   it('customer receipt uses receipt wording', () => {
     const html = renderOrderEmailHtml(summary, 'customer_order_receipt')
@@ -281,9 +281,9 @@ describe('send decisions (idempotency and retry)', () => {
     expect(decideSend([{ status: 'queued' }], true)).toEqual({ action: 'skip', reason: 'in_progress' })
   })
   it('idempotency keys differ per attempt so a retry is never answered from a cached failure', () => {
-    const first = idempotencyKeyFor('o1', 'staff_order_summary', 1)
-    const retry = idempotencyKeyFor('o1', 'staff_order_summary', 2)
-    expect(first).toBe('order:o1:staff_order_summary:attempt1')
+    const first = idempotencyKeyFor('o1', 'staff_order_summary', null, 1)
+    const retry = idempotencyKeyFor('o1', 'staff_order_summary', null, 2)
+    expect(first).toBe('order:o1:staff_order_summary:none:attempt1')
     expect(retry).not.toBe(first)
   })
 })

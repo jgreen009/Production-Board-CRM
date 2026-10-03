@@ -12,6 +12,7 @@ import { useUpdateOrderWithActivity, useUpsertOrder, useOrder, useOrderFormValue
 import { useActiveStaff } from '@/hooks/useStaff'
 import { logReorderActivity } from '@/api/orders'
 import { requestOrderEmail } from '@/api/orderEmails'
+import { useReconcileConfirmation } from '@/hooks/useOrderConfirmations'
 import { uploadArtwork, copyReferencedArtworkForReorder } from '@/api/artwork'
 import { useToast } from '@/components/ui/toast-context'
 import { orderSaveErrorMessage } from '@/utils/errorMessage'
@@ -62,6 +63,7 @@ export function OrderFormEditor({ orderId: existingOrderId, initialValues, previ
   const { showToast } = useToast()
   const upsertOrder = useUpsertOrder()
   const updateOrderWithActivity = useUpdateOrderWithActivity()
+  const reconcileConfirmation = useReconcileConfirmation(existingOrderId)
   const { data: activeStaff = [] } = useActiveStaff()
 
   const [orderId, setOrderId] = useState<string | null>(existingOrderId ?? null)
@@ -200,6 +202,9 @@ export function OrderFormEditor({ orderId: existingOrderId, initialValues, previ
           previous: previousOrder,
           newAssigneeName,
         })
+        // An edit to customer-visible content supersedes a confirmation the
+        // customer already gave. Failure here must not block the saved edit.
+        await reconcileConfirmation.mutateAsync().catch(() => null)
         showToast('Order updated', 'success')
         navigate(`/orders/${id}`)
       } else {

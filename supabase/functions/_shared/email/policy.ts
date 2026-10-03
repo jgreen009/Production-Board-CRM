@@ -10,6 +10,8 @@ export const EMAIL_STATUSES_LIVE = ['queued', 'sent', 'delivered'] as const
 export type EmailErrorCategory =
   | 'no_valid_recipient'
   | 'sender_not_configured'
+  | 'app_url_not_configured'
+  | 'confirmation_unavailable'
   | 'resend_rejected_request'
   | 'resend_sender_rejected'
   | 'resend_rate_limited'
@@ -18,8 +20,12 @@ export type EmailErrorCategory =
   | 'timed_out'
   | 'internal_error'
 
-export function subjectFor(emailType: EmailType, orderNumber: string): string {
-  if (emailType === 'staff_order_summary') return `Brand Fanatix Order ${orderNumber} — Please Review`
+export function subjectFor(emailType: EmailType, orderNumber: string, isUpdate = false): string {
+  if (emailType === 'staff_order_summary') {
+    return isUpdate
+      ? `Brand Fanatix Order ${orderNumber} — Updated, Please Review`
+      : `Brand Fanatix Order ${orderNumber} — Please Review`
+  }
   return `We received your Brand Fanatix order request — ${orderNumber}`
 }
 
@@ -56,8 +62,13 @@ export function decideSend(existing: ExistingAttempt[], isRetry: boolean): SendD
 // Resend's Idempotency-Key is honoured for 24h, so every attempt gets its own
 // key. Otherwise a retry after a genuine failure would be answered from the
 // cached failure instead of actually sending.
-export function idempotencyKeyFor(orderId: string, emailType: EmailType, attempt: number): string {
-  return `order:${orderId}:${emailType}:attempt${attempt}`
+export function idempotencyKeyFor(
+  orderId: string,
+  emailType: EmailType,
+  confirmationId: string | null,
+  attempt: number,
+): string {
+  return `order:${orderId}:${emailType}:${confirmationId ?? 'none'}:attempt${attempt}`
 }
 
 // Cheap syntactic check only. Resend is the real judge of deliverability,
