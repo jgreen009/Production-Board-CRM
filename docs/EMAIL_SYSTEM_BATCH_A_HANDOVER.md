@@ -1,6 +1,6 @@
 # Email System — Batch A Handover (Transactional Order Email)
 
-**Status: deployed to production (Supabase + Netlify) and live-verified for every path that does not need a Resend key. The real provider send is NOT yet verified: `RESEND_API_KEY` and `EMAIL_FROM` are not set.**
+**Status: deployed to production (Supabase + Netlify) and live-verified, including real Resend sends. Batch A is complete pending a mail-client check of the rendered emails.**
 
 ## 0. Status and remaining work
 
@@ -10,10 +10,10 @@ Done and verified:
 - Frontend deployed to Netlify production (`globalteez.com`, site `salt-prints`) from the local `dist/` build.
 - Supabase security advisor: only the 4 pre-existing findings. Performance advisor: 0 findings.
 
-Remaining (one item, needs the user):
-1. Set the secrets: `supabase secrets set RESEND_API_KEY=... EMAIL_FROM="Brand Fanatix <orders@globalteez.com>" --project-ref pphzbtqfttfkaphmwutr`.
-2. Confirm `globalteez.com` shows *Verified* in Resend. Verification was not checked from here (no Resend access).
-3. Then run a real send (§19-A and §19-B). Until the key exists, every new order shows the "email could not be sent" warning. This is expected, and the order is still created.
+Secrets set in Supabase Edge Function secrets: `RESEND_API_KEY`, `EMAIL_FROM`. Resend accepted sends from `EMAIL_FROM`, so the sending domain is accepted for sending.
+
+Remaining:
+1. Open a real staff-created order summary and a public receipt in a mail client (sandbox sends were accepted by Resend but not inspected in an inbox), and check layout and mockup images.
 
 Deno type-check: not run (Deno unavailable here). The functions are exercised by the live tests in §19 instead.
 
@@ -248,11 +248,12 @@ Run against production on 2026-10-03 with disposable data (a throwaway staff use
 | Public submission with receipt failure | 200 with real `SP-` number; receipt row `failed` / `sender_not_configured`; order `public_form`, `Active` |
 | General link after a submission | Still valid (not consumed) |
 
-Not yet verified (needs the Resend key, §0):
-- **A.** Staff-created order → `sent` row with `resend_email_id`.
-- **B.** Public order → receipt `sent` row.
-- **D.** Duplicate guard on a real sent email.
-- Reading the emails themselves in a mail client, and mockup images in them.
+Real Resend sends (recipient `delivered@resend.dev`, Resend's sandbox address, so no customer received mail):
+- **A.** Staff-created order summary → `sent`, `resend_email_id` stored.
+- **B.** Public order receipt → `sent`, `resend_email_id` stored.
+- **D.** Duplicate automatic trigger and retry of a sent email both refused (`already_sent`); still one row.
+
+Not yet verified: how the emails look in a mail client, and whether mockup images render.
 
 The receipt-failure case above proves the failure isolation the brief required. The retry path is proven because the second attempt was actually processed.
 
